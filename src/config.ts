@@ -8,6 +8,8 @@ export interface AppConfig {
   port: number;
   allowPublicBind: boolean;
   apiKey: string;
+  /** Distinct from the spend key. Null disables operator HTTP (CLI on the ledger file remains). */
+  operatorKey: string | null;
   ledgerPath: string;
   priceTablePath: string;
   upstreamBaseURL: string;
@@ -46,6 +48,21 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, options: { requ
   if (openai && openai === apiKey) {
     throw new Error("OPENAI_API_KEY and BURNBRAKE_KEY must be different secrets.");
   }
+  const operatorKey = (env.BURNBRAKE_OPERATOR_KEY ?? "").trim();
+  if (operatorKey && !operatorKey.startsWith("bb_")) {
+    throw new Error("BURNBRAKE_OPERATOR_KEY must start with bb_. Never reuse the provider API key.");
+  }
+  if (operatorKey.startsWith("sk-")) {
+    throw new Error("BURNBRAKE_OPERATOR_KEY must not be a provider API key.");
+  }
+  if (operatorKey && apiKey && operatorKey === apiKey) {
+    throw new Error(
+      "BURNBRAKE_OPERATOR_KEY must be distinct from BURNBRAKE_KEY. The spend key cannot change caps, pause, or force-release.",
+    );
+  }
+  if (openai && operatorKey && openai === operatorKey) {
+    throw new Error("OPENAI_API_KEY and BURNBRAKE_OPERATOR_KEY must be different secrets.");
+  }
   const port = parsePort(env.BURNBRAKE_PORT ?? String(DEFAULT_PORT));
   const defaultMaxTokens = parsePositiveInt(env.BURNBRAKE_DEFAULT_MAX_TOKENS, DEFAULT_MAX_TOKENS, "BURNBRAKE_DEFAULT_MAX_TOKENS");
   const reservationTtlMs = parsePositiveInt(
@@ -58,6 +75,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, options: { requ
     port,
     allowPublicBind,
     apiKey,
+    operatorKey: operatorKey || null,
     ledgerPath: env.BURNBRAKE_LEDGER_PATH ?? "data/burnbrake.sqlite",
     priceTablePath: env.BURNBRAKE_PRICE_TABLE ?? defaultPriceTablePath(),
     upstreamBaseURL: (env.BURNBRAKE_UPSTREAM_BASE_URL ?? "https://api.openai.com").replace(/\/$/, ""),

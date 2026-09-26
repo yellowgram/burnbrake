@@ -153,6 +153,77 @@ describe("sidecar spend path", () => {
     }
   });
 
+  it("rejects the spend key on operator routes and accepts the operator key", async () => {
+    const sidecar = await bootSidecar();
+    try {
+      const set = await operator(sidecar, "POST", "/v1/operator/caps", {
+        scope: "run",
+        key: "run-ops",
+        cap_micros: 1_000_000,
+      });
+      assert.equal(set.status, 200);
+      const spend = await fetch(`${sidecar.baseURL}/v1/operator/caps`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-burnbrake-key": "bb_test_key" },
+        body: JSON.stringify({ scope: "run", key: "run-ops", cap_micros: 50_000_000 }),
+      });
+      const spendBody = await spend.json();
+      assert.equal(spend.status, 401);
+      assert.equal(spendBody.error.code, "AUTH_REQUIRED");
+      const after = await operator(sidecar, "GET", "/v1/operator/balances?run_id=run-ops");
+      const capAfter = after.json.scopes.find((scope: { scope: string }) => scope.scope === "run").cap_micros;
+      assert.equal(capAfter, 1_000_000);
+    } finally {
+      await sidecar.close();
+    }
+
+    const disabled = await bootSidecar({ operatorKey: "" });
+    try {
+      const blocked = await fetch(`${disabled.baseURL}/v1/operator/caps`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-burnbrake-key": "bb_test_key" },
+        body: JSON.stringify({ scope: "run", key: "run-1", cap_usd: "100" }),
+      });
+      const blockedBody = await blocked.json();
+      assert.equal(blocked.status, 403);
+      assert.equal(blockedBody.error.code, "OPERATOR_KEY_REQUIRED");
+      const row = disabled.ledger.balances({ runId: "run-1" }).scopes.find((scope) => scope.scope === "run");
+      assert.equal(row, undefined);
+      const health = await fetch(`${disabled.baseURL}/health`);
+      const healthBody = await health.json();
+      assert.equal(healthBody.operator_http, false);
+    } finally {
+      await disabled.close();
+    }
+  });
+
+  it("seals the idempotency key when the reservation is debited before upstream", async () => {
+    const sidecar = await bootSidecar({
+      beforeForward: async () => {
+        throw new Error("boom");
+      },
+    });
+    try {
+      const first = await postChat(sidecar, { idempotencyKey: "seal-1", runId: "run-seal" });
+      assert.equal(first.status, 502);
+      assert.equal(first.json.error.code, "UPSTREAM_ERROR");
+      assert.equal(sidecar.mock.forwardCount, 0);
+      const balances = await operator(sidecar, "GET", "/v1/operator/balances?run_id=run-seal");
+      const run = balances.json.scopes.find((scope: { scope: string }) => scope.scope === "run");
+      assert.ok(run.spent_micros > 0);
+      assert.equal(run.held_micros, 0);
+      const second = await postChat(sidecar, { idempotencyKey: "seal-1", runId: "run-seal" });
+      assert.equal(second.status, 502);
+      assert.equal(second.json.error.code, "UPSTREAM_ERROR");
+      assert.equal(sidecar.mock.forwardCount, 0);
+      const replayed = await operator(sidecar, "GET", "/v1/operator/balances?run_id=run-seal");
+      const runAfter = replayed.json.scopes.find((scope: { scope: string }) => scope.scope === "run");
+      assert.equal(runAfter.spent_micros, run.spent_micros);
+    } finally {
+      await sidecar.close();
+    }
+  });
+
   it("kills a run so the next reserve does not forward", async () => {
     const sidecar = await bootSidecar();
     try {
@@ -201,6 +272,17 @@ describe("bind and auth config", () => {
     assert.equal(allowed.failClosed, true);
     assert.throws(() => loadConfig({ BURNBRAKE_KEY: "bb_test_key", BURNBRAKE_FAIL_OPEN: "1" }), /fail-open/i);
     assert.throws(() => loadConfig({ BURNBRAKE_KEY: "sk-provider" }), /bb_/);
+    assert.throws(
+      () => loadConfig({ BURNBRAKE_KEY: "bb_test_key", BURNBRAKE_OPERATOR_KEY: "bb_test_key" }),
+      /distinct/,
+    );
+    assert.throws(
+      () => loadConfig({ BURNBRAKE_KEY: "bb_test_key", BURNBRAKE_OPERATOR_KEY: "sk-provider" }),
+      /bb_/,
+    );
+    const split = loadConfig({ BURNBRAKE_KEY: "bb_spend", BURNBRAKE_OPERATOR_KEY: "bb_ops" });
+    assert.equal(split.apiKey, "bb_spend");
+    assert.equal(split.operatorKey, "bb_ops");
   });
 
   it("refuses to listen on a public address unless the flag is set", async () => {
@@ -231,7 +313,7 @@ async function operator(
     method,
     headers: {
       "content-type": "application/json",
-      "x-burnbrake-key": "bb_test_key",
+      "x-burnbrake-key": "bb_test_operator",
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });

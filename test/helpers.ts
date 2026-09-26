@@ -12,6 +12,7 @@ export async function bootSidecar(overrides: StartOptions & { caps?: DefaultCaps
   const caps = overrides.caps ?? { user: null, run: 1_000_000, day: null };
   return startSidecar({
     apiKey: "bb_test_key",
+    operatorKey: "bb_test_operator",
     host: "127.0.0.1",
     port: 0,
     allowPublicBind: false,

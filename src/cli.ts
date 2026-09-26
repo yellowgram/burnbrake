@@ -30,8 +30,11 @@ const HELP = `BurnBrake — request-path spend governor (cap + kill)
   burnbrake reservations [--state FORWARDED] [--run id]
 
 The CLI reads the SQLite ledger directly (BURNBRAKE_LEDGER_PATH or --ledger).
-Auth rotation: change BURNBRAKE_KEY and restart the sidecar. Every agent on this
-deploy must pick up the new key. Do not rotate by pasting the provider key.
+Filesystem access to that file is operator control. Protect the file.
+HTTP /v1/operator/* requires BURNBRAKE_OPERATOR_KEY, a bb_ secret distinct from
+BURNBRAKE_KEY and from the provider key. If it is unset, operator HTTP is off.
+Auth rotation: change BURNBRAKE_KEY (agents) and BURNBRAKE_OPERATOR_KEY (operator
+HTTP), then restart. Do not rotate by pasting the provider key.
 `;
 
 export async function execute(argv: string[], io: Io = defaultIo()): Promise<number> {

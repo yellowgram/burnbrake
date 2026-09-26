@@ -2,7 +2,7 @@
 
 Canonical copy: the repository [README](../README.md) section **START_HERE**. This page is the short path.
 
-1. `BURNBRAKE_KEY=bb_…` and caps for **user and/or day**, plus run if you want it. Default listen `127.0.0.1`.
+1. `BURNBRAKE_KEY=bb_…` and caps for **user and/or day**, plus run if you want it. Default listen `127.0.0.1`. Operator HTTP uses a different `BURNBRAKE_OPERATOR_KEY`. The spend key cannot change caps.
 2. `OPENAI_BASE_URL=http://127.0.0.1:8787/v1` (SDK `baseURL` without `/v1`).
 3. Header `X-BurnBrake-Key` or `Authorization: Bearer bb_…`. Never the provider key.
 4. Search the app for a second client aimed at `api.openai.com`. BurnBrake only sees calls that hit the sidecar.

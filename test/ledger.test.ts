@@ -113,6 +113,44 @@ describe("ledger reservations", () => {
     ledger.close();
   });
 
+  it("does not re-reserve an idempotency key whose reservation is already terminal", () => {
+    const ledger = new Ledger(tempLedgerPath(), { defaultCaps: { user: null, run: 10_000, day: null } });
+    const reserved = ledger.reserve(input({ estimateMicros: 400, runId: "r", idempotencyKey: "stuck" }));
+    assert.equal(reserved.kind, "reserved");
+    if (reserved.kind !== "reserved") return;
+    ledger.markForwarded(reserved.reservationId);
+    ledger.debitReserved(reserved.reservationId, "DEBIT_UPSTREAM_UNKNOWN");
+    const again = ledger.reserve(input({ estimateMicros: 400, runId: "r", idempotencyKey: "stuck" }));
+    assert.notEqual(again.kind, "reserved");
+    assert.equal(again.kind, "replay");
+    if (again.kind === "replay") {
+      assert.equal(again.httpStatus, 409);
+      const body = JSON.parse(again.body) as { error: { code: string } };
+      assert.equal(body.error.code, "ALREADY_TERMINAL");
+    }
+    const balance = ledger.balances({ runId: "r" }).scopes.find((scope) => scope.scope === "run");
+    assert.equal(balance?.spent_micros, 400);
+    assert.equal(balance?.held_micros, 0);
+    ledger.close();
+  });
+
+  it("leaves a debit in place when releaseNoCharge runs after DEBIT_RESERVED", () => {
+    const ledger = new Ledger(tempLedgerPath(), { defaultCaps: { user: null, run: 10_000, day: null } });
+    const reserved = ledger.reserve(input({ estimateMicros: 250, runId: "r", idempotencyKey: "charged" }));
+    assert.equal(reserved.kind, "reserved");
+    if (reserved.kind !== "reserved") return;
+    ledger.markForwarded(reserved.reservationId);
+    ledger.debitReserved(reserved.reservationId, "DEBIT_TTL_OR_CRASH");
+    assert.doesNotThrow(() => ledger.releaseNoCharge(reserved.reservationId));
+    const row = ledger.getReservation(reserved.reservationId);
+    assert.equal(row?.state, "DEBIT_RESERVED");
+    assert.equal(row?.terminal_reason, "DEBIT_TTL_OR_CRASH");
+    const balance = ledger.balances({ runId: "r" }).scopes.find((scope) => scope.scope === "run");
+    assert.equal(balance?.spent_micros, 250);
+    assert.equal(balance?.held_micros, 0);
+    ledger.close();
+  });
+
   it("refuses to open a read-only ledger", () => {
     const path = tempLedgerPath();
     const ledger = new Ledger(path, { defaultCaps: { user: null, run: 1, day: null } });

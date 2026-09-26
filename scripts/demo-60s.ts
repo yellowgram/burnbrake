@@ -6,8 +6,10 @@ import { startSidecar } from "../src/server.ts";
 
 const started = Date.now();
 const key = "bb_demo_key";
+const operatorKey = "bb_demo_operator";
 const sidecar = await startSidecar({
   apiKey: key,
+  operatorKey,
   host: "127.0.0.1",
   port: 0,
   mockUpstream: true,
@@ -54,7 +56,7 @@ try {
   console.log(`10–25s allow  HTTP ${allow.status}  mock_forward_count=${sidecar.mock.forwardCount}  completion=${allowBody.choices?.[0]?.message?.content}`);
 
   const balanceResponse = await fetch(`${sidecar.baseURL}/v1/operator/balances?user_id=demo-user&run_id=demo-run`, {
-    headers: { "x-burnbrake-key": key },
+    headers: { "x-burnbrake-key": operatorKey },
   });
   const balances = await balanceResponse.json();
   const run = balances.scopes.find((scope: { scope: string }) => scope.scope === "run");
@@ -65,7 +67,7 @@ try {
 
   const lowered = await fetch(`${sidecar.baseURL}/v1/operator/caps`, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-burnbrake-key": key },
+    headers: { "content-type": "application/json", "x-burnbrake-key": operatorKey },
     body: JSON.stringify({ scope: "run", key: "demo-run", cap_micros: run.spent_micros }),
   });
   assertStep(lowered.status === 200, "lower run cap");
@@ -92,7 +94,7 @@ try {
 
   const decisionResponse = await fetch(
     `${sidecar.baseURL}/v1/operator/decisions?deny_only=1&run_id=demo-run`,
-    { headers: { "x-burnbrake-key": key } },
+    { headers: { "x-burnbrake-key": operatorKey } },
   );
   const decisions = await decisionResponse.json();
   const denied = decisions.decisions.find((row: { code: string }) => row.code === "BUDGET_EXHAUSTED");

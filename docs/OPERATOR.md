@@ -2,7 +2,9 @@
 
 Full see/do list: [OPERATOR_NEEDS.md](./OPERATOR_NEEDS.md). This page is the shipped control surface.
 
-The CLI opens the SQLite ledger (`BURNBRAKE_LEDGER_PATH` or `--ledger`) and can run while the sidecar is up. HTTP routes under `/v1/operator/*` use the same BurnBrake key as the spend path.
+The CLI opens the SQLite ledger (`BURNBRAKE_LEDGER_PATH` or `--ledger`) and can run while the sidecar is up. Whoever can read that file can change caps. Protect the file.
+
+HTTP routes under `/v1/operator/*` require `BURNBRAKE_OPERATOR_KEY`, a `bb_…` secret that is not `BURNBRAKE_KEY` and not the provider key. Send it as `X-BurnBrake-Key` or `Authorization: Bearer bb_…` on those routes only. The spend key is rejected (401). If the operator key is unset, operator HTTP returns 403 `OPERATOR_KEY_REQUIRED` and does not fall back to the spend key.
 
 ## Balances
 
@@ -58,11 +60,12 @@ Force-release without the attestation flag is refused. Misuse lets remaining lie
 
 ## Auth rotation
 
-1. Set a new `BURNBRAKE_KEY` that starts with `bb_`.
-2. Restart the sidecar.
-3. Update every agent on this deploy.
+1. Set a new `BURNBRAKE_KEY` that starts with `bb_` for agents.
+2. Set a different `BURNBRAKE_OPERATOR_KEY` (`bb_…`) if you use operator HTTP.
+3. Restart the sidecar.
+4. Update every agent on this deploy, and every operator client.
 
-One secret for the whole deploy. Do not put `OPENAI_API_KEY` in `BURNBRAKE_KEY`. `/health` does not echo the secret. Do not paste either key into a support ticket.
+Do not put `OPENAI_API_KEY` in either BurnBrake key, and do not reuse the spend key as the operator key. `/health` does not echo secrets. Do not paste any key into a support ticket.
 
 ## Bind
 

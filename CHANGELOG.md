@@ -11,7 +11,9 @@ Self-host MVP sidecar. Cap + kill on the request path.
 - Static versioned price table. Unpriced models denied. Stale table warns at 30 days
 - Default bind `127.0.0.1`. Auth `X-BurnBrake-Key` or Bearer `bb_…`
 - Thin TypeScript SDK with a required idempotency key
-- Operator CLI and HTTP for balances, decisions, kill/pause, and caps
+- Operator CLI on the ledger file. Operator HTTP requires a distinct `BURNBRAKE_OPERATOR_KEY`
+- Estimate multiplies the output ceiling by `n` / `best_of`. Usage accepts `input_tokens` / `output_tokens`
+- A terminal idempotency key is not reserved again. A debit after forward is not released as no-charge
 - Offline mock-upstream demo
 
 Polar listing stays dark. Not Polar-ready. Soft-WTP is off.

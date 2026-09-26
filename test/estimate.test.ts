@@ -37,6 +37,50 @@ describe("estimate", () => {
     assert.ok(explicit.micros > injected.micros);
   });
 
+  it("multiplies the output ceiling by n and best_of without rewriting them", () => {
+    const one = estimateRequest(
+      { model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }], max_tokens: 100 },
+      table,
+      4096,
+      "/v1/chat/completions",
+    );
+    const four = estimateRequest(
+      { model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }], max_tokens: 100, n: 4 },
+      table,
+      4096,
+      "/v1/chat/completions",
+    );
+    assert.equal(one.ok, true);
+    assert.equal(four.ok, true);
+    if (!one.ok || !four.ok) return;
+    assert.equal(four.outputTokens, one.outputTokens * 4);
+    assert.ok(four.micros > one.micros);
+    assert.equal(four.forwardBody.max_tokens, 100);
+    assert.equal(four.forwardBody.n, 4);
+    assert.equal(one.forwardBody.n, undefined);
+
+    const best = estimateRequest(
+      { model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }], max_tokens: 100, n: 2, best_of: 5 },
+      table,
+      4096,
+      "/v1/chat/completions",
+    );
+    assert.equal(best.ok, true);
+    if (!best.ok) return;
+    assert.equal(best.outputTokens, one.outputTokens * 5);
+    assert.equal(best.forwardBody.best_of, 5);
+
+    const rejected = estimateRequest(
+      { model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }], max_tokens: 16, n: 0 },
+      table,
+      4096,
+      "/v1/chat/completions",
+    );
+    assert.equal(rejected.ok, false);
+    if (rejected.ok) return;
+    assert.equal(rejected.code, "BAD_REQUEST");
+  });
+
   it("denies unknown content instead of pricing it at zero", () => {
     const result = estimateRequest(
       {

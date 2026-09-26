@@ -25,7 +25,7 @@ BurnBrake only governs traffic that hits the sidecar. A second client pointed at
    node --disable-warning=ExperimentalWarning dist/cli.js serve
    ```
 
-   Default listen is `127.0.0.1:8787`. Copy `config.example.env` if you prefer a file. Set **user and/or day** as well as run. A per-run cap alone is washable by minting new run ids.
+   Default listen is `127.0.0.1:8787`. Copy `config.example.env` if you prefer a file. Set **user and/or day** as well as run. A per-run cap alone is washable by minting new run ids. Operator HTTP (`/v1/operator/*`) needs a different `BURNBRAKE_OPERATOR_KEY`. The spend key cannot change caps.
 
 2. Send `X-BurnBrake-Key` (or `Authorization: Bearer bb_…`). Never put the provider API key in that header, and never send the BurnBrake key upstream. `OPENAI_API_KEY` is used only on the sidecar → provider hop.
 
@@ -43,7 +43,7 @@ BurnBrake only governs traffic that hits the sidecar. A second client pointed at
 
 6. Halt the agent loop on 402. Do not retry it as a rate limit, and do not open another base URL to get around it.
 
-7. For long jobs, set your own `max_tokens`. The sidecar injects `max_tokens=4096` **only when you omit it**. It will not silently lower a higher ceiling you set. A high ceiling reserves more and can deny earlier. That is the gate working.
+7. For long jobs, set your own `max_tokens`. The sidecar injects `max_tokens=4096` **only when you omit it**. It will not silently lower a higher ceiling you set. A high ceiling reserves more and can deny earlier. That is the gate working. `n` and `best_of`, when present, multiply that output ceiling. They are forwarded unchanged.
 
 Offline proof (mock upstream, no provider spend):
 
@@ -84,7 +84,7 @@ Once a call is `FORWARDED`, BurnBrake does not reject it mid-stream. The next ca
 
 ## Idempotency
 
-The TypeScript SDK **requires** `idempotencyKey` on every happy-path call. Raw HTTP may omit `Idempotency-Key` / `x-burnbrake-request-id`, but that is loud on purpose: a retry after the sidecar has forwarded, sent without that key, can start a second provider call. Retries after forward must carry the same key. The same key does not double-forward. A new logical attempt needs a new key (a stored 402 is replayed for the old key).
+The TypeScript SDK **requires** `idempotencyKey` on every happy-path call. Raw HTTP may omit `Idempotency-Key` / `x-burnbrake-request-id`, but that is loud on purpose: a retry after the sidecar has forwarded, sent without that key, can start a second provider call. Retries after forward must carry the same key. The same key does not double-forward. A key whose reservation is already terminal is not reserved again: the stored response is replayed, or the retry gets **409** `ALREADY_TERMINAL` if no body was stored. A new logical attempt needs a new key (a stored 402 is replayed for the old key).
 
 ## Routes
 
@@ -122,11 +122,11 @@ burnbrake top-runs --window 1h
 burnbrake force-release --reservation <id> --reason "provider confirmed no charge" --attest-no-charge
 ```
 
-The same controls are on `/v1/operator/*` with the BurnBrake key: `balances`, `decisions`, `reservations`, `runs/top`, `runs/kill`, `pause`, `resume`, `caps`, `force-release`.
+The same controls are on `/v1/operator/*` (`balances`, `decisions`, `reservations`, `runs/top`, `runs/kill`, `pause`, `resume`, `caps`, `force-release`). Those routes require `BURNBRAKE_OPERATOR_KEY`: a `bb_…` secret that is not `BURNBRAKE_KEY` and not the provider key. Send it as `X-BurnBrake-Key` or `Authorization: Bearer bb_…` on operator routes. The spend key is rejected. If the operator key is unset, operator HTTP returns **403** `OPERATOR_KEY_REQUIRED` and does not fall back to the spend key, including on localhost. The CLI does not use that key; access to the SQLite file is operator control, so protect the file.
 
-`GET /health` (no key) reports listen address, `auth.required`, `ledger.writable`, `fail_closed`, price-table `version` / `priced_at` / stale flag, and `estimate.default_max_tokens`. It never echoes secrets.
+`GET /health` (no key) reports listen address, `auth.required`, `operator_http`, `ledger.writable`, `fail_closed`, price-table `version` / `priced_at` / stale flag, and `estimate.default_max_tokens`. It never echoes secrets.
 
-Auth rotation: change `BURNBRAKE_KEY`, restart the sidecar, and update every agent on this deploy. One secret per deploy. Do not rotate by swapping in the provider key.
+Auth rotation: change `BURNBRAKE_KEY` for agents and `BURNBRAKE_OPERATOR_KEY` for operator HTTP, restart the sidecar, and update every client. Do not rotate by swapping in the provider key.
 
 Force-release is audited and only for a stuck row you have proved was not charged. The default for crash or TTL while `FORWARDED` is **DEBIT_RESERVED** (the estimate is spent). A `RESERVED` row that never forwarded is released. TTL is **15 minutes**.
 
@@ -191,10 +191,14 @@ npm run demo
 
 ## Known limits
 
-- One in-flight call can settle above the reserve, or a crash can debit the estimate. The next call is gated.
+- One in-flight call can settle above the reserve, or a crash can debit the estimate. The next call is gated. Tool and vision ceilings are flat allowances, so that one call can still overshoot. Debt gates the next call. This is not a promise of zero overspend.
+- The idempotency table stores upstream response bodies so a retry can replay them. There is no retention window. The SQLite file is sensitive. Treat it as a secret. Decision rows do not store prompts.
+- A day cap set only on one UTC date (`--key` / `key` for that date) does not roll to the next day. Set the default day cap (omit the key) if you want the fence to continue.
 - Skewed clocks across writers that do not share this ledger can split the UTC day bucket.
 - A client that ignores the sidecar is not stopped.
 - Per-run caps alone can be washed by rotating `run_id`.
-- Not Polar-ready. No zip or SHA is published. Listing stays dark until a founder go-live.
+- Filesystem access to the ledger is full operator control. The CLI has no key of its own.
+- `X-BurnBrake-Key` comparison returns early when the lengths differ, so a local observer can learn the secret's length. It does not reveal the secret.
+- Not Polar-ready. No zip or SHA is published. Listing stays dark until a founder go-live. Soft-WTP stays off.
 
 Design record and LaunchGate freezes: [docs/LAUNCHGATE_DR4_VERDICT.md](docs/LAUNCHGATE_DR4_VERDICT.md).

@@ -17,6 +17,7 @@ export interface StartOptions {
   port?: number;
   allowPublicBind?: boolean;
   apiKey?: string;
+  operatorKey?: string;
   ledgerPath?: string;
   priceTablePath?: string;
   mockUpstream?: boolean;
@@ -42,6 +43,7 @@ export interface RunningSidecar {
 export async function startSidecar(options: StartOptions = {}): Promise<RunningSidecar> {
   const env = { ...process.env, ...options.env };
   if (options.apiKey) env.BURNBRAKE_KEY = options.apiKey;
+  if (options.operatorKey != null) env.BURNBRAKE_OPERATOR_KEY = options.operatorKey;
   if (options.host) env.BURNBRAKE_HOST = options.host;
   if (options.port != null) env.BURNBRAKE_PORT = String(options.port);
   if (options.allowPublicBind != null) env.BURNBRAKE_ALLOW_PUBLIC_BIND = options.allowPublicBind ? "1" : "0";
@@ -200,6 +202,7 @@ function healthBody(ctx: { config: AppConfig; ledger: Ledger; table: PriceTable;
     reservation_ttl_seconds: Math.round(ctx.config.reservationTtlMs / 1000),
     day_boundary: "UTC",
     scopes_warning: ctx.ledger.scopeWarning(),
+    operator_http: Boolean(ctx.config.operatorKey),
     mock_upstream: ctx.config.mockUpstream
       ? { enabled: true, forward_count: ctx.mock.forwardCount }
       : { enabled: false },
@@ -490,8 +493,40 @@ async function handleGoverned(
     try {
       await ctx.beforeForward();
     } catch (err) {
-      ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
-      throw err;
+      const settled = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
+      const payload = errorBody({
+        code: "UPSTREAM_ERROR",
+        httpStatus: 502,
+        message:
+          "Failed after the reservation was marked forwarded. Reservation debited at the estimate (DEBIT_RESERVED). Retry only with the same idempotency key.",
+        halt: false,
+        retryable: false,
+        user_id: userId,
+        run_id: runId,
+        requested_micros: estimate.micros,
+      });
+      const raw = JSON.stringify(payload);
+      if (idem) ctx.ledger.completeIdempotency(idem, 502, raw);
+      ctx.ledger.logDecision(decisionBase(ctx, started, {
+        userId,
+        runId,
+        decision: "ALLOW",
+        code: "UPSTREAM_ERROR",
+        requestedMicros: estimate.micros,
+        remainingAfterMicros: minRemaining(ctx.ledger, userId, runId),
+        upstreamForwarded: false,
+        route,
+        model: estimate.model,
+        idempotencyKey: idem,
+        reservationId,
+        estimatedMicros: estimate.micros,
+        settledMicros: estimate.micros,
+        terminalReason: settled.terminalReason,
+        maxTokensSource: estimate.maxTokensSource,
+      }));
+      sendRaw(res, 502, "application/json; charset=utf-8", raw, { "x-burnbrake-reservation-id": reservationId });
+      console.error("beforeForward failed closed", err instanceof Error ? err.message : err);
+      return;
     }
   }
 
@@ -547,8 +582,31 @@ async function handleGoverned(
   let terminalReason = "SETTLED";
   let settledMicros: number | null = null;
   let debtDelta = 0;
-  if (upstream.status >= 200 && upstream.status < 300) {
-    if (usage) {
+  try {
+    if (upstream.status >= 200 && upstream.status < 300) {
+      if (usage) {
+        const actual = costFromUsage(ctx.table, estimate.model, usage, estimate.flatMicros);
+        if (actual == null) {
+          const debited = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
+          terminalReason = debited.terminalReason;
+          settledMicros = estimate.micros;
+        } else {
+          const settled = ctx.ledger.settle(reservationId, actual);
+          terminalReason = settled.terminalReason;
+          debtDelta = settled.debtDeltaMicros;
+          settledMicros = actual;
+        }
+      } else {
+        const debited = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
+        terminalReason = debited.terminalReason;
+        settledMicros = estimate.micros;
+      }
+    } else if (upstream.status >= 400 && upstream.status < 500 && !usage) {
+      ctx.ledger.releaseNoCharge(reservationId);
+      const row = ctx.ledger.getReservation(reservationId);
+      terminalReason = row?.terminal_reason ?? "RELEASE_UPSTREAM_NO_CHARGE";
+      settledMicros = row?.actual_micros ?? 0;
+    } else if (usage) {
       const actual = costFromUsage(ctx.table, estimate.model, usage, estimate.flatMicros);
       if (actual == null) {
         const debited = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
@@ -565,26 +623,48 @@ async function handleGoverned(
       terminalReason = debited.terminalReason;
       settledMicros = estimate.micros;
     }
-  } else if (upstream.status >= 400 && upstream.status < 500 && !usage) {
-    ctx.ledger.releaseNoCharge(reservationId);
-    terminalReason = "RELEASE_UPSTREAM_NO_CHARGE";
-    settledMicros = 0;
-  } else if (usage) {
-    const actual = costFromUsage(ctx.table, estimate.model, usage, estimate.flatMicros);
-    if (actual == null) {
+  } catch (err) {
+    const row = ctx.ledger.getReservation(reservationId);
+    terminalReason = row?.terminal_reason ?? "DEBIT_UPSTREAM_UNKNOWN";
+    settledMicros = row?.actual_micros ?? estimate.micros;
+    if (row?.state === "FORWARDED") {
       const debited = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
       terminalReason = debited.terminalReason;
       settledMicros = estimate.micros;
-    } else {
-      const settled = ctx.ledger.settle(reservationId, actual);
-      terminalReason = settled.terminalReason;
-      debtDelta = settled.debtDeltaMicros;
-      settledMicros = actual;
     }
-  } else {
-    const debited = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
-    terminalReason = debited.terminalReason;
-    settledMicros = estimate.micros;
+    const payload = errorBody({
+      code: "LEDGER_UNAVAILABLE",
+      httpStatus: 502,
+      message:
+        "Spend path failed after forward. If the reservation was still forwarded, it was debited at the estimate. Retry only with the same idempotency key.",
+      halt: false,
+      retryable: false,
+      user_id: userId,
+      run_id: runId,
+      requested_micros: estimate.micros,
+    });
+    const raw = JSON.stringify(payload);
+    if (idem) ctx.ledger.completeIdempotency(idem, 502, raw);
+    ctx.ledger.logDecision(decisionBase(ctx, started, {
+      userId,
+      runId,
+      decision: "ALLOW",
+      code: "LEDGER_UNAVAILABLE",
+      requestedMicros: estimate.micros,
+      remainingAfterMicros: minRemaining(ctx.ledger, userId, runId),
+      upstreamForwarded: true,
+      route,
+      model: estimate.model,
+      idempotencyKey: idem,
+      reservationId,
+      estimatedMicros: estimate.micros,
+      settledMicros,
+      terminalReason,
+      maxTokensSource: estimate.maxTokensSource,
+    }));
+    sendRaw(res, 502, "application/json; charset=utf-8", raw, { "x-burnbrake-reservation-id": reservationId });
+    console.error("settle failed closed", err instanceof Error ? err.message : err);
+    return;
   }
 
   if (idem) ctx.ledger.completeIdempotency(idem, upstream.status, upstream.bodyText);
@@ -618,7 +698,22 @@ async function handleOperator(
   path: string,
   url: URL,
 ): Promise<void> {
-  const auth = authenticate(req.headers, ctx.config.apiKey);
+  if (!ctx.config.operatorKey) {
+    sendJson(
+      res,
+      403,
+      errorBody({
+        code: "OPERATOR_KEY_REQUIRED",
+        httpStatus: 403,
+        message:
+          "Operator HTTP is disabled until BURNBRAKE_OPERATOR_KEY is set to a bb_ secret distinct from BURNBRAKE_KEY. The spend key cannot change caps. Use the CLI on the ledger file, or set the operator key and restart.",
+        halt: true,
+        retryable: false,
+      }),
+    );
+    return;
+  }
+  const auth = authenticate(req.headers, ctx.config.operatorKey);
   if (!auth.ok) {
     sendJson(res, 401, errorBody({ code: "AUTH_REQUIRED", httpStatus: 401, message: auth.message, halt: true, retryable: false }));
     return;

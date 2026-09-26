@@ -113,22 +113,40 @@ export function parseUsageText(
   contentType: string,
   bodyText: string,
 ): { prompt_tokens: number; completion_tokens: number } | null {
-  if (contentType.includes("event-stream") || bodyText.includes("\ndata:") || bodyText.startsWith("data:")) {
-    let found: { prompt_tokens: number; completion_tokens: number } | null = null;
-    for (const line of bodyText.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("data:")) continue;
-      const payload = trimmed.slice(5).trim();
-      if (!payload || payload === "[DONE]") continue;
-      try {
-        const usage = parseUsageObject(JSON.parse(payload) as unknown);
-        if (usage) found = usage;
-      } catch {
-        /* keep scanning */
-      }
-    }
-    return found;
+  const type = contentType.toLowerCase();
+  const isJson = type.includes("json");
+  const looksLikeSse = bodyText.includes("\ndata:") || bodyText.startsWith("data:");
+  if (type.includes("event-stream") || (!isJson && looksLikeSse)) {
+    return parseSseUsage(bodyText);
   }
+  if (isJson) {
+    const direct = parseJsonUsage(bodyText);
+    if (direct) return direct;
+    const head = bodyText.split("\ndata:")[0];
+    if (head !== bodyText) return parseJsonUsage(head);
+    return null;
+  }
+  return parseJsonUsage(bodyText);
+}
+
+function parseSseUsage(bodyText: string): { prompt_tokens: number; completion_tokens: number } | null {
+  let found: { prompt_tokens: number; completion_tokens: number } | null = null;
+  for (const line of bodyText.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) continue;
+    const payload = trimmed.slice(5).trim();
+    if (!payload || payload === "[DONE]") continue;
+    try {
+      const usage = parseUsageObject(JSON.parse(payload) as unknown);
+      if (usage) found = usage;
+    } catch {
+      /* keep scanning */
+    }
+  }
+  return found;
+}
+
+function parseJsonUsage(bodyText: string): { prompt_tokens: number; completion_tokens: number } | null {
   try {
     return parseUsageObject(JSON.parse(bodyText) as unknown);
   } catch {
@@ -140,9 +158,15 @@ function parseUsageObject(value: unknown): { prompt_tokens: number; completion_t
   if (!value || typeof value !== "object") return null;
   const usage = (value as { usage?: unknown }).usage;
   if (!usage || typeof usage !== "object") return null;
-  const prompt = (usage as { prompt_tokens?: unknown }).prompt_tokens;
-  const completion = (usage as { completion_tokens?: unknown }).completion_tokens;
-  if (typeof prompt !== "number" || typeof completion !== "number") return null;
-  if (!Number.isFinite(prompt) || !Number.isFinite(completion) || prompt < 0 || completion < 0) return null;
-  return { prompt_tokens: Math.floor(prompt), completion_tokens: Math.floor(completion) };
+  const row = usage as Record<string, unknown>;
+  const prompt = tokenCount(row, "prompt_tokens", "input_tokens");
+  const completion = tokenCount(row, "completion_tokens", "output_tokens");
+  if (prompt == null || completion == null) return null;
+  return { prompt_tokens: prompt, completion_tokens: completion };
+}
+
+function tokenCount(row: Record<string, unknown>, primary: string, alternate: string): number | null {
+  const chosen = typeof row[primary] === "number" ? row[primary] : row[alternate];
+  if (typeof chosen !== "number" || !Number.isFinite(chosen) || chosen < 0) return null;
+  return Math.floor(chosen);
 }

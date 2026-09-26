@@ -231,7 +231,11 @@ export class Ledger {
   private nowFn: () => number;
 
   constructor(path: string, opts: LedgerOptions = {}) {
-    this.db = new DatabaseSync(path, { timeout: 5000 });
+    this.db = new DatabaseSync(path);
+    // DatabaseSync's timeout option does not wait on this Node. Set the pragma
+    // before any other statement so a second process waits instead of seeing
+    // "database is locked" and refusing to start.
+    this.db.exec("PRAGMA busy_timeout = 5000");
     this.db.exec("PRAGMA journal_mode = WAL");
     this.db.exec("PRAGMA foreign_keys = ON");
     this.db.exec(SCHEMA);
@@ -385,11 +389,20 @@ export class Ledger {
     });
   }
 
-  /** Confirmed provider no-charge after forward. Releases the unused hold. Does not debit. */
+  /** Confirmed provider no-charge after forward. Releases the unused hold. Does not debit.
+   *  A row that already settled or was debited (TTL/crash) stays that way. The debit stands.
+   */
   releaseNoCharge(reservationId: string): void {
     this.tx(() => {
       const row = this.mustReservation(reservationId);
-      if (row.state === "RELEASED" || row.state === "FORCE_RELEASED") return;
+      if (
+        row.state === "RELEASED" ||
+        row.state === "FORCE_RELEASED" ||
+        row.state === "DEBIT_RESERVED" ||
+        row.state === "SETTLED"
+      ) {
+        return;
+      }
       if (row.state !== "FORWARDED") {
         throw new Error(`releaseNoCharge requires FORWARDED, found ${row.state}`);
       }
@@ -704,13 +717,15 @@ export class Ledger {
             message: "Idempotency key was already used for a different user_id or run_id.",
           });
         }
-        if (existing.state === "pending") {
-          return { kind: "in_flight", reservationId: existing.reservation_id };
-        }
         if (existing.http_status && existing.response_body) {
           return { kind: "replay", httpStatus: existing.http_status, body: existing.response_body };
         }
-        return { kind: "in_flight", reservationId: existing.reservation_id };
+        const reservation = existing.reservation_id ? this.getReservation(existing.reservation_id) : undefined;
+        const open = reservation?.state === "RESERVED" || reservation?.state === "FORWARDED";
+        if (open) {
+          return { kind: "in_flight", reservationId: existing.reservation_id };
+        }
+        return this.sealTerminalReplay(existing.idem_key, input);
       }
     }
 
@@ -860,6 +875,29 @@ export class Ledger {
       return this.snapshot(fresh);
     });
     return { kind: "reserved", reservationId: id, scopes };
+  }
+
+  /** Terminal reservation (or a completed key with no stored body) must not reserve again. */
+  private sealTerminalReplay(idemKey: string, input: ReserveInput): ReserveResult {
+    const body = JSON.stringify({
+      error: {
+        code: "ALREADY_TERMINAL",
+        message: "This idempotency key already reached a terminal reservation. Do not start a second forward.",
+        scope: null,
+        remaining_micros: null,
+        requested_micros: input.estimateMicros,
+        run_id: input.runId,
+        user_id: input.userId,
+        halt: false,
+        retryable: false,
+      },
+    });
+    this.db
+      .prepare(
+        `UPDATE idempotency SET state = 'completed', http_status = ?, response_body = ?, updated_at = ? WHERE idem_key = ?`,
+      )
+      .run(409, body, this.now(), idemKey);
+    return { kind: "replay", httpStatus: 409, body };
   }
 
   private sweepUnlocked(): { released: number; debited: number } {

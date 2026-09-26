@@ -83,12 +83,17 @@ function estimateChat(
   }
   const toolsPresent = hasTools(body);
   const ceiling = outputCeiling(body, defaultMaxTokens);
+  const choices = choiceCount(body);
   const inputTokens =
     textTokens(acc.text) +
     body.messages.length * 4 +
     3 +
     acc.images * table.surcharges.visionPerImageInputTokens;
-  const outputTokens = ceiling.maxTokens + (toolsPresent ? table.surcharges.toolsExtraOutputTokens : 0);
+  const outputTokens = scaleOutputTokens(
+    ceiling.maxTokens,
+    toolsPresent ? table.surcharges.toolsExtraOutputTokens : 0,
+    choices,
+  );
   const flatMicros =
     acc.images * table.surcharges.visionPerImageMicros +
     (toolsPresent ? table.surcharges.toolsFlatMicros : 0);
@@ -128,8 +133,13 @@ function estimateCompletion(
   }
   const toolsPresent = hasTools(body);
   const ceiling = outputCeiling(body, defaultMaxTokens);
+  const choices = choiceCount(body);
   const inputTokens = textTokens(acc.text) + 2;
-  const outputTokens = ceiling.maxTokens + (toolsPresent ? table.surcharges.toolsExtraOutputTokens : 0);
+  const outputTokens = scaleOutputTokens(
+    ceiling.maxTokens,
+    toolsPresent ? table.surcharges.toolsExtraOutputTokens : 0,
+    choices,
+  );
   const flatMicros = toolsPresent ? table.surcharges.toolsFlatMicros : 0;
   const micros = atLeastOne(
     tokensToMicros(inputTokens, price.inputMicrosPerMillion) +
@@ -227,6 +237,27 @@ function outputCeiling(
     forwardBody.stream_options = existing;
   }
   return { maxTokens, source: "request", forwardBody };
+}
+
+function choiceCount(body: Record<string, unknown>): number {
+  const n = readOptionalPositiveInt(body.n, "n") ?? 1;
+  const bestOf = readOptionalPositiveInt(body.best_of, "best_of") ?? 1;
+  return Math.max(n, bestOf);
+}
+
+function scaleOutputTokens(ceiling: number, toolsExtra: number, choices: number): number {
+  if (!Number.isSafeInteger(ceiling) || !Number.isSafeInteger(toolsExtra) || !Number.isSafeInteger(choices)) {
+    fail("BAD_REQUEST", "n or best_of times the output ceiling is too large to reserve.");
+  }
+  const perChoice = ceiling + toolsExtra;
+  if (!Number.isSafeInteger(perChoice)) {
+    fail("BAD_REQUEST", "n or best_of times the output ceiling is too large to reserve.");
+  }
+  const product = perChoice * choices;
+  if (!Number.isSafeInteger(product)) {
+    fail("BAD_REQUEST", "n or best_of times the output ceiling is too large to reserve.");
+  }
+  return product;
 }
 
 function readOptionalPositiveInt(value: unknown, label: string): number | null {
