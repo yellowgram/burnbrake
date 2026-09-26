@@ -1,6 +1,8 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { RESERVATION_TTL_MS } from "../src/constants.ts";
+import { defaultPriceTablePath } from "../src/config.ts";
 import { usdToMicros } from "../src/money.ts";
 import { startSidecar } from "../src/server.ts";
 
@@ -19,9 +21,15 @@ const sidecar = await startSidecar({
     run: usdToMicros("1"),
     day: usdToMicros("5"),
   },
+  priceTablePath: defaultPriceTablePath(),
+  reservationTtlMs: RESERVATION_TTL_MS,
   env: {
     BURNBRAKE_HOST: "127.0.0.1",
     BURNBRAKE_ALLOW_PUBLIC_BIND: "0",
+    BURNBRAKE_FAIL_OPEN: "",
+    BURNBRAKE_SOFT_ALLOW: "",
+    BURNBRAKE_SOFT_ALLOW_OVERAGE: "",
+    OPENAI_API_KEY: "",
   },
 });
 

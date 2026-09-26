@@ -25,7 +25,18 @@ BurnBrake only governs traffic that hits the sidecar. A second client pointed at
    node --disable-warning=ExperimentalWarning dist/cli.js serve
    ```
 
-   Default listen is `127.0.0.1:8787`. Copy `config.example.env` if you prefer a file. Set **user and/or day** as well as run. A per-run cap alone is washable by minting new run ids. Operator HTTP (`/v1/operator/*`) needs a different `BURNBRAKE_OPERATOR_KEY`. The spend key cannot change caps.
+   Default listen is `127.0.0.1:8787`. `burnbrake serve` reads the process environment. It does not load `.env`. Docker Compose reads `config.example.env` directly; a copied `.env` does not override that file. Set **user and/or day** as well as run. A per-run cap alone is washable by minting new run ids. Operator HTTP (`/v1/operator/*`) needs a different `BURNBRAKE_OPERATOR_KEY`. The spend key cannot change caps.
+
+   The exports above turn on user, run, and day. A completion must send both identity headers or the sidecar returns **400** `IDENTITY_REQUIRED` and does not forward. The OpenAI `user` field is not a budget id.
+
+   ```bash
+   curl -sS http://127.0.0.1:8787/v1/chat/completions \
+     -H "content-type: application/json" \
+     -H "X-BurnBrake-Key: $BURNBRAKE_KEY" \
+     -H "x-burnbrake-user-id: alice" \
+     -H "x-burnbrake-run-id: run-1" \
+     -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}],"max_tokens":16}'
+   ```
 
 2. Send `X-BurnBrake-Key` (or `Authorization: Bearer bb_…`). Never put the provider API key in that header, and never send the BurnBrake key upstream. `OPENAI_API_KEY` is used only on the sidecar → provider hop.
 
@@ -65,17 +76,27 @@ If spend continues through a client that never hits the sidecar, the caps did no
 
 `BUDGET_EXHAUSTED` is a halt. It is not HTTP 429. Do not retry the spend call.
 
+HTTP **402** is the halt family. Budget, pause, and unpriced share that status and are distinguished by `error.code`. They are never **429**. Every other failure uses a different status.
+
 | Signal | HTTP | Code | Retry the spend call? | Agent action |
 | --- | --- | --- | --- | --- |
 | Budget exhausted | **402** | `BUDGET_EXHAUSTED` | **No** | Halt the loop. Surface scope, remaining, requested. |
 | Run or global pause | **402** | `SPEND_PAUSED` | **No** | Halt. Resume or raise caps from the operator CLI. |
 | Unpriced model or unknown surcharge | **402** | `UNPRICED_MODEL` / `UNKNOWN_SURCHARGE` | **No** | Halt. Add the model or content type to the price table. |
-| Auth failure | **401** | `AUTH_REQUIRED` | No | Halt. Fix `X-BurnBrake-Key`. Do not fall back to `api.openai.com`. Do not paste the provider key here. |
-| Ledger unavailable | **503** | `LEDGER_UNAVAILABLE` | No | Halt. Fix the ledger file. There is no fail-open mode. |
+| Auth failure | **401** | `AUTH_REQUIRED` | No | Halt. Fix `X-BurnBrake-Key`. Do not fall back to `api.openai.com`. Do not paste the provider key here. The spend key on an operator route is also 401. |
+| Missing budget identity | **400** | `IDENTITY_REQUIRED` | No | The example caps turn user and run on. Send `x-burnbrake-user-id` and `x-burnbrake-run-id`. The OpenAI `user` field does not count. No forward. |
+| Bad request or body too large | **400** / **413** | `BAD_REQUEST` / `BODY_TOO_LARGE` | No | Includes disagreeing `Idempotency-Key` and `x-burnbrake-request-id`. No forward. |
+| Ledger unavailable before forward | **503** | `LEDGER_UNAVAILABLE` | No | Halt. Fix the ledger file. There is no fail-open mode. No upstream call. |
 | No caps configured | **503** | `NO_BUDGET_CONFIGURED` | No | Halt. Set a user, run, or day cap. |
+| Upstream not configured | **503** | `UPSTREAM_NOT_CONFIGURED` | No | Set `OPENAI_API_KEY`, or `BURNBRAKE_MOCK_UPSTREAM=1`. No forward. |
+| Operator HTTP with no operator key | **403** | `OPERATOR_KEY_REQUIRED` | No | Set `BURNBRAKE_OPERATOR_KEY`. This is not a spend-path code. |
 | In-flight duplicate | **409** | `REQUEST_IN_FLIGHT` | Do not start a second forward | Wait. Reuse the same idempotency key. |
+| Same idempotency key, different user or run | **409** | `IDEMPOTENCY_MISMATCH` | No | `halt` is false. No forward. |
+| Terminal key, no stored body | **409** | `ALREADY_TERMINAL` | **No** | This key will not forward again. A new logical attempt needs a new key. |
+| Other `/v1/*` route | **404** | `ROUTE_NOT_GOVERNED` | No | Not proxied. |
 | Provider rate limit | provider **429** (passed through) | upstream body | Per the provider, not this gate | Do not confuse this with `BUDGET_EXHAUSTED`. |
-| Provider 5xx or disconnect after forward | upstream / **502** | — | Only with the **same idempotency key** | Expect settle if usage is known, otherwise `DEBIT_RESERVED`. |
+| Provider 5xx or disconnect after forward | upstream / **502** | `UPSTREAM_ERROR` or the upstream body | Only with the **same idempotency key** | Expect settle if usage is known, otherwise `DEBIT_RESERVED`. |
+| Ledger failure after forward | **502** | `LEDGER_UNAVAILABLE` | Only with the **same idempotency key** | Distinct from the pre-forward 503. The debit stands. |
 | Upstream success | **200** | — | — | Continue. |
 
 SDK: a 402 `BUDGET_EXHAUSTED` is thrown as `BudgetExhausted` with the same fields (`scope`, `remaining_micros`, `requested_micros`, `run_id`, `user_id`). `halt` is true and `retryable` is false.
@@ -178,7 +199,7 @@ try {
 ## Self-host kit
 
 - npm package: `npm install` / `npm run build` / `burnbrake serve` (Node 22.13+)
-- optional Docker: the image listens on `127.0.0.1` unless you opt in. `docker compose up --build` publishes **only** `127.0.0.1:8787` and sets `BURNBRAKE_HOST=0.0.0.0` plus `BURNBRAKE_ALLOW_PUBLIC_BIND=1` inside the container so Docker can reach that process. Do not `docker run -p 8787:8787` and do not publish `0.0.0.0` without an ACL.
+- optional Docker: the image listens on `127.0.0.1` unless you opt in. `docker compose up --build` publishes **only** `127.0.0.1:8787` and sets `BURNBRAKE_HOST=0.0.0.0` plus `BURNBRAKE_ALLOW_PUBLIC_BIND=1` inside the container so Docker can reach that process. Compose loads `config.example.env` as its env file. Edit that file. A copied `.env` is not read. The placeholder keys in the example are public and are only appropriate on that localhost publish. Do not `docker run -p 8787:8787` and do not publish `0.0.0.0` without an ACL.
 
 Hosted multi-tenant ledger service is later. It is not in this kit.
 
@@ -198,7 +219,8 @@ npm run demo
 - A client that ignores the sidecar is not stopped.
 - Per-run caps alone, or a user cap without a day cap, can be washed by rotating `x-burnbrake-run-id` / `x-burnbrake-user-id`. The OpenAI `user` field does not do that; it is not a budget id.
 - Filesystem access to the ledger is full operator control. The CLI has no key of its own.
-- `X-BurnBrake-Key` comparison returns early when the lengths differ, so a local observer can learn the secret's length. It does not reveal the secret.
+- `X-BurnBrake-Key` comparison returns early when the lengths differ, so a local observer can learn the secret's length. It does not reveal the secret. Process logs print error messages only. They do not print the BurnBrake key, the operator key, or the provider key. Do not put a secret in an idempotency key; that key is stored in the ledger.
+- A TTL or crash debit records `debt_delta_micros` as 0 on the decision row. Balances still show debt when spent plus held exceeds the cap, and the next reserve still denies. Force-release is the only path that drops a hold after `FORWARDED`, and it requires the operator key plus `attest_no_charge`. A false attestation is operator misuse.
 - Not Polar-ready. No zip or SHA is published. Listing stays dark until a founder go-live. Soft-WTP stays off.
 
 Design record and LaunchGate freezes: [docs/LAUNCHGATE_DR4_VERDICT.md](docs/LAUNCHGATE_DR4_VERDICT.md).

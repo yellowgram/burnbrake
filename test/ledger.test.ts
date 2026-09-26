@@ -113,6 +113,51 @@ describe("ledger reservations", () => {
     ledger.close();
   });
 
+  it("true-ups a TTL debit to actual usage and does not stack the estimate", () => {
+    let now = 1_000_000;
+    const ledger = new Ledger(tempLedgerPath(), {
+      reservationTtlMs: 1_000,
+      now: () => now,
+      defaultCaps: { user: null, run: 10_000, day: null },
+    });
+    const reserved = ledger.reserve(input({ estimateMicros: 800, runId: "r", idempotencyKey: "ttl-settle" }));
+    assert.equal(reserved.kind, "reserved");
+    if (reserved.kind !== "reserved") return;
+    ledger.markForwarded(reserved.reservationId);
+    now += 1_001;
+    const swept = ledger.sweep();
+    assert.equal(swept.debited, 1);
+    assert.equal(ledger.getReservation(reserved.reservationId)?.state, "DEBIT_RESERVED");
+    assert.throws(() => ledger.release(reserved.reservationId), /Never free-release after FORWARDED/);
+    assert.doesNotThrow(() => ledger.releaseNoCharge(reserved.reservationId));
+    const settled = ledger.settle(reserved.reservationId, 300);
+    assert.equal(settled.terminalReason, "SETTLED");
+    const row = ledger.getReservation(reserved.reservationId);
+    assert.equal(row?.state, "SETTLED");
+    assert.equal(row?.actual_micros, 300);
+    const balance = ledger.balances({ runId: "r" }).scopes.find((scope) => scope.scope === "run");
+    assert.equal(balance?.spent_micros, 300);
+    assert.equal(balance?.held_micros, 0);
+    const again = ledger.sweep();
+    assert.equal(again.debited, 0);
+    assert.equal(again.released, 0);
+    const after = ledger.balances({ runId: "r" }).scopes.find((scope) => scope.scope === "run");
+    assert.equal(after?.spent_micros, 300);
+
+    const over = ledger.reserve(input({ estimateMicros: 800, runId: "r", idempotencyKey: "ttl-over" }));
+    assert.equal(over.kind, "reserved");
+    if (over.kind !== "reserved") return;
+    ledger.markForwarded(over.reservationId);
+    now += 1_001;
+    ledger.sweep();
+    ledger.settle(over.reservationId, 900);
+    const overBalance = ledger.balances({ runId: "r" }).scopes.find((scope) => scope.scope === "run");
+    assert.equal(overBalance?.spent_micros, 1_200);
+    assert.equal(overBalance?.overshoot_micros, 100);
+    assert.equal(overBalance?.held_micros, 0);
+    ledger.close();
+  });
+
   it("does not re-reserve an idempotency key whose reservation is already terminal", () => {
     const ledger = new Ledger(tempLedgerPath(), { defaultCaps: { user: null, run: 10_000, day: null } });
     const reserved = ledger.reserve(input({ estimateMicros: 400, runId: "r", idempotencyKey: "stuck" }));

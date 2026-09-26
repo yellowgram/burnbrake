@@ -69,7 +69,7 @@ Do not put `OPENAI_API_KEY` in either BurnBrake key, and do not reuse the spend 
 
 ## Bind
 
-Default `127.0.0.1`, including the Docker image. Binding any other address requires `BURNBRAKE_ALLOW_PUBLIC_BIND=1` and the key still has to be set. Treat a public bind without an ACL as a fund-drain risk. Compose sets `0.0.0.0` inside the container and publishes `127.0.0.1:8787` on the host. `docker run -p 8787:8787` is not that setup.
+Default `127.0.0.1`, including the Docker image. Binding any other address requires `BURNBRAKE_ALLOW_PUBLIC_BIND=1` and the key still has to be set. Treat a public bind without an ACL as a fund-drain risk. Compose sets `0.0.0.0` inside the container and publishes `127.0.0.1:8787` on the host. Compose reads `config.example.env`, not a copied `.env`. `docker run -p 8787:8787` is not that setup. The CLI does not load `.env` either; it uses the process environment.
 
 ## Daily check
 

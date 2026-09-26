@@ -1,6 +1,8 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { RESERVATION_TTL_MS } from "../src/constants.ts";
+import { defaultPriceTablePath } from "../src/config.ts";
 import { startSidecar, type RunningSidecar, type StartOptions } from "../src/server.ts";
 import type { DefaultCaps } from "../src/ledger.ts";
 
@@ -9,7 +11,8 @@ export function tempLedgerPath(): string {
 }
 
 export async function bootSidecar(overrides: StartOptions & { caps?: DefaultCaps } = {}): Promise<RunningSidecar> {
-  const caps = overrides.caps ?? { user: null, run: 1_000_000, day: null };
+  const { caps: capOverride, env: envOverride, ...rest } = overrides;
+  const caps = capOverride ?? { user: null, run: 1_000_000, day: null };
   return startSidecar({
     apiKey: "bb_test_key",
     operatorKey: "bb_test_operator",
@@ -18,12 +21,18 @@ export async function bootSidecar(overrides: StartOptions & { caps?: DefaultCaps
     allowPublicBind: false,
     mockUpstream: true,
     ledgerPath: tempLedgerPath(),
+    priceTablePath: defaultPriceTablePath(),
+    reservationTtlMs: RESERVATION_TTL_MS,
     env: {
       BURNBRAKE_FAIL_OPEN: "",
       BURNBRAKE_SOFT_ALLOW: "",
+      BURNBRAKE_SOFT_ALLOW_OVERAGE: "",
       BURNBRAKE_HOST: "127.0.0.1",
+      BURNBRAKE_ALLOW_PUBLIC_BIND: "0",
+      OPENAI_API_KEY: "",
+      ...(envOverride ?? {}),
     },
-    ...overrides,
+    ...rest,
     caps,
   });
 }

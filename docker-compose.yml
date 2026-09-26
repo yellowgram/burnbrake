@@ -1,6 +1,6 @@
 # Optional localhost kit. The process binds 0.0.0.0 inside the container so Docker
 # can publish the port; the host publish is pinned to 127.0.0.1. Auth stays on.
-# Operator HTTP uses BURNBRAKE_OPERATOR_KEY from config.example.env. It must differ from BURNBRAKE_KEY.
+# Operator HTTP uses BURNBRAKE_OPERATOR_KEY from config.example.env (this env_file, not a copied .env). It must differ from BURNBRAKE_KEY.
 # Do not change the host port to 0.0.0.0 without an ACL. That is a fund-drain risk.
 services:
   burnbrake:
