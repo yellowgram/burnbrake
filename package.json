@@ -1,0 +1,46 @@
+{
+  "name": "burnbrake",
+  "version": "0.1.0",
+  "description": "Request-path spend governor for agent loops. Cap + kill only.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "bin": {
+    "burnbrake": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/sdk/index.d.ts",
+      "import": "./dist/sdk/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "prices",
+    "docs",
+    "README.md",
+    "config.example.env",
+    "Dockerfile",
+    "docker-compose.yml",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node --disable-warning=ExperimentalWarning dist/cli.js serve",
+    "dev": "node --disable-warning=ExperimentalWarning --import tsx src/cli.ts serve",
+    "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/*.test.ts",
+    "demo": "node --disable-warning=ExperimentalWarning --import tsx scripts/demo-60s.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}
