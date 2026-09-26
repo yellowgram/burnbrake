@@ -33,7 +33,8 @@ try {
   assertStep(health.auth?.required === true, "auth.required");
   assertStep(health.fail_closed === true, "fail_closed");
   assertStep(health.ledger?.writable === true, "ledger.writable");
-  console.log(`0–10s  GET /health  listen=${health.listen} auth.required=${health.auth.required} fail_closed=${health.fail_closed} ledger.writable=${health.ledger.writable} price=${health.price_table.version}`);
+  assertStep(health.operator_http === true, "operator_http");
+  console.log(`0–10s  GET /health  listen=${health.listen} auth.required=${health.auth.required} operator_http=${health.operator_http} fail_closed=${health.fail_closed} ledger.writable=${health.ledger.writable} price=${health.price_table.version}`);
 
   const headers = {
     "content-type": "application/json",
@@ -64,6 +65,16 @@ try {
   console.log(
     `        balances  run spent=${run.spent_micros} remaining=${run.remaining_micros} debt=${run.debt_micros} overshoot=${run.overshoot_micros}`,
   );
+
+  const spendKeyCaps = await fetch(`${sidecar.baseURL}/v1/operator/caps`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-burnbrake-key": key },
+    body: JSON.stringify({ scope: "run", key: "demo-run", cap_micros: run.cap_micros + 1_000_000 }),
+  });
+  const spendKeyBody = await spendKeyCaps.json();
+  assertStep(spendKeyCaps.status === 401, "spend key cannot change caps");
+  assertStep(spendKeyBody.error?.code === "AUTH_REQUIRED", "spend key operator status");
+  console.log(`        operator  spend key on /v1/operator/caps → HTTP ${spendKeyCaps.status} ${spendKeyBody.error?.code}`);
 
   const lowered = await fetch(`${sidecar.baseURL}/v1/operator/caps`, {
     method: "POST",

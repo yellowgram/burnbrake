@@ -65,11 +65,11 @@ Force-release without the attestation flag is refused. Misuse lets remaining lie
 3. Restart the sidecar.
 4. Update every agent on this deploy, and every operator client.
 
-Do not put `OPENAI_API_KEY` in either BurnBrake key, and do not reuse the spend key as the operator key. `/health` does not echo secrets. Do not paste any key into a support ticket.
+Do not put `OPENAI_API_KEY` in either BurnBrake key, and do not reuse the spend key as the operator key. Do not put `BURNBRAKE_OPERATOR_KEY` in the agent environment. The two HTTP keys rotate independently. Rotating them does not lock the SQLite file: the CLI has no key, and the file is the operator. It is created mode `0600`. `/health` does not echo secrets. Do not paste any key into a support ticket.
 
 ## Bind
 
-Default `127.0.0.1`. Binding any other address requires `BURNBRAKE_ALLOW_PUBLIC_BIND=1` and the key still has to be set. Treat a public bind without an ACL as a fund-drain risk. The compose file publishes `127.0.0.1:8787` only.
+Default `127.0.0.1`, including the Docker image. Binding any other address requires `BURNBRAKE_ALLOW_PUBLIC_BIND=1` and the key still has to be set. Treat a public bind without an ACL as a fund-drain risk. Compose sets `0.0.0.0` inside the container and publishes `127.0.0.1:8787` on the host. `docker run -p 8787:8787` is not that setup.
 
 ## Daily check
 

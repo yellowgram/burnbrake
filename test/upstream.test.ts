@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { parseUsageText } from "../src/upstream.ts";
+import { parseUsageText, settleUsage } from "../src/upstream.ts";
 
 describe("usage parser", () => {
   it("accepts input_tokens and output_tokens", () => {
@@ -39,5 +39,12 @@ describe("usage parser", () => {
     ].join("\n");
     const usage = parseUsageText("text/event-stream", body);
     assert.deepEqual(usage, { prompt_tokens: 2, completion_tokens: 6 });
+    assert.deepEqual(settleUsage("text/event-stream", body), usage);
+  });
+
+  it("does not settle an event stream that never finished", () => {
+    const body = 'data: {"usage":{"prompt_tokens":1,"completion_tokens":1}}\n\n';
+    assert.deepEqual(parseUsageText("text/event-stream", body), { prompt_tokens: 1, completion_tokens: 1 });
+    assert.equal(settleUsage("text/event-stream", body), null);
   });
 });

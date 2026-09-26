@@ -105,7 +105,7 @@ Any other `/v1/*` route returns `ROUTE_NOT_GOVERNED` and is **not** proxied.
 
 Scopes that are configured are AND-ed. The first scope that cannot cover the estimate (user, then run, then day) is the one named on the 402. Day buckets use the ledger clock in **UTC**. Outstanding debt (settle above reserve, or a negative remaining after a debit) blocks the next reserve until a cap raise or, for the day scope, the next UTC day leaves that bucket behind.
 
-Identity headers are accepted only after auth: `x-burnbrake-user-id`, `x-burnbrake-run-id`. The OpenAI `user` field is used as the user id only when the header is absent.
+Identity headers are accepted only after auth: `x-burnbrake-user-id`, `x-burnbrake-run-id`. The OpenAI `user` field is forwarded to the provider and is **not** a budget id. A client that stamps a different `user` on each call does not mint a new cap. Without a day cap, those headers are caller-chosen and can be rotated.
 
 ## Operator
 
@@ -126,7 +126,7 @@ The same controls are on `/v1/operator/*` (`balances`, `decisions`, `reservation
 
 `GET /health` (no key) reports listen address, `auth.required`, `operator_http`, `ledger.writable`, `fail_closed`, price-table `version` / `priced_at` / stale flag, and `estimate.default_max_tokens`. It never echoes secrets.
 
-Auth rotation: change `BURNBRAKE_KEY` for agents and `BURNBRAKE_OPERATOR_KEY` for operator HTTP, restart the sidecar, and update every client. Do not rotate by swapping in the provider key.
+Auth rotation: change `BURNBRAKE_KEY` for agents and `BURNBRAKE_OPERATOR_KEY` for operator HTTP independently, restart the sidecar, and update the clients that hold that secret. Do not put the operator key in the agent environment. Do not rotate by swapping in the provider key. Rotating either HTTP key does not lock the SQLite file. The CLI has no key; the file is created mode `0600`, and anyone who can write it can change caps.
 
 Force-release is audited and only for a stuck row you have proved was not charged. The default for crash or TTL while `FORWARDED` is **DEBIT_RESERVED** (the estimate is spent). A `RESERVED` row that never forwarded is released. TTL is **15 minutes**.
 
@@ -178,7 +178,7 @@ try {
 ## Self-host kit
 
 - npm package: `npm install` / `npm run build` / `burnbrake serve` (Node 22.13+)
-- optional Docker: `docker compose up --build` publishes **only** `127.0.0.1:8787`. Inside the container the process binds `0.0.0.0` so Docker can reach it, with `BURNBRAKE_ALLOW_PUBLIC_BIND=1` and auth still required. Do not publish that port on a public interface without an ACL.
+- optional Docker: the image listens on `127.0.0.1` unless you opt in. `docker compose up --build` publishes **only** `127.0.0.1:8787` and sets `BURNBRAKE_HOST=0.0.0.0` plus `BURNBRAKE_ALLOW_PUBLIC_BIND=1` inside the container so Docker can reach that process. Do not `docker run -p 8787:8787` and do not publish `0.0.0.0` without an ACL.
 
 Hosted multi-tenant ledger service is later. It is not in this kit.
 
@@ -192,11 +192,11 @@ npm run demo
 ## Known limits
 
 - One in-flight call can settle above the reserve, or a crash can debit the estimate. The next call is gated. Tool and vision ceilings are flat allowances, so that one call can still overshoot. Debt gates the next call. This is not a promise of zero overspend.
-- The idempotency table stores upstream response bodies so a retry can replay them. There is no retention window. The SQLite file is sensitive. Treat it as a secret. Decision rows do not store prompts.
+- The idempotency table stores upstream response bodies so a short retry can replay them. Bodies are removed after **24 hours**; the key stays terminal and is not reserved again. The SQLite file is mode `0600` and is still a secret. Decision rows do not store prompts.
 - A day cap set only on one UTC date (`--key` / `key` for that date) does not roll to the next day. Set the default day cap (omit the key) if you want the fence to continue.
 - Skewed clocks across writers that do not share this ledger can split the UTC day bucket.
 - A client that ignores the sidecar is not stopped.
-- Per-run caps alone can be washed by rotating `run_id`.
+- Per-run caps alone, or a user cap without a day cap, can be washed by rotating `x-burnbrake-run-id` / `x-burnbrake-user-id`. The OpenAI `user` field does not do that; it is not a budget id.
 - Filesystem access to the ledger is full operator control. The CLI has no key of its own.
 - `X-BurnBrake-Key` comparison returns early when the lengths differ, so a local observer can learn the secret's length. It does not reveal the secret.
 - Not Polar-ready. No zip or SHA is published. Listing stays dark until a founder go-live. Soft-WTP stays off.

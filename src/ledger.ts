@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { chmodSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
-import { RESERVATION_TTL_MS } from "./constants.js";
+import { IDEMPOTENCY_BODY_TTL_MS, RESERVATION_TTL_MS } from "./constants.js";
 
 export type ScopeName = "user" | "run" | "day";
 export type ReservationState =
@@ -244,6 +245,7 @@ export class Ledger {
     if (!this.isWritable()) {
       throw new Error("Ledger is not writable. Refusing to start (fail closed).");
     }
+    restrictLedgerPermissions(path);
     if (opts.defaultCaps) {
       for (const scope of ["user", "run", "day"] as const) {
         const cap = opts.defaultCaps[scope];
@@ -573,8 +575,8 @@ export class Ledger {
     if (!user && !run && !day) {
       return "no caps configured; the spend path will reject until a user, run, or day cap is set";
     }
-    if (run && !user && !day) {
-      return "only per-run is configured; run-id rotation washes the fence — set a user and/or day cap";
+    if ((user || run) && !day) {
+      return "no day cap; user and run ids are chosen by the authenticated caller and can be rotated — set a day cap";
     }
     return null;
   }
@@ -929,6 +931,14 @@ export class Ledger {
         debited += 1;
       }
     }
+    const bodyCutoff = this.now() - IDEMPOTENCY_BODY_TTL_MS;
+    this.db
+      .prepare(
+        `UPDATE idempotency
+         SET response_body = NULL, http_status = NULL
+         WHERE state = 'completed' AND response_body IS NOT NULL AND updated_at <= ?`,
+      )
+      .run(bodyCutoff);
     return { released, debited };
   }
 
@@ -1118,6 +1128,19 @@ function assertMicros(micros: number, label: string): void {
 
 function denyResult(fields: Omit<Extract<ReserveResult, { kind: "deny" }>, "kind">): ReserveResult {
   return { kind: "deny", ...fields };
+}
+
+function restrictLedgerPermissions(path: string): void {
+  if (!path || path === ":memory:") return;
+  for (const candidate of [path, `${path}-wal`, `${path}-shm`]) {
+    try {
+      chmodSync(candidate, 0o600);
+    } catch (err) {
+      const code = err && typeof err === "object" && "code" in err ? String((err as { code?: string }).code) : "";
+      if (code === "ENOENT") continue;
+      throw new Error(`Could not restrict permissions on the ledger file. Refusing to start.`);
+    }
+  }
 }
 
 function isBusy(err: unknown): boolean {

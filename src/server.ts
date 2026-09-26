@@ -6,7 +6,7 @@ import { errorBody, httpStatusForEstimate, type ErrorFields } from "./errors.js"
 import { costFromUsage, estimateRequest, type GovernedRoute } from "./estimate.js";
 import { decisionsToCsv, Ledger, type DecisionInput, type DefaultCaps } from "./ledger.js";
 import { loadPriceTable, priceTableFreshness, type PriceTable } from "./prices.js";
-import { forwardToUpstream, parseUsageText, type MockState } from "./upstream.js";
+import { forwardToUpstream, settleUsage, type MockState } from "./upstream.js";
 import { usdToMicros } from "./money.js";
 
 const GOVERNED = new Set<GovernedRoute>(["/v1/chat/completions", "/v1/completions"]);
@@ -287,6 +287,20 @@ async function handleGoverned(
     );
     return;
   }
+  if (idem && !callerTokenOk(idem)) {
+    sendJson(
+      res,
+      400,
+      errorBody({
+        code: "BAD_REQUEST",
+        httpStatus: 400,
+        message: "Idempotency-Key must be 1–200 characters and must not contain control characters.",
+        halt: true,
+        retryable: false,
+      }),
+    );
+    return;
+  }
 
   let parsed: Record<string, unknown>;
   try {
@@ -312,8 +326,26 @@ async function handleGoverned(
     return;
   }
 
-  const userId = headerValue(req, "x-burnbrake-user-id") ?? (typeof parsed.user === "string" ? parsed.user : null);
-  const runId = headerValue(req, "x-burnbrake-run-id");
+  const userHeader = headerValue(req, "x-burnbrake-user-id");
+  const runHeader = headerValue(req, "x-burnbrake-run-id");
+  if ((userHeader && !callerTokenOk(userHeader)) || (runHeader && !callerTokenOk(runHeader))) {
+    sendJson(
+      res,
+      400,
+      errorBody({
+        code: "BAD_REQUEST",
+        httpStatus: 400,
+        message: "x-burnbrake-user-id and x-burnbrake-run-id must be 1–200 characters and must not contain control characters.",
+        halt: true,
+        retryable: false,
+      }),
+    );
+    return;
+  }
+  // OpenAI `user` is request content, not the budget identity. A client that stamps a new
+  // `user` per end-user would otherwise mint a fresh cap on every call.
+  const userId = userHeader;
+  const runId = runHeader;
   const estimate = estimateRequest(parsed, ctx.table, ctx.config.defaultMaxTokens, route);
   if (!estimate.ok) {
     const status = httpStatusForEstimate(estimate.code);
@@ -578,7 +610,7 @@ async function handleGoverned(
     return;
   }
 
-  const usage = parseUsageText(upstream.contentType, upstream.bodyText);
+  const usage = settleUsage(upstream.contentType, upstream.bodyText);
   let terminalReason = "SETTLED";
   let settledMicros: number | null = null;
   let debtDelta = 0;
@@ -871,6 +903,15 @@ function readIdempotency(req: IncomingMessage): string | null | "mismatch" {
   return a ?? b;
 }
 
+function callerTokenOk(value: string): boolean {
+  if (value.length < 1 || value.length > 200) return false;
+  for (const ch of value) {
+    const code = ch.charCodeAt(0);
+    if (code < 0x20 || code === 0x7f) return false;
+  }
+  return true;
+}
+
 function headerValue(req: IncomingMessage, name: string): string | null {
   const value = req.headers[name];
   if (typeof value !== "string") return null;
@@ -931,17 +972,29 @@ function readBody(req: IncomingMessage, limit = 1_048_576): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
+    let settled = false;
+    const fail = (err: Error) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    };
+    const ok = (body: Buffer) => {
+      if (settled) return;
+      settled = true;
+      resolve(body);
+    };
     req.on("data", (chunk: Buffer) => {
       size += chunk.length;
       if (size > limit) {
-        reject(new Error("BODY_TOO_LARGE"));
+        fail(new Error("BODY_TOO_LARGE"));
         req.destroy();
         return;
       }
       chunks.push(chunk);
     });
-    req.on("end", () => resolve(Buffer.concat(chunks)));
-    req.on("error", reject);
+    req.on("end", () => ok(Buffer.concat(chunks)));
+    req.on("error", (err) => fail(err instanceof Error ? err : new Error("CLIENT_CLOSED")));
+    req.on("aborted", () => fail(new Error("CLIENT_CLOSED")));
   });
 }
 
@@ -950,14 +1003,18 @@ function sendJson(res: ServerResponse, status: number, body: unknown, extra: Rec
 }
 
 function sendRaw(res: ServerResponse, status: number, contentType: string, body: string, extra: Record<string, string> = {}): void {
-  if (res.headersSent) return;
-  res.writeHead(status, {
-    "content-type": contentType,
-    "content-length": Buffer.byteLength(body),
-    "cache-control": "no-store",
-    ...extra,
-  });
-  res.end(body);
+  if (res.destroyed || res.writableEnded || res.headersSent) return;
+  try {
+    res.writeHead(status, {
+      "content-type": contentType,
+      "content-length": Buffer.byteLength(body),
+      "cache-control": "no-store",
+      ...extra,
+    });
+    res.end(body);
+  } catch {
+    // The client already went away. Settle/debit already happened; do not turn that into a 503.
+  }
 }
 
 function listen(server: Server, port: number, host: string): Promise<void> {

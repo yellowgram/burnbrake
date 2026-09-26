@@ -24,6 +24,22 @@ describe("typescript sdk", () => {
       IdempotencyKeyRequired,
     );
     assert.equal(called, false);
+    await assert.rejects(
+      () =>
+        (
+          client.chat.completions.create as (body: { model: string; messages: unknown[]; idempotencyKey: string }) => Promise<unknown>
+        )({ model: "gpt-4o-mini", messages: [], idempotencyKey: "only-on-the-body" }),
+      IdempotencyKeyRequired,
+    );
+    await assert.rejects(
+      () =>
+        client.chat.completions.create(
+          { model: "gpt-4o-mini", messages: [] },
+          { idempotencyKey: "bad\nkey" },
+        ),
+      IdempotencyKeyRequired,
+    );
+    assert.equal(called, false);
   });
 
   it("throws BudgetExhausted for HTTP 402 and does not treat it as success", async () => {

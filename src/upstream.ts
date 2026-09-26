@@ -35,7 +35,7 @@ export async function forwardToUpstream(opts: {
     body: JSON.stringify(opts.body),
     redirect: "manual",
   });
-  const bodyText = await response.text();
+  const bodyText = await readLimitedText(response, 2_000_000);
   return {
     status: response.status,
     contentType: response.headers.get("content-type") ?? "application/json",
@@ -107,6 +107,48 @@ function mockForward(opts: {
           usage,
         };
   return { status: 200, contentType: "application/json", bodyText: JSON.stringify(body) };
+}
+
+const UPSTREAM_BODY_LIMIT_LABEL = "UPSTREAM_BODY_TOO_LARGE";
+
+async function readLimitedText(response: Response, limit: number): Promise<string> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    const text = await response.text();
+    if (Buffer.byteLength(text) > limit) throw new Error(UPSTREAM_BODY_LIMIT_LABEL);
+    return text;
+  }
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    size += value.byteLength;
+    if (size > limit) {
+      await reader.cancel();
+      throw new Error(UPSTREAM_BODY_LIMIT_LABEL);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+/** Usage that is safe to settle. An event stream without a terminal `[DONE]` is unfinished. */
+export function settleUsage(
+  contentType: string,
+  bodyText: string,
+): { prompt_tokens: number; completion_tokens: number } | null {
+  if (contentType.toLowerCase().includes("event-stream") && !sseFinished(bodyText)) return null;
+  return parseUsageText(contentType, bodyText);
+}
+
+function sseFinished(bodyText: string): boolean {
+  for (const line of bodyText.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed === "data: [DONE]" || trimmed === "data:[DONE]") return true;
+  }
+  return false;
 }
 
 export function parseUsageText(

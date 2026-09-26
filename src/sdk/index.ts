@@ -36,7 +36,7 @@ export class IdempotencyKeyRequired extends Error {
   readonly code = "IDEMPOTENCY_KEY_REQUIRED";
   constructor() {
     super(
-      "BurnBrake SDK calls require idempotencyKey. Raw HTTP may omit it, but retries after a forward must carry the same key or you risk a second provider call.",
+      "BurnBrake SDK calls require idempotencyKey on the options argument (not the JSON body). Raw HTTP may omit it, but retries after a forward must carry the same key or you risk a second provider call.",
     );
     this.name = "IdempotencyKeyRequired";
   }
@@ -136,16 +136,16 @@ export class BurnBrake {
   };
 
   private async post(path: string, body: object, options: CallOptions): Promise<unknown> {
-    if (!options || typeof options.idempotencyKey !== "string" || options.idempotencyKey.trim() === "") {
-      throw new IdempotencyKeyRequired();
-    }
+    const idempotencyKey = requireCallerToken(options?.idempotencyKey, "idempotencyKey");
+    const userId = optionalCallerToken(options?.userId, "userId");
+    const runId = optionalCallerToken(options?.runId, "runId");
     const headers: Record<string, string> = {
       "content-type": "application/json",
       "x-burnbrake-key": this.apiKey,
-      "idempotency-key": options.idempotencyKey.trim(),
+      "idempotency-key": idempotencyKey,
     };
-    if (options.userId) headers["x-burnbrake-user-id"] = options.userId;
-    if (options.runId) headers["x-burnbrake-run-id"] = options.runId;
+    if (userId) headers["x-burnbrake-user-id"] = userId;
+    if (runId) headers["x-burnbrake-run-id"] = runId;
     const response = await this.fetchImpl(`${this.baseURL}${path}`, {
       method: "POST",
       headers,
@@ -188,6 +188,34 @@ export class BurnBrake {
     }
     return parsed;
   }
+}
+
+function requireCallerToken(value: unknown, label: string): string {
+  if (typeof value !== "string" || !callerTokenOk(value.trim())) {
+    if (label === "idempotencyKey") throw new IdempotencyKeyRequired();
+    throw new BurnBrakeError({
+      message: `${label} must be 1–200 characters and must not contain control characters.`,
+      code: "BAD_REQUEST",
+      httpStatus: 400,
+      halt: true,
+      retryable: false,
+    });
+  }
+  return value.trim();
+}
+
+function optionalCallerToken(value: unknown, label: string): string | null {
+  if (value == null || value === "") return null;
+  return requireCallerToken(value, label);
+}
+
+function callerTokenOk(value: string): boolean {
+  if (value.length < 1 || value.length > 200) return false;
+  for (const ch of value) {
+    const code = ch.charCodeAt(0);
+    if (code < 0x20 || code === 0x7f) return false;
+  }
+  return true;
 }
 
 function errorObject(body: unknown): Record<string, unknown> | null {

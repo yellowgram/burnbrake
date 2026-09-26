@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmodSync } from "node:fs";
+import { chmodSync, statSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { Ledger, type ReserveInput } from "../src/ledger.ts";
@@ -151,9 +151,61 @@ describe("ledger reservations", () => {
     ledger.close();
   });
 
-  it("refuses to open a read-only ledger", () => {
+  it("debits every configured scope and blocks the next reserve on the scope that is in debt", () => {
+    const ledger = new Ledger(tempLedgerPath(), { defaultCaps: { user: 5_000, run: null, day: 1_000 } });
+    const reserved = ledger.reserve(input({ estimateMicros: 800, runId: "ignored", userId: "alice" }));
+    assert.equal(reserved.kind, "reserved");
+    if (reserved.kind !== "reserved") return;
+    ledger.markForwarded(reserved.reservationId);
+    ledger.settle(reserved.reservationId, 1_500);
+    const user = ledger.balances({ userId: "alice" }).scopes.find((scope) => scope.scope === "user");
+    const day = ledger.balances({ userId: "alice" }).scopes.find((scope) => scope.scope === "day");
+    assert.equal(user?.spent_micros, 1_500);
+    assert.equal(user?.debt_micros, 0);
+    assert.equal(day?.spent_micros, 1_500);
+    assert.equal(day?.debt_micros, 500);
+    assert.equal(day?.held_micros, 0);
+    const next = ledger.reserve(input({ estimateMicros: 100, runId: "ignored", userId: "alice", idempotencyKey: "next" }));
+    assert.equal(next.kind, "deny");
+    if (next.kind === "deny") {
+      assert.equal(next.code, "BUDGET_EXHAUSTED");
+      assert.equal(next.httpStatus, 402);
+      assert.equal(next.scope, "day");
+    }
+    ledger.close();
+  });
+
+  it("drops replay bodies after 24h and does not reserve that key again", () => {
+    let now = 1_000_000;
+    const ledger = new Ledger(tempLedgerPath(), {
+      now: () => now,
+      defaultCaps: { user: null, run: 10_000, day: null },
+    });
+    const reserved = ledger.reserve(input({ estimateMicros: 400, runId: "r", idempotencyKey: "secret-key" }));
+    assert.equal(reserved.kind, "reserved");
+    if (reserved.kind !== "reserved") return;
+    ledger.markForwarded(reserved.reservationId);
+    ledger.settle(reserved.reservationId, 50);
+    ledger.completeIdempotency("secret-key", 200, '{"id":"chatcmpl-secret","choices":[{"message":{"content":"secret"}}]}');
+    now += 24 * 60 * 60 * 1000 + 1;
+    ledger.sweep();
+    const again = ledger.reserve(input({ estimateMicros: 400, runId: "r", idempotencyKey: "secret-key" }));
+    assert.equal(again.kind, "replay");
+    if (again.kind === "replay") {
+      assert.equal(again.httpStatus, 409);
+      assert.equal(again.body.includes("secret"), false);
+      assert.equal(JSON.parse(again.body).error.code, "ALREADY_TERMINAL");
+    }
+    const balance = ledger.balances({ runId: "r" }).scopes.find((scope) => scope.scope === "run");
+    assert.equal(balance?.spent_micros, 50);
+    assert.equal(balance?.held_micros, 0);
+    ledger.close();
+  });
+
+  it("restricts the ledger file and refuses to open a read-only ledger", () => {
     const path = tempLedgerPath();
     const ledger = new Ledger(path, { defaultCaps: { user: null, run: 1, day: null } });
+    assert.equal(statSync(path).mode & 0o777, 0o600);
     ledger.close();
     chmodSync(path, 0o444);
     assert.throws(() => new Ledger(path), /not writable|readonly|attempt to write/i);

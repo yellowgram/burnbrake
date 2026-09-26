@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { loadConfig } from "../src/config.ts";
 import { bootSidecar, postChat } from "./helpers.ts";
@@ -222,6 +225,125 @@ describe("sidecar spend path", () => {
     } finally {
       await sidecar.close();
     }
+  });
+
+  it("does not treat the OpenAI user field or the operator key as a spend identity", async () => {
+    const sidecar = await bootSidecar({ caps: { user: 1_000_000, run: null, day: null } });
+    try {
+      const washed = await postChat(sidecar, {
+        idempotencyKey: "body-user",
+        userId: null,
+        runId: null,
+        body: { user: "end-user-rotated" },
+      });
+      assert.equal(washed.status, 400);
+      assert.equal(washed.json.error.code, "IDENTITY_REQUIRED");
+      assert.equal(sidecar.mock.forwardCount, 0);
+      const allowed = await postChat(sidecar, {
+        idempotencyKey: "header-user",
+        userId: "alice",
+        runId: null,
+        body: { user: "someone-else" },
+      });
+      assert.equal(allowed.status, 200);
+      const alice = sidecar.ledger.balances({ userId: "alice" }).scopes.find((scope) => scope.scope === "user");
+      const other = sidecar.ledger.balances({ userId: "someone-else" }).scopes.find((scope) => scope.scope === "user");
+      const rotated = sidecar.ledger.balances({ userId: "end-user-rotated" }).scopes.find((scope) => scope.scope === "user");
+      assert.ok(alice && alice.spent_micros > 0);
+      assert.equal(other, undefined);
+      assert.equal(rotated, undefined);
+      const operatorSpend = await postChat(sidecar, {
+        idempotencyKey: "operator-cannot-spend",
+        key: "bb_test_operator",
+        userId: "alice",
+        runId: null,
+      });
+      assert.equal(operatorSpend.status, 401);
+      assert.equal(sidecar.mock.forwardCount, 1);
+    } finally {
+      await sidecar.close();
+    }
+  });
+
+  it("rejects an overlong idempotency key before forwarding", async () => {
+    const sidecar = await bootSidecar();
+    try {
+      const response = await postChat(sidecar, { idempotencyKey: "k".repeat(201) });
+      assert.equal(response.status, 400);
+      assert.equal(response.json.error.code, "BAD_REQUEST");
+      assert.equal(sidecar.mock.forwardCount, 0);
+    } finally {
+      await sidecar.close();
+    }
+  });
+
+  it("settles a finished stream from usage and still settles if the client leaves after forward", async () => {
+    const sidecar = await bootSidecar();
+    try {
+      const streamed = await postChat(sidecar, {
+        idempotencyKey: "stream-done",
+        runId: "run-stream",
+        body: { stream: true, max_tokens: 4000 },
+      });
+      assert.equal(streamed.status, 200);
+      assert.equal(streamed.text.includes("data: [DONE]"), true);
+      const run = sidecar.ledger.balances({ runId: "run-stream" }).scopes.find((scope) => scope.scope === "run");
+      assert.ok(run && run.spent_micros > 0 && run.spent_micros < 100);
+    } finally {
+      await sidecar.close();
+    }
+
+    let releaseGate: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      releaseGate = resolve;
+    });
+    const hanging = await bootSidecar({ beforeForward: () => gate });
+    const controller = new AbortController();
+    try {
+      const pending = fetch(`${hanging.baseURL}/v1/chat/completions`, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "content-type": "application/json",
+          "x-burnbrake-key": "bb_test_key",
+          "x-burnbrake-run-id": "run-abort",
+          "idempotency-key": "abort-1",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: "hi" }],
+          max_tokens: 16,
+          stream: true,
+        }),
+      });
+      await waitFor(() => hanging.ledger.listReservations({ state: "FORWARDED", runId: "run-abort" }).length === 1);
+      controller.abort();
+      releaseGate();
+      await pending.catch(() => undefined);
+      await waitFor(() => {
+        const row = hanging.ledger.listReservations({ runId: "run-abort" })[0];
+        return row?.state === "SETTLED" || row?.state === "DEBIT_RESERVED";
+      });
+      const row = hanging.ledger.listReservations({ runId: "run-abort" })[0];
+      assert.notEqual(row?.state, "RELEASED");
+      assert.notEqual(row?.terminal_reason, "RELEASE_PRE_FORWARD");
+      assert.equal(hanging.mock.forwardCount, 1);
+      const spent = hanging.ledger.balances({ runId: "run-abort" }).scopes.find((scope) => scope.scope === "run");
+      assert.ok(spent && spent.spent_micros > 0 && spent.held_micros === 0);
+    } finally {
+      releaseGate();
+      await hanging.close();
+    }
+  });
+
+  it("refuses to start when the price table is corrupt", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bb-bad-price-"));
+    const path = join(dir, "bad.yaml");
+    writeFileSync(path, "version: [\nthis is not a price table\n");
+    await assert.rejects(
+      () => bootSidecar({ priceTablePath: path }),
+      /Price table|YAML|mapping|must be/i,
+    );
   });
 
   it("kills a run so the next reserve does not forward", async () => {
