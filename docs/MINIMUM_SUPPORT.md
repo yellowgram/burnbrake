@@ -2,7 +2,7 @@
 
 **Product:** BurnBrake — request-path spend governor  
 **Kit:** `burnbrake-0.1.0.zip` (tag `v0.1.0`, archive directory `burnbrake-0.1.0/`)  
-**Pricing (USD, founder lock):** **$199 once** self-host one-org license (primary) · **$49/mo** hosted optional · seller **Suthirth solutions** · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
+**Pricing (USD, founder lock):** **$199 once** self-host one-org kit (primary) · **$49/mo** hosted optional · seller **Suthirth solutions** · copyright MIT · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
 **Contact:** hello@yellowgram.dev  
 **Goal:** Strangers self-serve the happy path; founder support stays thin and bounded.  
 **Polar:** kit ready; Suthirth solutions publishes Polar after founder GO. The listing is **not live**. Seller checklist: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in the git repository (not in the buyer zip).  
@@ -22,7 +22,7 @@ Modeled on yellowgram MINIMUM_SUPPORT discipline (docs replace the founder; boun
 
 ### What the $199 fee includes
 
-See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md). The primary fee is the self-host one-org license. It includes:
+See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md). The primary fee is the packaged self-host kit and 60-day Issues for one organization. [`LICENSE`](../LICENSE) is MIT. The fee does not revoke that grant. It includes:
 
 - Perpetual self-host for **one organization**
 - Tag + SHA + the **402 / debt / run-id** contract (exhaust unchanged: halt, not retryable)

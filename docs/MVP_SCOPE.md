@@ -5,7 +5,7 @@
 **Product:** BurnBrake — request-path spend governor  
 **Promise:** reject the next completion when user/run/day budget cannot cover the conservative estimate (including debt). Honesty: **one already-forwarded call may still overshoot** — not magical zero overspend. **No claim** that BurnBrake will outrun OpenAI forever.  
 **Primary shape:** OpenAI-compatible **sidecar** (self-host); thin **SDK** secondary  
-**Pricing (USD, founder lock):** **$199 once** self-host one-org license (primary) · **$49/mo** hosted optional · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
+**Pricing (USD, founder lock):** **$199 once** self-host one-org kit (primary) · **$49/mo** hosted optional · copyright MIT · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
 **Contact:** hello@yellowgram.dev  
 **Polar:** kit ready for CoS publish after founder GO; listing is not live  
 **Date:** 2026-09-26 ET scope lock · shipped in the v0.1.0 kit · DR3 remediations from [`DR3_ATTACKS.md`](./DR3_ATTACKS.md) (git only)
@@ -71,7 +71,7 @@ An optional pre-cap brake curve (warn / slow before the cap) is implemented — 
 - Details: [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md).
 
 ### 7. Delivery honesty
-- **First cash SKU = $199 once** self-host one-org license; hosted **$49/mo** optional later / not day-1 primary. Buyer keeps the zip. See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md).
+- **First cash SKU = $199 once** self-host one-org kit. [`LICENSE`](../LICENSE) is MIT. The fee does not revoke that grant. It buys the packaged kit and 60-day Issues for one organization. Hosted **$49/mo** is optional later / not day-1 primary. Buyer keeps the zip. See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md).
 - Polar public listing is **not live**. The v0.1.0 kit is ready for Suthirth solutions to publish after founder GO. This repository does not publish Polar.
 - BurnBrake only governs traffic that hits the sidecar.
 

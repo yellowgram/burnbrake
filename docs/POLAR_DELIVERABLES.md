@@ -6,7 +6,7 @@
 **Tag:** `v0.1.0`  
 **Zip:** `burnbrake-0.1.0.zip`  
 **Archive root:** `burnbrake-0.1.0/`  
-**SHA-256:** `3326cdb555a76e2437ff1c31ca0957ffc4bf4908837370bcb36f57266d36104c`  
+**SHA-256:** `585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8`  
 **Checksum file:** `checksums/burnbrake-0.1.0.sha256` (in git; **not** inside the zip — the archive cannot contain its own digest)  
 **Manifest:** `checksums/burnbrake-0.1.0.manifest.txt`  
 **Seller:** Suthirth solutions  
@@ -37,13 +37,15 @@ Pre-call spend gate for agent loops: the sidecar rejects the next completion whe
 
 BurnBrake is a self-hosted request-path spend governor for OpenAI-shaped chat and completions. Point `baseURL` at a localhost sidecar. Before each call it estimates a conservative cost, reserves that amount against user, run, and day caps, and rejects the next call when the reserve (including debt) does not fit.
 
-The $199 fee is a perpetual self-host license for one organization. It includes the v0.1.0 zip (tag `v0.1.0`, file `burnbrake-0.1.0.zip`), the HTTP 402 / debt / run-id contract, brake-curve configuration in the tree (default off; the cap is still a halt), and 60 days of GitHub Issues with no SLA.
+The $199 fee buys the packaged self-host kit and 60 days of GitHub Issues, scoped to one organization. It includes the v0.1.0 zip (tag `v0.1.0`, file `burnbrake-0.1.0.zip`), the HTTP 402 / debt / run-id contract, and brake-curve configuration in the tree (default off; the cap is still a halt).
+
+Copyright in `LICENSE` is MIT. Payment does not revoke that grant and does not add a copyright limit MIT does not contain. MIT does not include the Issues window.
 
 Price: $199 once. Refund window: 14 days. Seller: Suthirth solutions. Support email in that window: hello@yellowgram.dev.
 
 Hosted operation at $49/mo is optional and is not this product. Create it as a separate Polar product only if Polar requires one. It is not a coupon, a cold invoice, or Soft-WTP.
 
-SHA-256 of `burnbrake-0.1.0.zip`: `3326cdb555a76e2437ff1c31ca0957ffc4bf4908837370bcb36f57266d36104c`
+SHA-256 of `burnbrake-0.1.0.zip`: `585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8`
 
 Verify:
 
@@ -78,7 +80,7 @@ The digest must match the line above and `checksums/burnbrake-0.1.0.sha256` on t
 
 | Field | Value |
 | --- | --- |
-| Price | **$199 once** |
+| Price | **$199 once** (packaged kit + 60-day Issues, one organization). Copyright is MIT. |
 | Refund | **14 days** on that kit |
 | Support | **60-day GitHub Issues**, no SLA |
 | Email | hello@yellowgram.dev |
@@ -94,7 +96,7 @@ BurnBrake will not do these clicks.
 
 - [ ] Wait until the pack pull request is squash-merged to `main`. Do not publish from the PR branch.
 - [ ] Check out that merge commit. Tag it `v0.1.0`. Do not point the tag at an older commit.
-- [ ] On that commit, run `bash scripts/pack-release.sh`. It must match `checksums/burnbrake-0.1.0.sha256` (`3326cdb555a76e2437ff1c31ca0957ffc4bf4908837370bcb36f57266d36104c`). If it does not, stop. Do not upload a different zip.
+- [ ] On that commit, run `bash scripts/pack-release.sh`. It must match `checksums/burnbrake-0.1.0.sha256` (`585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8`). If it does not, stop. Do not upload a different zip.
 - [ ] Create the GitHub Release with the command in **Release recipe** below. Asset name: `burnbrake-0.1.0.zip`.
 - [ ] In Polar, create the product under **Suthirth solutions**. Paste the title, one-liner, and description from this file.
 - [ ] Set price **$199 once**. Set the refund window to **14 days**. Support text: 60-day Issues, no SLA, hello@yellowgram.dev.
@@ -239,7 +241,7 @@ Self-host one-org kit. Seller: Suthirth solutions.
 ## Asset
 
 - File: `burnbrake-0.1.0.zip`
-- SHA-256: `3326cdb555a76e2437ff1c31ca0957ffc4bf4908837370bcb36f57266d36104c`
+- SHA-256: `585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8`
 
 Verify:
 
@@ -283,7 +285,7 @@ The release was not created from the pack pull request. The pack commit was not 
 - [x] Stranger path (README, `docs/START_HERE.md`, `docs/MINIMUM_SUPPORT.md`, `docs/DEMO_60S.md`) describes HTTP **402**, not a draft status
 - [x] 60s demo script ships in the kit (`npm run demo`, mock upstream)
 - [x] Operator CLI and operator HTTP shipped
-- [x] Zip `burnbrake-0.1.0.zip` built. SHA-256 `3326cdb555a76e2437ff1c31ca0957ffc4bf4908837370bcb36f57266d36104c` recorded in `checksums/burnbrake-0.1.0.sha256`
+- [x] Zip `burnbrake-0.1.0.zip` built. SHA-256 `585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8` recorded in `checksums/burnbrake-0.1.0.sha256`
 - [x] Refund **14 days** on the $199 kit
 - [x] Soft-WTP off. No Autumn smuggle. No checkout URL in the README
 - [ ] Polar listing published — CoS only, after the Release asset exists

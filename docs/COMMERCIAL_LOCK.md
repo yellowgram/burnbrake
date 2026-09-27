@@ -11,7 +11,7 @@
 
 | SKU | Price | Notes |
 | --- | --- | --- |
-| **Primary** — self-host one-org license | **$199 once** | Not $149. Not $79/mo as the plan. |
+| **Primary** — self-host one-org kit | **$199 once** | Not $149. Not $79/mo as the plan. Copyright is MIT. |
 | **Hosted** (optional) | **$49/mo** | Not the day-1 primary plan. |
 | Month-2 | Platform caps expected | Buyer **keeps the zip**. |
 
@@ -22,6 +22,8 @@
 - **60-day Issues**, no SLA (same fence as HookSteel)
 - **Brake-curve** config in the tree ([`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md) — approach policy **BB_BRAKE_CURVE_1**; not a halt-off switch)
 - **No claim** that BurnBrake will outrun OpenAI forever
+
+**Copyright:** [`LICENSE`](../LICENSE) is MIT. That grant is free and is not revoked by payment. The $199 fee does not add a copyright limit MIT does not contain. It buys this packaged kit and **60-day Issues**, scoped to **one organization**. MIT does not include that Issues window.
 
 ## Do not
 

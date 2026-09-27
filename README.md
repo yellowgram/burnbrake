@@ -4,7 +4,7 @@ Request-path spend governor for agent loops. The sidecar estimates a completion,
 
 One already-forwarded call may still overshoot. Debt gates the next call. This is not a promise of zero spend on a call that already left the process.
 
-Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. First cash SKU: self-host **one-org license $199 once** (seller **Suthirth solutions**). Hosted **$49/mo** is optional and not the day-1 plan. Kit archive: `burnbrake-0.1.0.zip` (tag `v0.1.0`). Suthirth solutions publishes the Polar listing after founder GO. The listing is not live in this repository, and this file has no checkout URL. Soft-WTP is off. Pricing lock: [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md).
+Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. First cash SKU: self-host **one-org kit $199 once** (seller **Suthirth solutions**). [LICENSE](LICENSE) is MIT. The fee does not revoke that grant and does not add a copyright limit MIT does not contain. It buys this packaged kit and 60-day Issues, scoped to one organization. Hosted **$49/mo** is optional and not the day-1 plan. Kit archive: `burnbrake-0.1.0.zip` (tag `v0.1.0`). Suthirth solutions publishes the Polar listing after founder GO. The listing is not live in this repository, and this file has no checkout URL. Soft-WTP is off. Pricing lock: [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md).
 
 Contact: hello@yellowgram.dev
 
