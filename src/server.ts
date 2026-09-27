@@ -1,10 +1,11 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { VERSION } from "./constants.js";
 import { authenticate } from "./auth.js";
+import { BrakeConfigError, mergeBrakeConfig, sleepMs, type BrakeConfig } from "./brake.js";
 import { loadConfig, type AppConfig } from "./config.js";
 import { errorBody, httpStatusForEstimate, type ErrorFields } from "./errors.js";
 import { costFromUsage, estimateRequest, type GovernedRoute } from "./estimate.js";
-import { decisionsToCsv, Ledger, type DecisionInput, type DefaultCaps } from "./ledger.js";
+import { decisionsToCsv, Ledger, type BrakePreview, type DecisionInput, type DefaultCaps, type ReserveResult } from "./ledger.js";
 import { loadPriceTable, priceTableFreshness, type PriceTable } from "./prices.js";
 import { forwardToUpstream, settleUsage, type MockState } from "./upstream.js";
 import { usdToMicros } from "./money.js";
@@ -28,6 +29,8 @@ export interface StartOptions {
   caps?: DefaultCaps;
   now?: () => number;
   beforeForward?: () => Promise<void>;
+  /** Test hook. Production waits with setTimeout. Must not run inside a ledger transaction. */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 export interface RunningSidecar {
@@ -68,10 +71,12 @@ export async function startSidecar(options: StartOptions = {}): Promise<RunningS
     now: options.now,
     defaultCaps: options.caps ?? config.caps,
   });
+  ledger.setBrake(config.brake);
   ledger.sweep();
+  const sleep = options.sleep ?? sleepMs;
   const mock: MockState = { forwardCount: 0, lastBody: null, lastRoute: null };
   const server = createServer((req, res) => {
-    void handleRequest(req, res, { config, ledger, table, mock, beforeForward: options.beforeForward }).catch((err) => {
+    void handleRequest(req, res, { config, ledger, table, mock, beforeForward: options.beforeForward, sleep }).catch((err) => {
       if (!res.headersSent) {
         sendJson(
           res,
@@ -128,6 +133,7 @@ async function handleRequest(
     table: PriceTable;
     mock: MockState;
     beforeForward?: () => Promise<void>;
+    sleep: (ms: number) => Promise<void>;
   },
 ): Promise<void> {
   const url = new URL(req.url ?? "/", "http://127.0.0.1");
@@ -219,6 +225,7 @@ async function handleGoverned(
     table: PriceTable;
     mock: MockState;
     beforeForward?: () => Promise<void>;
+    sleep: (ms: number) => Promise<void>;
   },
   route: GovernedRoute,
 ): Promise<void> {
@@ -383,19 +390,85 @@ async function handleGoverned(
     return;
   }
 
-  let reserved;
-  try {
-    reserved = ctx.ledger.reserve({
+  const reserveInput = {
+    userId,
+    runId,
+    estimateMicros: estimate.micros,
+    idempotencyKey: idem,
+    model: estimate.model,
+    route,
+    maxTokens: estimate.maxTokens,
+    maxTokensSource: estimate.maxTokensSource,
+    priceTableVersion: ctx.table.version,
+  };
+  const respondDeny = (denied: Extract<ReserveResult, { kind: "deny" }>, curve: { delay_ms: number } | null): void => {
+    const fields: ErrorFields = {
+      code: denied.code,
+      httpStatus: denied.httpStatus,
+      message: denied.message,
+      scope: denied.scope,
+      remaining_micros: denied.remaining_micros,
+      requested_micros: denied.requested_micros,
+      user_id: denied.user_id,
+      run_id: denied.run_id,
+      halt: denied.code !== "IDEMPOTENCY_MISMATCH",
+      retryable: false,
+    };
+    if (curve && (denied.code === "BUDGET_EXHAUSTED" || denied.code === "SPEND_PAUSED")) {
+      fields.zone = "black";
+      fields.delay_ms = curve.delay_ms;
+    }
+    const raw = JSON.stringify(errorBody(fields));
+    if (idem && denied.code !== "IDEMPOTENCY_MISMATCH") {
+      ctx.ledger.rememberTerminal({
+        key: idem,
+        userId,
+        runId,
+        reservationId: null,
+        httpStatus: denied.httpStatus,
+        body: raw,
+      });
+    }
+    ctx.ledger.logDecision(decisionBase(ctx, started, {
       userId,
       runId,
-      estimateMicros: estimate.micros,
-      idempotencyKey: idem,
-      model: estimate.model,
+      decision: "DENY",
+      code: denied.code,
+      scope: denied.scope,
+      requestedMicros: denied.requested_micros,
+      remainingAfterMicros: denied.remaining_micros,
+      upstreamForwarded: false,
       route,
-      maxTokens: estimate.maxTokens,
+      model: estimate.model,
+      idempotencyKey: idem,
+      estimatedMicros: estimate.micros,
       maxTokensSource: estimate.maxTokensSource,
-      priceTableVersion: ctx.table.version,
-    });
+    }));
+    sendRaw(res, denied.httpStatus, "application/json; charset=utf-8", raw);
+  };
+
+  // Curve is off by default. That path must stay the pre-curve reserve, with no zone headers.
+  const brake = ctx.ledger.getBrake();
+  let color: Extract<BrakePreview, { kind: "color" }> | null = null;
+  if (brake.enabled) {
+    const preview = ctx.ledger.previewBrake(reserveInput, brake);
+    if (preview.kind === "black") {
+      if (preview.delay_ms > 0) await ctx.sleep(preview.delay_ms);
+      if (clientGone(req)) return;
+      // Wait does not flip the verdict. Do not reserve after this sleep.
+      respondDeny(preview.deny, { delay_ms: preview.delay_ms });
+      return;
+    }
+    if (preview.kind === "color" && preview.delay_ms > 0) {
+      await ctx.sleep(preview.delay_ms);
+      if (clientGone(req)) return;
+    }
+    if (preview.kind === "color") color = preview;
+  }
+
+  let reserved;
+  try {
+    reserved = ctx.ledger.reserve(reserveInput);
   } catch (err) {
     ctx.ledger.logDecision(decisionBase(ctx, started, {
       userId,
@@ -453,45 +526,8 @@ async function handleGoverned(
     return;
   }
   if (reserved.kind === "deny") {
-    const fields: ErrorFields = {
-      code: reserved.code,
-      httpStatus: reserved.httpStatus,
-      message: reserved.message,
-      scope: reserved.scope,
-      remaining_micros: reserved.remaining_micros,
-      requested_micros: reserved.requested_micros,
-      user_id: reserved.user_id,
-      run_id: reserved.run_id,
-      halt: reserved.code !== "IDEMPOTENCY_MISMATCH",
-      retryable: false,
-    };
-    const raw = JSON.stringify(errorBody(fields));
-    if (idem && reserved.code !== "IDEMPOTENCY_MISMATCH") {
-      ctx.ledger.rememberTerminal({
-        key: idem,
-        userId,
-        runId,
-        reservationId: null,
-        httpStatus: reserved.httpStatus,
-        body: raw,
-      });
-    }
-    ctx.ledger.logDecision(decisionBase(ctx, started, {
-      userId,
-      runId,
-      decision: "DENY",
-      code: reserved.code,
-      scope: reserved.scope,
-      requestedMicros: reserved.requested_micros,
-      remainingAfterMicros: reserved.remaining_micros,
-      upstreamForwarded: false,
-      route,
-      model: estimate.model,
-      idempotencyKey: idem,
-      estimatedMicros: estimate.micros,
-      maxTokensSource: estimate.maxTokensSource,
-    }));
-    sendRaw(res, reserved.httpStatus, "application/json; charset=utf-8", raw);
+    const becameBlack = brake.enabled && (reserved.code === "BUDGET_EXHAUSTED" || reserved.code === "SPEND_PAUSED");
+    respondDeny(reserved, becameBlack ? { delay_ms: color?.delay_ms ?? 0 } : null);
     return;
   }
 
@@ -718,9 +754,14 @@ async function handleGoverned(
     terminalReason,
     maxTokensSource: estimate.maxTokensSource,
   }));
-  sendRaw(res, upstream.status, upstream.contentType, upstream.bodyText, {
-    "x-burnbrake-reservation-id": reservationId,
-  });
+  const extra: Record<string, string> = { "x-burnbrake-reservation-id": reservationId };
+  if (upstream.status === 200 && color) {
+    extra["X-BurnBrake-Zone"] = color.zone;
+    extra["X-BurnBrake-Remaining-Micros"] = String(color.remaining_micros);
+    extra["X-BurnBrake-Delay-Ms"] = String(color.delay_ms);
+    extra["X-BurnBrake-Scope"] = color.scope;
+  }
+  sendRaw(res, upstream.status, upstream.contentType, upstream.bodyText, extra);
 }
 
 async function handleOperator(
@@ -835,6 +876,25 @@ async function handleOperator(
     sendJson(res, 200, { ok: true, scope, key: appliedKey, cap_micros: micros, warning: ctx.ledger.scopeWarning() });
     return;
   }
+  if ((req.method === "GET" || req.method === "POST") && path === "/v1/operator/brake") {
+    if (req.method === "GET") {
+      sendJson(res, 200, brakePayload(ctx.ledger.getBrake()));
+      return;
+    }
+    const body = await readJson(req);
+    try {
+      const next = mergeBrakeConfig(ctx.ledger.getBrake(), body);
+      ctx.ledger.setBrake(next);
+    } catch (err) {
+      if (err instanceof BrakeConfigError) {
+        sendJson(res, 400, errorBody({ code: "BAD_REQUEST", httpStatus: 400, message: err.message, halt: false, retryable: false }));
+        return;
+      }
+      throw err;
+    }
+    sendJson(res, 200, brakePayload(ctx.ledger.getBrake()));
+    return;
+  }
   if (req.method === "POST" && path === "/v1/operator/force-release") {
     const body = await readJson(req);
     if (body.attest_no_charge !== true) {
@@ -910,6 +970,17 @@ function callerTokenOk(value: string): boolean {
     if (code < 0x20 || code === 0x7f) return false;
   }
   return true;
+}
+
+function clientGone(req: IncomingMessage): boolean {
+  return req.aborted === true;
+}
+
+function brakePayload(brake: BrakeConfig): { brake: BrakeConfig; note: string } {
+  return {
+    brake,
+    note: "brake.enabled is not a halt-off switch. A black delay is a pre-402 pause only; the wait does not change the exhaust verdict.",
+  };
 }
 
 function headerValue(req: IncomingMessage, name: string): string | null {

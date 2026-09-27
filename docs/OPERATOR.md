@@ -44,9 +44,28 @@ burnbrake caps set --scope run --usd 1   # default for new runs
 
 There is no switch to allow spend past a cap, and no switch to forward when the ledger is down.
 
-## Brake curve (not shipped)
+## Brake curve
 
-Future operator surface, design only: `burnbrake brake show|set` and `/v1/operator/brake` (operator key only). Not shipped yet. See [DESIGN_BRAKE_CURVE.md](./DESIGN_BRAKE_CURVE.md) (**BB_BRAKE_CURVE_1**). `brake.enabled` is not a halt-off switch. A black delay is a pre-402 pause only; the wait does not change the exhaust verdict.
+Shipped. `burnbrake brake show|set` and `GET`/`POST /v1/operator/brake` (operator key only; the spend key is 401). See [DESIGN_BRAKE_CURVE.md](./DESIGN_BRAKE_CURVE.md) (**BB_BRAKE_CURVE_1**).
+
+`brake.enabled` defaults to **false** and is not a halt-off switch. While it is false, the spend path matches the pre-curve halt: no zone delay and no brake headers. At the cap the sidecar still returns HTTP **402** `BUDGET_EXHAUSTED` with `halt: true` and `retryable: false`. There is no `Retry-After` and no 429 for exhaust. A black delay is a pre-402 pause only. The wait does not change the verdict.
+
+```bash
+burnbrake brake show
+burnbrake brake set --enabled true --amber-delay-ms 250 --red-delay-ms 1000
+```
+
+```bash
+curl -s -H "x-burnbrake-key: $BURNBRAKE_OPERATOR_KEY" http://127.0.0.1:8787/v1/operator/brake
+curl -s -X POST -H "content-type: application/json" -H "x-burnbrake-key: $BURNBRAKE_OPERATOR_KEY" \
+  -d '{"amber_delay_ms":250}' http://127.0.0.1:8787/v1/operator/brake
+```
+
+A set applies on the **next** reserve. An in-flight `FORWARDED` call is not delayed, aborted, or rewritten. Env values are written into the ledger when the process starts (`BURNBRAKE_BRAKE_ENABLED`, `BURNBRAKE_BRAKE_AMBER_PCT`, `BURNBRAKE_BRAKE_RED_PCT`, `BURNBRAKE_BRAKE_AMBER_DELAY_MS`, `BURNBRAKE_BRAKE_RED_DELAY_MS`, `BURNBRAKE_BRAKE_BLACK_DELAY_MS`, `BURNBRAKE_BRAKE_MAX_DELAY_MS`).
+
+Defaults: enabled false, amber 30%, red 10%, delays 0, `max_delay_ms` 15000. `amber_pct > red_pct > 0`, `amber_pct <= 100`, each delay `<= max_delay_ms`, `max_delay_ms <= 15000`. Keys `exhaust.retryable`, `exhaust.http`, and `halt_mode` are rejected.
+
+When the curve is enabled, a 200 includes `X-BurnBrake-Zone`, `X-BurnBrake-Remaining-Micros`, `X-BurnBrake-Delay-Ms`, and `X-BurnBrake-Scope`. A 402 may add `zone` and `delay_ms` on the error object. The SDK does not sleep again on 402. Delay is sidecar-side only.
 
 ## Stuck reservations
 

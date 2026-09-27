@@ -30,6 +30,16 @@ export async function bootSidecar(overrides: StartOptions & { caps?: DefaultCaps
       BURNBRAKE_HOST: "127.0.0.1",
       BURNBRAKE_ALLOW_PUBLIC_BIND: "0",
       OPENAI_API_KEY: "",
+      BURNBRAKE_BRAKE_ENABLED: "",
+      BURNBRAKE_BRAKE_AMBER_PCT: "",
+      BURNBRAKE_BRAKE_RED_PCT: "",
+      BURNBRAKE_BRAKE_AMBER_DELAY_MS: "",
+      BURNBRAKE_BRAKE_RED_DELAY_MS: "",
+      BURNBRAKE_BRAKE_BLACK_DELAY_MS: "",
+      BURNBRAKE_BRAKE_MAX_DELAY_MS: "",
+      BURNBRAKE_HALT_MODE: "",
+      BURNBRAKE_EXHAUST_RETRYABLE: "",
+      BURNBRAKE_EXHAUST_HTTP: "",
       ...(envOverride ?? {}),
     },
     ...rest,
@@ -73,5 +83,5 @@ export async function postChat(
   } catch {
     json = null;
   }
-  return { status: response.status, json, text };
+  return { status: response.status, json, text, headers: response.headers };
 }

@@ -3,8 +3,8 @@
 **Packet:** CoS design amendment · `schema_version: 1` · `packet_type: design_amendment`  
 **Depends on:** [`MVP_SCOPE.md`](./MVP_SCOPE.md), [`LAUNCHGATE_DR4_VERDICT.md`](./LAUNCHGATE_DR4_VERDICT.md)  
 **Date:** 2026-09-27 ET  
-**Status:** Design only. **Do not implement** until LaunchGate marks design direction approved. Founder PQ1–PQ3 are locked (2026-09-26 ET).  
-**Soft-WTP:** OFF · **Polar:** stays dark · **Do not** reseal zip / light listing because this doc landed.
+**Status:** Implemented on this PR (curve only). Exhaust contract bytes are unchanged. Founder PQ1–PQ3 stay locked (2026-09-26 ET): `brake.enabled` default `false`, `black_delay_ms` default `0`, one-shot allowance later.  
+**Soft-WTP:** OFF · **Polar:** stays dark · **Do not** reseal zip / light listing because this curve shipped.
 
 This is **approach policy only**. It does **not** reopen exhaust.
 
@@ -172,7 +172,7 @@ Extra **allowed**:
 - Ship founding hosted with `enabled: true` unless PQ1 is an **explicit** yes
 - Add `Retry-After` on 402
 - Delay above `max_delay_ms`
-- Start implement from this packet alone
+- Reopen exhaust from this packet. The curve PR implements the delay only; halt bytes stay as specified above
 - Reseal zip / list Polar because a curve doc landed
 
 ---
@@ -182,7 +182,7 @@ Extra **allowed**:
 | Gate | Value |
 | --- | --- |
 | `approve_design_direction` (packet) | `true` — freeze still holds |
-| `approve_implement_now` | **false** |
-| Next | LaunchGate design ack → then implement PR (curve only; exhaust bytes unchanged). Founder PQ1–PQ3 locked 2026-09-26 ET. |
+| `approve_implement_now` | **this PR** — curve only; exhaust bytes unchanged |
+| Next | CR×3 then LaunchGate CR4. Founder PQ1–PQ3 stay locked. Soft-WTP off. Polar stays dark. |
 
-*Amendment id: `BB_BRAKE_CURVE_1`. Exhaust contract bytes unchanged.*
+*Amendment id: `BB_BRAKE_CURVE_1`. Implemented on this PR. Exhaust contract bytes unchanged.*

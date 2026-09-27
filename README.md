@@ -99,7 +99,9 @@ HTTP **402** is the halt family. Budget, pause, and unpriced share that status a
 | Ledger failure after forward | **502** | `LEDGER_UNAVAILABLE` | Only with the **same idempotency key** | Distinct from the pre-forward 503. The debit stands. |
 | Upstream success | **200** | — | — | Continue. |
 
-SDK: a 402 `BUDGET_EXHAUSTED` is thrown as `BudgetExhausted` with the same fields (`scope`, `remaining_micros`, `requested_micros`, `run_id`, `user_id`). `halt` is true and `retryable` is false.
+SDK: a 402 `BUDGET_EXHAUSTED` is thrown as `BudgetExhausted` with the same fields (`scope`, `remaining_micros`, `requested_micros`, `run_id`, `user_id`). `halt` is true and `retryable` is false. The SDK does not sleep on 402. A brake delay, when configured, happens in the sidecar before reserve.
+
+Optional brake curve (default **off**): slow down before the cap, then the same 402 halt. `brake.enabled` is not a halt-off switch. While it is false, exhaust responses match the halt-only path (no zone headers, no `Retry-After`, never 429). Operator commands: `burnbrake brake show|set` and `/v1/operator/brake`. See [docs/OPERATOR.md](docs/OPERATOR.md).
 
 Once a call is `FORWARDED`, BurnBrake does not reject it mid-stream. The next call is the gate.
 
