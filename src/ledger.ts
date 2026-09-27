@@ -751,6 +751,10 @@ export class Ledger {
           );
         return;
       }
+      // A reservation_id means reserve() already claimed this key. The black curve
+      // sleeps outside the lock, so that claim can land during black_delay_ms.
+      // Overwriting the row would turn an in-flight hold into a false 402 replay.
+      if (existing.reservation_id) return;
       if (existing.state === "pending" || existing.response_body == null) {
         this.db
           .prepare(

@@ -454,14 +454,15 @@ async function handleGoverned(
     const preview = ctx.ledger.previewBrake(reserveInput, brake);
     if (preview.kind === "black") {
       if (preview.delay_ms > 0) await ctx.sleep(preview.delay_ms);
-      if (clientGone(req)) return;
+      if (clientGone(res)) return;
       // Wait does not flip the verdict. Do not reserve after this sleep.
+      // rememberTerminal will not overwrite a key claimed during the wait.
       respondDeny(preview.deny, { delay_ms: preview.delay_ms });
       return;
     }
     if (preview.kind === "color" && preview.delay_ms > 0) {
       await ctx.sleep(preview.delay_ms);
-      if (clientGone(req)) return;
+      if (clientGone(res)) return;
     }
     if (preview.kind === "color") color = preview;
   }
@@ -972,8 +973,10 @@ function callerTokenOk(value: string): boolean {
   return true;
 }
 
-function clientGone(req: IncomingMessage): boolean {
-  return req.aborted === true;
+function clientGone(res: ServerResponse): boolean {
+  // After the body is read, IncomingMessage.aborted stays false and the request
+  // stream is already destroyed. The response socket flips only when the client leaves.
+  return res.destroyed || res.closed || res.socket?.destroyed === true;
 }
 
 function brakePayload(brake: BrakeConfig): { brake: BrakeConfig; note: string } {

@@ -262,6 +262,121 @@ describe("brake curve on the spend path", () => {
     }
   });
 
+  it("does not seal a black 402 over an idempotency key claimed during the wait", async () => {
+    let claim: () => void = () => {};
+    const sidecar = await bootSidecar({
+      caps: { user: null, run: 0, day: null },
+      env: { BURNBRAKE_BRAKE_ENABLED: "true", BURNBRAKE_BRAKE_BLACK_DELAY_MS: "400" },
+      sleep: async () => {
+        claim();
+      },
+    });
+    claim = () => {
+      sidecar.ledger.setCap("run", "run-1", 5_000_000);
+      const reserved = sidecar.ledger.reserve(
+        reserveInput({ estimateMicros: 10, runId: "run-1", idempotencyKey: "same-key" }),
+      );
+      assert.equal(reserved.kind, "reserved");
+    };
+    try {
+      const deny = await postChat(sidecar, { idempotencyKey: "same-key", runId: "run-1" });
+      assert.equal(deny.status, 402);
+      assert.equal(deny.json.error.code, "BUDGET_EXHAUSTED");
+      assert.equal(deny.json.error.halt, true);
+      assert.equal(deny.json.error.retryable, false);
+      assert.equal(sidecar.mock.forwardCount, 0);
+      const follow = sidecar.ledger.reserve(
+        reserveInput({ estimateMicros: 10, runId: "run-1", idempotencyKey: "same-key" }),
+      );
+      assert.equal(follow.kind, "in_flight");
+      if (follow.kind === "in_flight") assert.ok(follow.reservationId);
+    } finally {
+      await sidecar.close();
+    }
+  });
+
+  it("does not reserve after the client aborts during an amber delay", async () => {
+    let abort: () => void = () => {};
+    const sidecar = await bootSidecar({
+      caps: { user: null, run: 10_000, day: null },
+      env: {
+        BURNBRAKE_BRAKE_ENABLED: "true",
+        BURNBRAKE_BRAKE_AMBER_PCT: "100",
+        BURNBRAKE_BRAKE_AMBER_DELAY_MS: "400",
+      },
+      sleep: async () => {
+        abort();
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      },
+    });
+    const controller = new AbortController();
+    abort = () => controller.abort();
+    try {
+      await assert.rejects(
+        fetch(`${sidecar.baseURL}/v1/chat/completions`, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            "content-type": "application/json",
+            "x-burnbrake-key": "bb_test_key",
+            "x-burnbrake-run-id": "run-abort",
+            "idempotency-key": "abort-1",
+          },
+          body: JSON.stringify(CHAT),
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      assert.equal(sidecar.mock.forwardCount, 0);
+      assert.equal(sidecar.ledger.listReservations({ runId: "run-abort" }).length, 0);
+    } finally {
+      await sidecar.close();
+    }
+  });
+
+  it("still returns 402 when a client times out during black delay and retries", async () => {
+    let abort: () => void = () => {};
+    const sidecar = await bootSidecar({
+      caps: { user: null, run: 0, day: null },
+      env: { BURNBRAKE_BRAKE_ENABLED: "true", BURNBRAKE_BRAKE_BLACK_DELAY_MS: "400" },
+      sleep: async () => {
+        abort();
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      },
+    });
+    const controller = new AbortController();
+    abort = () => controller.abort();
+    try {
+      await assert.rejects(
+        fetch(`${sidecar.baseURL}/v1/chat/completions`, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            "content-type": "application/json",
+            "x-burnbrake-key": "bb_test_key",
+            "x-burnbrake-run-id": "run-timeout",
+            "idempotency-key": "timeout-1",
+          },
+          body: JSON.stringify(CHAT),
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      const retrySame = await postChat(sidecar, { idempotencyKey: "timeout-1", runId: "run-timeout" });
+      assert.equal(retrySame.status, 402);
+      assert.notEqual(retrySame.status, 429);
+      assert.equal(retrySame.headers.get("retry-after"), null);
+      assert.equal(retrySame.json.error.code, "BUDGET_EXHAUSTED");
+      assert.equal(retrySame.json.error.halt, true);
+      assert.equal(retrySame.json.error.retryable, false);
+      const retryNew = await postChat(sidecar, { idempotencyKey: "timeout-2", runId: "run-timeout" });
+      assert.equal(retryNew.status, 402);
+      assert.equal(retryNew.json.error.code, "BUDGET_EXHAUSTED");
+      assert.equal(retryNew.json.error.halt, true);
+      assert.equal(sidecar.mock.forwardCount, 0);
+    } finally {
+      await sidecar.close();
+    }
+  });
+
   it("does not flip a black verdict when the cap is raised during the wait", async () => {
     let raise: () => void = () => {};
     const sidecar = await bootSidecar({
