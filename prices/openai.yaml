@@ -1,0 +1,49 @@
+# BurnBrake static price table.
+# Operator-owned. Unpriced models are denied. Stale priced_at warns (30 days)
+# and does not fail open. Rates are USD micros per 1,000,000 tokens
+# (1 USD = 1_000_000 micros). Update version + priced_at when provider rates change.
+# Starter figures below follow widely published OpenAI list rates.
+# This table is the governor's rate card. Update it when provider rates change.
+
+version: "2026-09-26"
+priced_at: "2026-09-26T00:00:00Z"
+
+models:
+  gpt-4o:
+    input_micros_per_million: 2500000
+    output_micros_per_million: 10000000
+  gpt-4o-mini:
+    input_micros_per_million: 150000
+    output_micros_per_million: 600000
+  gpt-4.1:
+    input_micros_per_million: 2000000
+    output_micros_per_million: 8000000
+  gpt-4.1-mini:
+    input_micros_per_million: 400000
+    output_micros_per_million: 1600000
+  gpt-4.1-nano:
+    input_micros_per_million: 100000
+    output_micros_per_million: 400000
+  gpt-3.5-turbo:
+    input_micros_per_million: 500000
+    output_micros_per_million: 1500000
+  o4-mini:
+    input_micros_per_million: 1100000
+    output_micros_per_million: 4400000
+
+surcharges:
+  vision:
+    # Conservative input-token allowance per image part, plus optional flat micros.
+    per_image_input_tokens: 1100
+    per_image_micros: 0
+  tools:
+    # Extra output ceiling when tools/functions are present (reserve only; not injected).
+    extra_output_tokens: 256
+    flat_micros: 0
+
+# Content part types the estimator knows. Anything else is an unknown surcharge → deny.
+known_content_types:
+  - text
+  - input_text
+  - image_url
+  - image
