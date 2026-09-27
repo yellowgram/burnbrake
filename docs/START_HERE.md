@@ -12,8 +12,6 @@ From the v0.1.1 zip (`burnbrake-0.1.1.zip`, archive directory `burnbrake-0.1.1/`
 6. Halt on 402. It is not a rate limit. Do not retry. Do not open another base URL.
 7. Set `max_tokens` yourself for long jobs. `4096` is injected only when you omit it, and a higher value you set is not clamped down.
 
-```bash
-npm run demo
-```
+Sealed offline smoke: [Quick start](../README.md#quick-start) (`npm ci`, then `npm run demo`). The script sets `mockUpstream: true` and clears `OPENAI_API_KEY`.
 
 Promise: the next call is rejected when the reserve cannot cover the estimate, including debt. One already-forwarded call may still overshoot.

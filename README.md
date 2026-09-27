@@ -8,6 +8,25 @@ Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. Firs
 
 Contact: hello@yellowgram.dev
 
+## Quick start
+
+Offline sealed smoke (fixture / mock upstream, no live keys, no provider spend):
+
+```bash
+npm ci
+npm run demo
+```
+
+`npm run demo` runs `scripts/demo-60s.ts`. The script sets `mockUpstream: true` and clears `OPENAI_API_KEY` for that process. There is no live provider key and no provider spend.
+
+Needs Node 22.13+ and a full `npm ci`. The demo uses the TypeScript runner, so do not pass `--omit=dev`. From the kit zip: unzip `burnbrake-0.1.1.zip`, `cd burnbrake-0.1.1`, then the same commands (`dist/` is already in the zip).
+
+What it proves: health, then one under-budget allow, then **402** `BUDGET_EXHAUSTED` with the mock forward count flat. Soft-WTP is off.
+
+Honesty: one already-forwarded call may still overshoot; the deny step is HTTP **402** `BUDGET_EXHAUSTED` (halt, not retryable, not 429) and does not call upstream.
+
+Details: [docs/DEMO_60S.md](docs/DEMO_60S.md).
+
 ## START_HERE
 
 BurnBrake only governs traffic that hits the sidecar. A second client pointed at `https://api.openai.com` bypasses every cap.
@@ -58,11 +77,7 @@ BurnBrake only governs traffic that hits the sidecar. A second client pointed at
 
 7. For long jobs, set your own `max_tokens`. The sidecar injects `max_tokens=4096` **only when you omit it**. It will not silently lower a higher ceiling you set. A high ceiling reserves more and can deny earlier. That is the gate working. `n` and `best_of`, when present, multiply that output ceiling. They are forwarded unchanged.
 
-Offline proof (mock upstream, no provider spend):
-
-```bash
-npm run demo
-```
+The sealed offline smoke is [Quick start](#quick-start).
 
 ## Dual-client bypass
 

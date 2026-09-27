@@ -9,7 +9,7 @@ npm run demo
 
 `npm ci` installs the TypeScript runner. Do not pass `--omit=dev` for this script. The v0.1.1 zip already contains `dist/` and `prices/openai.yaml`. The script below still runs from TypeScript source (`scripts/demo-60s.ts`). Exhaust on the deny step is HTTP **402** `BUDGET_EXHAUSTED`, halt, not retryable, not 429.
 
-Preconditions the script sets for you: sidecar on `127.0.0.1`, mock upstream on, BurnBrake key set, user/run/day caps set, run cap large enough for one short allow.
+Preconditions the script sets for you: sidecar on `127.0.0.1`, `mockUpstream: true`, `OPENAI_API_KEY` cleared, BurnBrake key set, user/run/day caps set, run cap large enough for one short allow.
 
 The script pins listen address, fail-closed flags, the package price table, and the 15-minute reservation TTL. A shell that exports `BURNBRAKE_FAIL_OPEN`, a bad `BURNBRAKE_PRICE_TABLE`, or a tiny TTL does not change this run.
 
