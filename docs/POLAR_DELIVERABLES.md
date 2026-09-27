@@ -74,7 +74,7 @@ Hosted **$49/mo** is optional and is not the day-1 primary plan. Month-2 platfor
 - One-liner: **pre-call spend gate** — reject next completion when reserve cannot cover conservative estimate; **not** “never overspend.”  
 - Mention: self-host sidecar; localhost default; auth required; OpenAI-shaped routes.  
 - Honesty: one in-flight call may overshoot → debt; dual-client bypass possible if buyer skips sidecar. **No claim** that BurnBrake will outrun OpenAI forever.  
-- Price USD at the founder lock (**$199 once** primary · **$49/mo** hosted optional); refund policy for the **one-org license** linked (founder-owned text) — do not conflate with reservation release/debt.  
+- Price USD at the founder lock (**$199 once** primary · **$49/mo** hosted optional); refund window for the **$199** self-host one-org kit is **14 days** (founder lock) — do not conflate with reservation release/debt.  
 - Support: **60-day Issues**, no SLA (same fence as HookSteel); `hello@yellowgram.dev` in that window.  
 - Listing stays **dark** until this checklist green **and** founder go-live.
 
@@ -90,9 +90,9 @@ Hosted **$49/mo** is optional and is not the day-1 primary plan. Month-2 platfor
 - [ ] Operator surfaces shipped ([`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md))  
 - [ ] Zip + SHA256 published  
 - [ ] This POLAR_DELIVERABLES checklist complete  
-- [ ] Refund/cancel policy for kit SKU written (**founder**)  
+- [x] Refund window for the $199 self-host one-org kit: **14 days** (founder lock)  
 - [ ] Listing remains dark until **founder** Polar go-live  
 
 ---
 
-*Design only. Not Polar-ready. Polar dark. Last updated: 2026-09-27 ET — founder commercial lock ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); exhaust unchanged.*
+*Design only. Not Polar-ready. Polar dark. Last updated: 2026-09-27 ET — founder refund lock **14 days** on the $199 one-org kit ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); Soft-WTP off; exhaust unchanged.*

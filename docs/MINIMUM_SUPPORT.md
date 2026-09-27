@@ -134,7 +134,7 @@ Paste into agent repos. LaunchGate may freeze final HTTP status; **halt semantic
 
 - Product prices stay **USD**. Founder may track costs in INR privately; do not India-localize the wedge.  
 - Polar listing **dark** until zip/SHA/[`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md); this doc does **not** claim Polar-ready.  
-- Refund/cancel policy for the **kit SKU** written before charging; do not conflate with budget “release reservation” / debt language.
+- Refund window for the **$199** self-host one-org kit is **14 days** (founder lock, [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); do not conflate with budget “release reservation” / debt language.
 
 ---
 
@@ -146,4 +146,4 @@ Paste into agent repos. LaunchGate may freeze final HTTP status; **halt semantic
 4. Strangers treat design “Polar candidate” as listed product → correct with DARK honesty; founder owns go-live.  
 5. “BurnBrake lied — I still overspent one call” without FAQ/honesty copy → fix docs before more sales.
 
-*Last updated: 2026-09-27 ET — founder commercial lock ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); 60-day Issues, no SLA; Polar dark; not Polar-ready.*
+*Last updated: 2026-09-27 ET — founder refund lock **14 days** on the $199 one-org kit ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); 60-day Issues, no SLA; Soft-WTP off; Polar dark; exhaust unchanged; not Polar-ready.*
