@@ -212,6 +212,8 @@ npm test
 npm run demo
 ```
 
+Pull requests and pushes to `main` run `npm ci`, `npm run typecheck`, `npm test`, and `npm run build` on Node 22.
+
 ## Known limits
 
 - One in-flight call can settle above the reserve, or a crash can debit the estimate. The next call is gated. Tool and vision ceilings are flat allowances, so that one call can still overshoot. Debt gates the next call. This is not a promise of zero overspend. There is no claim that BurnBrake will outrun OpenAI forever.
