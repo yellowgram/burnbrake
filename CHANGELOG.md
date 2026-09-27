@@ -1,13 +1,11 @@
 # Changelog
 
-## Unreleased
-
-- Brake curve (BB_BRAKE_CURVE_1): optional pre-cap delay in the sidecar. Exhaust stays HTTP 402 `BUDGET_EXHAUSTED`, halt, not retryable, never 429. `brake.enabled` defaults to false. One-shot allowance is not in this change. Soft-WTP stays off. Polar stays dark.
-
 ## 0.1.0
 
 Self-host MVP sidecar. Cap + kill on the request path.
 
+- Brake curve (BB_BRAKE_CURVE_1): optional pre-cap delay in the sidecar. Exhaust stays HTTP 402 `BUDGET_EXHAUSTED`, halt, not retryable, never 429. `brake.enabled` defaults to false. One-shot allowance is not in this change.
+- Self-host kit archive `burnbrake-0.1.0.zip` (tag `v0.1.0`): built `dist/`, price table, demo script, operator and support docs. SHA-256 is `checksums/burnbrake-0.1.0.sha256` in git and on the GitHub Release. The digest is not copied into this file. The Polar listing is not live in this repository. Suthirth solutions publishes it after founder GO. Soft-WTP is off.
 - OpenAI-shaped routes: `POST /v1/chat/completions`, `POST /v1/completions`
 - SQLite ledger: estimate → reserve → forward or reject → settle
 - HTTP 402 `BUDGET_EXHAUSTED` (halt). Never 429 for budget exhaust
@@ -23,4 +21,4 @@ Self-host MVP sidecar. Cap + kill on the request path.
 - Decision table lists the non-402 codes, including 400 `IDENTITY_REQUIRED` and 502 `LEDGER_UNAVAILABLE` after forward. Compose reads `config.example.env`. The 60s demo ignores ambient fail-open, price-table, and TTL settings
 - Offline mock-upstream demo
 
-Polar listing stays dark. Not Polar-ready. Soft-WTP is off.
+Seller: Suthirth solutions. Primary SKU: $199 once (one organization). Refund: 14 days. Support: 60-day Issues, no SLA. Hosted $49/mo is optional and not in the zip. Soft-WTP is off.

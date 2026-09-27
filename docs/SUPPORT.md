@@ -1,6 +1,8 @@
 # Support boundary
 
-- **Channel:** GitHub Issues for **60 days** (same fence as HookSteel), or hello@yellowgram.dev in that window.
+Kit **v0.1.0** (`burnbrake-0.1.0.zip`, tag `v0.1.0`). Seller **Suthirth solutions**. The Polar listing is not live in this kit; Suthirth solutions publishes it after founder GO. This file has no checkout URL.
+
+- **Channel:** GitHub Issues for **60 days** (same fence as HookSteel), or hello@yellowgram.dev in that window. Soft-WTP, coupons, and cold invoices are off.
 - **Scope:** sidecar and SDK behavior, budget config, the reject path, auth and bind, and the operator CLI shipped in this kit.
 - **No SLA.** Best effort only. What the $199 fee includes: [COMMERCIAL_LOCK.md](./COMMERCIAL_LOCK.md).
 - **Refund:** **14 days** on the $199 self-host one-org kit (founder lock). This is not a budget release or a debt clear.

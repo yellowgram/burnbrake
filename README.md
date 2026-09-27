@@ -4,7 +4,7 @@ Request-path spend governor for agent loops. The sidecar estimates a completion,
 
 One already-forwarded call may still overshoot. Debt gates the next call. This is not a promise of zero spend on a call that already left the process.
 
-Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. First cash SKU: self-host **one-org license $199 once**. Hosted **$49/mo** is optional and not the day-1 plan. Polar listing is **dark** (not Polar-ready). Soft-WTP is off. Pricing lock: [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md).
+Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. First cash SKU: self-host **one-org kit $199 once** (seller **Suthirth solutions**). [LICENSE](LICENSE) is MIT. The fee does not revoke that grant and does not add a copyright limit MIT does not contain. It buys this packaged kit and 60-day Issues, scoped to one organization. Hosted **$49/mo** is optional and not the day-1 plan. Kit archive: `burnbrake-0.1.0.zip` (tag `v0.1.0`). Suthirth solutions publishes the Polar listing after founder GO. The listing is not live in this repository, and this file has no checkout URL. Soft-WTP is off. Pricing lock: [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md).
 
 Contact: hello@yellowgram.dev
 
@@ -15,7 +15,7 @@ BurnBrake only governs traffic that hits the sidecar. A second client pointed at
 1. Install and start on localhost (auth required):
 
    ```bash
-   npm install
+   npm ci
    npm run build
    export BURNBRAKE_KEY=bb_replace_me
    export BURNBRAKE_CAP_USER_USD=10
@@ -26,6 +26,8 @@ BurnBrake only governs traffic that hits the sidecar. A second client pointed at
    ```
 
    Default listen is `127.0.0.1:8787`. `burnbrake serve` reads the process environment. It does not load `.env`. Docker Compose reads `config.example.env` directly; a copied `.env` does not override that file. Set **user and/or day** as well as run. A per-run cap alone is washable by minting new run ids. Operator HTTP (`/v1/operator/*`) needs a different `BURNBRAKE_OPERATOR_KEY`. The spend key cannot change caps.
+
+   A git checkout has no `dist/`, so `npm run build` is required. The v0.1.0 zip already contains `dist/`. `npm ci` is still required: the `yaml` dependency is not in the archive. `npm run demo` needs the TypeScript runner from devDependencies, so do not pass `--omit=dev`. From the zip: `unzip burnbrake-0.1.0.zip && cd burnbrake-0.1.0` and then the same commands. The archive root directory is `burnbrake-0.1.0/`.
 
    The exports above turn on user, run, and day. A completion must send both identity headers or the sidecar returns **400** `IDENTITY_REQUIRED` and does not forward. The OpenAI `user` field is not a budget id.
 
@@ -200,10 +202,11 @@ try {
 
 ## Self-host kit
 
-- npm package: `npm install` / `npm run build` / `burnbrake serve` (Node 22.13+)
+- Archive buyers download: `burnbrake-0.1.0.zip` (tag `v0.1.0`). Confirm `sha256sum burnbrake-0.1.0.zip` against `checksums/burnbrake-0.1.0.sha256` on that git tag, or against the GitHub Release notes, then `unzip burnbrake-0.1.0.zip && cd burnbrake-0.1.0`. This file does not embed the digest. The archive cannot contain its own hash.
+- npm package: `npm ci` / `npm run build` / `node dist/cli.js serve` (Node 22.13+). The zip already includes `dist/`.
 - optional Docker: the image listens on `127.0.0.1` unless you opt in. `docker compose up --build` publishes **only** `127.0.0.1:8787` and sets `BURNBRAKE_HOST=0.0.0.0` plus `BURNBRAKE_ALLOW_PUBLIC_BIND=1` inside the container so Docker can reach that process. Compose loads `config.example.env` as its env file. Edit that file. A copied `.env` is not read. The placeholder keys in the example are public and are only appropriate on that localhost publish. Do not `docker run -p 8787:8787` and do not publish `0.0.0.0` without an ACL.
 
-Hosted multi-tenant ledger service is later (**$49/mo** optional, not day-1). It is not in this kit. The buyer keeps the zip. See [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md).
+Hosted multi-tenant ledger service is later (**$49/mo** optional, not day-1, and a separate product only if the seller needs one). It is not in this kit. The buyer keeps the zip. See [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md). Soft-WTP, coupons, and cold invoices are not part of this kit. Refund on the **$199** one-org kit is **14 days**. Support is **60-day Issues**, no SLA: hello@yellowgram.dev.
 
 ## Tests
 
@@ -225,6 +228,6 @@ Pull requests and pushes to `main` run `npm ci`, `npm run typecheck`, `npm test`
 - Filesystem access to the ledger is full operator control. The CLI has no key of its own.
 - `X-BurnBrake-Key` comparison returns early when the lengths differ, so a local observer can learn the secret's length. It does not reveal the secret. Process logs print error messages only. They do not print the BurnBrake key, the operator key, or the provider key. Do not put a secret in an idempotency key; that key is stored in the ledger.
 - A TTL or crash debit records `debt_delta_micros` as 0 on the decision row. Balances still show debt when spent plus held exceeds the cap, and the next reserve still denies. Force-release is the only path that drops a hold after `FORWARDED`, and it requires the operator key plus `attest_no_charge`. A false attestation is operator misuse.
-- Not Polar-ready. No zip or SHA is published. Listing stays dark until a founder go-live. Soft-WTP stays off.
+- The Polar listing is not live in this repository. The v0.1.0 kit is ready for Suthirth solutions to publish after founder GO. Soft-WTP stays off. There is no checkout URL in this file.
 
-Design record and LaunchGate freezes: [docs/LAUNCHGATE_DR4_VERDICT.md](docs/LAUNCHGATE_DR4_VERDICT.md).
+Design record and LaunchGate freezes stay in the git repository (not in the buyer zip): [docs/LAUNCHGATE_DR4_VERDICT.md](docs/LAUNCHGATE_DR4_VERDICT.md). CR*/DR* attack logs stay in git as well.

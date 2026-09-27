@@ -3,7 +3,7 @@
 **Product:** BurnBrake — request-path spend governor  
 **Audience:** founding-customer operator (founder-CTO or the eng who owns the provider key)  
 **Date:** 2026-09-26 ET — Design Pass 3 absorbed ([`DR3_ATTACKS.md`](./DR3_ATTACKS.md); DR×3 complete)  
-**Polar:** DARK — not Polar-ready ([`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md))  
+**Polar:** kit ready for CoS publish after founder GO; the listing is not live ([`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) is in the git repository, not the buyer zip)  
 
 Operators must answer four questions without pinging yellowgram: **What’s left? What was denied? Can I stop a runaway run now? Did we accidentally call the provider after a reject?**
 
@@ -131,4 +131,4 @@ Operator surface: `burnbrake brake show|set` and `/v1/operator/brake` (operator 
 - “Guarantee zero overspend including in-flight calls.” → refuse; explain next-call gate + debt.  
 - “Stop the other client that never hits the sidecar.” → refuse; dual-client checklist.
 
-*Last updated: 2026-09-26 ET — Design Pass 3 absorbed (DR×3 complete); design pack only; not Polar-ready.*
+*Last updated: 2026-09-27 ET — operator surface is in the v0.1.0 kit. Polar listing is not live; Suthirth solutions publishes after founder GO. Soft-WTP off. Exhaust unchanged.*
