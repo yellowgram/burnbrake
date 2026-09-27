@@ -4,7 +4,7 @@ Request-path spend governor for agent loops. The sidecar estimates a completion,
 
 One already-forwarded call may still overshoot. Debt gates the next call. This is not a promise of zero spend on a call that already left the process.
 
-Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. First SKU: self-host kit. Polar listing is **dark** (not Polar-ready). Soft-WTP is off.
+Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. First cash SKU: self-host **one-org license $199 once**. Hosted **$49/mo** is optional and not the day-1 plan. Polar listing is **dark** (not Polar-ready). Soft-WTP is off. Pricing lock: [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md).
 
 Contact: hello@yellowgram.dev
 
@@ -201,7 +201,7 @@ try {
 - npm package: `npm install` / `npm run build` / `burnbrake serve` (Node 22.13+)
 - optional Docker: the image listens on `127.0.0.1` unless you opt in. `docker compose up --build` publishes **only** `127.0.0.1:8787` and sets `BURNBRAKE_HOST=0.0.0.0` plus `BURNBRAKE_ALLOW_PUBLIC_BIND=1` inside the container so Docker can reach that process. Compose loads `config.example.env` as its env file. Edit that file. A copied `.env` is not read. The placeholder keys in the example are public and are only appropriate on that localhost publish. Do not `docker run -p 8787:8787` and do not publish `0.0.0.0` without an ACL.
 
-Hosted multi-tenant ledger service is later. It is not in this kit.
+Hosted multi-tenant ledger service is later (**$49/mo** optional, not day-1). It is not in this kit. The buyer keeps the zip. See [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md).
 
 ## Tests
 
@@ -212,7 +212,7 @@ npm run demo
 
 ## Known limits
 
-- One in-flight call can settle above the reserve, or a crash can debit the estimate. The next call is gated. Tool and vision ceilings are flat allowances, so that one call can still overshoot. Debt gates the next call. This is not a promise of zero overspend.
+- One in-flight call can settle above the reserve, or a crash can debit the estimate. The next call is gated. Tool and vision ceilings are flat allowances, so that one call can still overshoot. Debt gates the next call. This is not a promise of zero overspend. There is no claim that BurnBrake will outrun OpenAI forever.
 - The idempotency table stores upstream response bodies so a short retry can replay them. Bodies are removed after **24 hours**; the key stays terminal and is not reserved again. The SQLite file is mode `0600` and is still a secret. Decision rows do not store prompts.
 - A day cap set only on one UTC date (`--key` / `key` for that date) does not roll to the next day. Set the default day cap (omit the key) if you want the fence to continue.
 - Skewed clocks across writers that do not share this ledger can split the UTC day bucket.

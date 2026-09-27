@@ -2,12 +2,24 @@
 
 **Status:** design draft only — **no zip/SHA artifacts exist yet**  
 **Polar listing:** **DARK — not Polar-ready**  
-**First cash SKU (DR3 lock):** self-host kit only (~$149 USD draft — **founder** owns price)  
-**Hosted sidecar / ledger tenancy (~$29/mo draft):** **Later** — not in day-1 zip  
-**Date:** 2026-09-26 ET — Design Pass 3 absorbed  
+**Pricing (USD, founder lock):** **$199 once** self-host one-org license (primary) · **$49/mo** hosted optional · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
+**First cash SKU:** **$199 once** self-host one-org. Hosted **$49/mo** is optional later / not day-1 primary, and is not in the day-1 zip.  
+**Date:** 2026-09-27 ET — founder commercial lock; Design Pass 3 still absorbed  
 **Contact:** hello@yellowgram.dev  
 
-This file is the ready-gate checklist for what a future Polar kit **must** contain. Completing the checklist does **not** light the listing — **founder** owns Polar go-live. LaunchGate may APPROVE ready-gate docs only.
+This file is the ready-gate checklist for what a future Polar kit **must** contain. Completing the checklist does **not** light the listing — **founder** owns Polar go-live. LaunchGate may APPROVE ready-gate docs only. Polar stays **dark**. Soft-WTP stays off. Exhaust (402 / not retryable) is unchanged.
+
+## What the $199 fee includes
+
+The primary fee is a perpetual self-host license for **one organization**. It must include:
+
+- Perpetual self-host for **one organization**
+- Tag + SHA + the **402 / debt / run-id** contract
+- **60-day Issues**, no SLA (same fence as HookSteel)
+- **Brake-curve** config in the tree ([`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md))
+- **No claim** that BurnBrake will outrun OpenAI forever
+
+Hosted **$49/mo** is optional and is not the day-1 primary plan. Month-2 platform caps are expected. The buyer keeps the zip. Do not market $149 or $79/mo as the plan. Authority: [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md).
 
 ---
 
@@ -61,9 +73,9 @@ This file is the ready-gate checklist for what a future Polar kit **must** conta
 
 - One-liner: **pre-call spend gate** — reject next completion when reserve cannot cover conservative estimate; **not** “never overspend.”  
 - Mention: self-host sidecar; localhost default; auth required; OpenAI-shaped routes.  
-- Honesty: one in-flight call may overshoot → debt; dual-client bypass possible if buyer skips sidecar.  
-- Price USD; refund policy for **kit SKU** linked (founder-owned text) — do not conflate with reservation release/debt.  
-- Support: `hello@yellowgram.dev`; best-effort; no SLA invented at launch.  
+- Honesty: one in-flight call may overshoot → debt; dual-client bypass possible if buyer skips sidecar. **No claim** that BurnBrake will outrun OpenAI forever.  
+- Price USD at the founder lock (**$199 once** primary · **$49/mo** hosted optional); refund policy for the **one-org license** linked (founder-owned text) — do not conflate with reservation release/debt.  
+- Support: **60-day Issues**, no SLA (same fence as HookSteel); `hello@yellowgram.dev` in that window.  
 - Listing stays **dark** until this checklist green **and** founder go-live.
 
 ---
@@ -83,4 +95,4 @@ This file is the ready-gate checklist for what a future Polar kit **must** conta
 
 ---
 
-*Design only. Not Polar-ready. Last updated: 2026-09-26 ET — Design Pass 3 absorbed.*
+*Design only. Not Polar-ready. Polar dark. Last updated: 2026-09-27 ET — founder commercial lock ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); exhaust unchanged.*

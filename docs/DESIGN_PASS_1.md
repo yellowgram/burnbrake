@@ -4,12 +4,12 @@
 **Product:** BurnBrake — request-path spend governor for agent loops  
 **Promise:** budget per user / per run / per day → atomic reserve → **reject the next completion** before it hits the model provider when reserve (including **debt**) cannot cover the **conservative estimate**. Honesty: **one already-forwarded call may still overshoot**; debt gates the next call — **not** magical zero overspend.  
 **Not:** billing SoR, entitlement EMS, credit wallet, or Soft-WTP desk  
-**Pricing (USD, draft):** **~$149 self-host kit** = first cash SKU shape · ~$29/mo **hosted sidecar/ledger tenancy** = **Later** (not day-1)  
+**Pricing (USD, founder lock):** **$199 once** self-host one-org license (primary) · **$49/mo** hosted optional · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
 **Contact:** hello@yellowgram.dev  
 **Polar:** listing **DARK — not Polar-ready** (see [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md); no zip/SHA artifacts yet)  
 **Date:** 2026-09-26 ET — DR×3 complete; **no code**, no Polar listing, Soft-WTP OFF  
 
-Companion locks: [`MVP_SCOPE.md`](./MVP_SCOPE.md) · [`MINIMUM_SUPPORT.md`](./MINIMUM_SUPPORT.md) · [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md) · [`DR3_ATTACKS.md`](./DR3_ATTACKS.md) · [`DR2_ATTACKS.md`](./DR2_ATTACKS.md) · [`LAUNCHGATE_DR4_BRIEF.md`](./LAUNCHGATE_DR4_BRIEF.md) · [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md)
+Companion locks: [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md) · [`MVP_SCOPE.md`](./MVP_SCOPE.md) · [`MINIMUM_SUPPORT.md`](./MINIMUM_SUPPORT.md) · [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md) · [`DR3_ATTACKS.md`](./DR3_ATTACKS.md) · [`DR2_ATTACKS.md`](./DR2_ATTACKS.md) · [`LAUNCHGATE_DR4_BRIEF.md`](./LAUNCHGATE_DR4_BRIEF.md) · [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md)
 
 Standing fences: Soft-WTP / cold invoices **FORBIDDEN** · stay **dumber than Autumn** (cap + kill only) · **LaunchGate 4th DR → implement → CR×3 → LaunchGate 4th CR** · MINIMUM_SUPPORT + OPERATOR_NEEDS before Polar-ready.
 
@@ -99,7 +99,7 @@ One runaway agent loop can burn the founder’s OpenAI (or Anthropic) bill befor
 
 **Secondary: thin SDK wrapper** (TypeScript first) for non-HTTP or non-OpenAI-shaped clients — same reserve/settle protocol talking to the same ledger (local process or sidecar).
 
-**First cash SKU (DR3 lock):** **~$149 self-host kit** only (Polar **shape** after ready gate + **founder** go-live). **Hosted sidecar / ledger tenancy (~$29/mo draft)** = **Later** after self-host proof — **not** day-1 Polar SKU. Pack is **not Polar-ready** today. Checklist: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md).
+**First cash SKU (founder lock):** **$199 once** self-host one-org license (Polar **shape** after ready gate + **founder** go-live). **Hosted $49/mo** = optional later / **not** day-1 primary. Month-2 platform caps are expected; the buyer keeps the zip. Pack is **not Polar-ready** today. Checklist: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md). Price: [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md).
 
 Rationale: stranger happy path is “point the base URL”; sidecar survives process crash better than a lone in-memory SDK counter; stays dumber than building Autumn; self-host proof before tenancy.
 
@@ -177,7 +177,7 @@ Cap raises: config / operator CLI only in MVP. Polar/Stripe commerce sells the B
 - Becoming Autumn/Stigg/Schematic/OpenMeter  
 - MVP lexicon of “credits / entitlements / invoice overage” on the spend path  
 - Marketing “never overspend” / magical zero burn after install  
-- Claiming we replace OpenAI org hard limits or stop ungated second clients  
+- Claiming we replace OpenAI org hard limits, stop ungated second clients, or outrun OpenAI forever  
 - Polar public listing / “Polar-ready” claims before zip/SHA/deliverables + founder go-live  
 - Soft-only “alerts without reject” or fail-open ledger as MVP  
 - Default bind `0.0.0.0` or auth-optional public proxy  
@@ -210,7 +210,7 @@ Paste-ready brief: [`LAUNCHGATE_DR4_BRIEF.md`](./LAUNCHGATE_DR4_BRIEF.md).
 | --- | --- |
 | Exact HTTP status + error schema freeze (`402` draft vs alternate) — keep halt semantics | LaunchGate 4th DR |
 | Price-table SoT (pack: static versioned YAML) + stale warn threshold | LaunchGate 4th DR |
-| First cash SKU (pack: self-host kit only; hosted Later) | LaunchGate 4th DR (shape); **founder** if price ladder changes |
+| First cash SKU (founder lock: **$199 once** self-host one-org; hosted **$49/mo** optional later / not day-1) | Shape was LaunchGate; **price is founder-locked** ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)) |
 | Anthropic / other providers: day-1 OpenAI-shaped only vs multi-provider | LaunchGate 4th DR |
 | Reservation TTL **numeric** default (state machine locked; draft 15m) | LaunchGate 4th DR |
 | Default injected `max_tokens` value (policy locked; draft 4096) | LaunchGate 4th DR |
@@ -219,7 +219,7 @@ Paste-ready brief: [`LAUNCHGATE_DR4_BRIEF.md`](./LAUNCHGATE_DR4_BRIEF.md).
 | Auth header final name (`X-BurnBrake-Key` draft) | LaunchGate 4th DR |
 
 ### Escalate to founder only
-- **Price** (~$149 kit / ~$29 hosted later) and refund window  
+- **Price** is locked at **$199 once** / **$49/mo** hosted optional ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); refund window stays founder  
 - **Polar go-live** (listing light) — LaunchGate may approve ready-gate docs; founder owns flipping public  
 - **Soft-WTP** / cold invoices (forbidden; any exception is founder)  
 - **Spend** (paid infra, ads, contractors)  
@@ -227,4 +227,4 @@ Paste-ready brief: [`LAUNCHGATE_DR4_BRIEF.md`](./LAUNCHGATE_DR4_BRIEF.md).
 
 *Pass-1 narrative + DR2 + **DR3** remediations absorbed. **DR×3 complete.** Implement stays blocked until **LaunchGate 4th DR APPROVE**. Merge stays blocked until **CR×3 + LaunchGate 4th CR APPROVE**.*
 
-*Last updated: 2026-09-26 ET — Design Pass 3 absorbed (DR×3 complete); LaunchGate process locked; not Polar-ready.*
+*Last updated: 2026-09-27 ET — founder commercial lock ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); exhaust unchanged; Polar dark; not Polar-ready.*
