@@ -1,15 +1,15 @@
 # BurnBrake — Polar deliverables
 
-**Status:** license fence packed for CoS. This pull request does not publish Polar and does not push a tag.  
-**Founder GO:** price lock received earlier. BurnBrake does not publish Polar itself and does not operate the Polar UI.  
+**Status:** license fence packed. This pull request does not publish Polar, does not ask CoS to republish the $199 kit, and does not push a tag.  
+**Prices:** unchanged. **$199 once** kit. Hosted **$59/mo**.  
 **Copyright:** source-available commercial. `LICENSE` is the PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`). OSI open source: false. Commercial production use of the self-host kit requires the Suthirth Commercial Grant (`docs/COMMERCIAL_GRANT.md`).  
-**Listing ($199 kit):** **not live.** CoS is unlisting the prior MIT-era Polar product `b5649684-58ff-498c-a135-0b4b44623c3b`. Do not claim that product, or any $199 kit listing, is live. Re-list under this fence only after the `v0.1.1` tree is on `main` and the GitHub Release asset exists. License Gate and LaunchGate say when to tag.  
+**Listing ($199 kit):** **archived.** The MIT-era SKU is unlisted (product `b5649684-58ff-498c-a135-0b4b44623c3b`). Re-list under PolyForm + the Suthirth Commercial Grant is **on hold** (CoS/License Gate). Not live in this repo. No $199 checkout URL in this file. Do not claim it live.  
 **Hosted listing:** **LIVE** (CoS published 2026-09-27). Product `70b1a029-944f-4999-ae39-d39c041ae3e9`. **$59/mo** recurring. No zip, no GitHub benefit, and no self-host production rights on this SKU. Soft-WTP off. Checkout (this file only; do not copy into README or any zip-shipped doc): https://buy.polar.sh/polar_cl_A2dCr3WcvuTv5lLvNlp8AaC9kziCr8apYfunr0f60ci  
 **Hosted admin (CoS):** https://polar.sh/dashboard/suthirth-solutions/products/70b1a029-944f-4999-ae39-d39c041ae3e9  
 **Tag for this fence:** `v0.1.1` — **not pushed** until License Gate and LaunchGate say go.  
 **Zip:** `burnbrake-0.1.1.zip`  
 **Archive root:** `burnbrake-0.1.1/`  
-**SHA-256:** `25b42eedfdcced6ac9c6e1a3ef4c70e7d46cc707af7798dcfcb53565f81302e2`  
+**SHA-256:** `a9a0330d3d5e97821fe7e962eb55d5d1ad4046f1b3178a6f31b2ff6cd46cdb45`  
 **Checksum file:** `checksums/burnbrake-0.1.1.sha256` (in git; **not** inside the zip — the archive cannot contain its own digest)  
 **Manifest:** `checksums/burnbrake-0.1.1.manifest.txt`  
 **Historical kit (do not reseal):** tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay. SHA-256 of that older zip remains `585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8`. That digest is not the 0.1.1 zip.  
@@ -27,7 +27,9 @@ Rebuild from the release commit. Do not invent a digest. `scripts/pack-release.s
 
 ---
 
-## Paste-ready Polar listing
+## Kit facts
+
+Not a Polar publish request. Re-list of the $199 kit is on hold.
 
 ### Title
 
@@ -49,9 +51,9 @@ Price: $199 once. Refund window: 14 days on this kit only. Seller: Suthirth solu
 
 Hosted operation at $59/mo recurring is a separate Polar product and is not this kit. It does not include the zip or GitHub Issues. It does not grant self-host production rights or rights to operate a competing hosted service. It is not a coupon, a cold invoice, or Soft-WTP.
 
-The $199 kit listing is not live until CoS publishes the re-list under this fence. Do not describe the prior product `b5649684-58ff-498c-a135-0b4b44623c3b` as live.
+The $199 self-host kit Polar listing is **archived** (MIT-era SKU unlisted). Re-list under PolyForm + the Suthirth Commercial Grant is **on hold** (CoS/License Gate). This description is not a request to republish. Do not describe product `b5649684-58ff-498c-a135-0b4b44623c3b` as live.
 
-SHA-256 of `burnbrake-0.1.1.zip`: `25b42eedfdcced6ac9c6e1a3ef4c70e7d46cc707af7798dcfcb53565f81302e2`
+SHA-256 of `burnbrake-0.1.1.zip`: `a9a0330d3d5e97821fe7e962eb55d5d1ad4046f1b3178a6f31b2ff6cd46cdb45`
 
 Verify:
 
@@ -97,26 +99,20 @@ The digest must match the line above and `checksums/burnbrake-0.1.1.sha256`. Tag
 | Seller | **Suthirth solutions** |
 | Soft-WTP | **none** |
 | Hosted | **$59/mo** recurring. **LIVE.** Product `70b1a029-944f-4999-ae39-d39c041ae3e9`. No zip, no GitHub benefit, no self-host production rights. Not the $199 kit. |
-| $199 listing | **Not live.** Prior product `b5649684-58ff-498c-a135-0b4b44623c3b` is being unlisted. |
+| $199 listing | **Archived.** MIT-era product `b5649684-58ff-498c-a135-0b4b44623c3b` is unlisted. Re-list is **on hold**. Not a republish request. |
 
 ---
 
-## CoS publish steps
+## Hold
 
-BurnBrake will not do these clicks. Do not run them from the license-fence pull request.
+This is not a republish checklist. This pull request does not ask Chief of Staff to put the $199 kit back on sale.
 
-- [ ] Wait until the license-fence tree that matches `checksums/burnbrake-0.1.1.sha256` is on `main`. Do not publish from the PR branch. Do not squash-merge as a packing step in this repository's fence PR. LaunchGate and License Gate decide when it lands.
-- [ ] Do not move, rewrite, or reseal git tag `v0.1.0`. Do not replace `checksums/burnbrake-0.1.0.sha256` (`585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8`).
-- [ ] When License Gate and LaunchGate say go, check out that `main` commit. Tag it `v0.1.1`. Do not point the tag at the v0.1.0 commit.
-- [ ] On that commit, run `bash scripts/pack-release.sh`. It must match `checksums/burnbrake-0.1.1.sha256` (`25b42eedfdcced6ac9c6e1a3ef4c70e7d46cc707af7798dcfcb53565f81302e2`). If it does not, stop. Do not upload a different zip.
-- [ ] Create the GitHub Release with the command in **Release recipe** below. Asset name: `burnbrake-0.1.1.zip`.
-- [ ] Unlist the prior MIT-era $199 product `b5649684-58ff-498c-a135-0b4b44623c3b`. Do not leave it described as the live kit.
-- [ ] In Polar, create the replacement $199 product under **Suthirth solutions**. Paste the title, one-liner, and description from this file.
-- [ ] Set price **$199 once**. Set the refund window to **14 days** on that kit only. Support text: 60-day Issues, no SLA, hello@yellowgram.dev. The purchase is the Suthirth Commercial Grant plus the kit zip.
-- [ ] Attach the deliverable: the GitHub Release asset, plus this SHA-256. Do not attach an unpinned “latest”. Do not attach `burnbrake-0.1.0.zip`.
-- [x] Hosted **$59/mo** recurring is **LIVE** (CoS, 2026-09-27). Product `70b1a029-944f-4999-ae39-d39c041ae3e9`. Checkout: https://buy.polar.sh/polar_cl_A2dCr3WcvuTv5lLvNlp8AaC9kziCr8apYfunr0f60ci. Admin: https://polar.sh/dashboard/suthirth-solutions/products/70b1a029-944f-4999-ae39-d39c041ae3e9. No zip and no GitHub benefit. It does not grant self-host production rights. Do not fold it into the $199 SKU. Do not add coupons. Do not send cold invoices. Soft-WTP stays off. The 14-day refund stays on the $199 kit only. Do not copy the checkout URL into `README.md` or any file that ships in the zip.
-- [ ] Publish the **$199 kit** Polar product only after the steps above. Until that publish, the listing is not live.
-- [ ] Update the yellowgram.dev Current card: BurnBrake, $199 once, 14-day refund, source-available commercial, tag `v0.1.1`, hosted $59/mo called out as optional, live, separate, and not the grant. Do not add a checkout URL to the BurnBrake README.
+- The MIT-era $199 Polar SKU is **archived** (unlisted), product `b5649684-58ff-498c-a135-0b4b44623c3b`. Do not claim it live.
+- Re-list under PolyForm Noncommercial 1.0.0 + the Suthirth Commercial Grant is **on hold** (CoS / License Gate). Do not create a replacement $199 product from this pull request.
+- Prices stay **$199 once** and hosted **$59/mo**. This PR does not change them.
+- [x] Hosted **$59/mo** recurring remains **LIVE** (CoS, 2026-09-27). Product `70b1a029-944f-4999-ae39-d39c041ae3e9`. Checkout: https://buy.polar.sh/polar_cl_A2dCr3WcvuTv5lLvNlp8AaC9kziCr8apYfunr0f60ci. Admin: https://polar.sh/dashboard/suthirth-solutions/products/70b1a029-944f-4999-ae39-d39c041ae3e9. No zip and no GitHub benefit. It does not grant self-host production rights. Do not fold it into the $199 SKU. Do not add coupons. Do not send cold invoices. Soft-WTP stays off. The 14-day refund stays on the $199 kit only. Do not copy the checkout URL into `README.md` or any file that ships in the zip. Hosted listing copy that still mentions MIT is CoS-owned. This repository does not operate Polar.
+- Do not move, rewrite, or reseal git tag `v0.1.0`. Do not replace `checksums/burnbrake-0.1.0.sha256` (`585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8`). v0.1.0 stays MIT historically (grandfathered).
+- Do not push tag `v0.1.1` until License Gate lifts the hold and LaunchGate says go. The release recipe below is not a go-live order.
 
 ---
 
@@ -259,7 +255,7 @@ Source-available commercial. OSI open source: false.
 ## Asset
 
 - File: `burnbrake-0.1.1.zip`
-- SHA-256: `25b42eedfdcced6ac9c6e1a3ef4c70e7d46cc707af7798dcfcb53565f81302e2`
+- SHA-256: `a9a0330d3d5e97821fe7e962eb55d5d1ad4046f1b3178a6f31b2ff6cd46cdb45`
 
 Verify:
 
@@ -286,7 +282,7 @@ HTTP **402** / `BUDGET_EXHAUSTED` / halt / **not retryable**. Not 429.
 
 One already-forwarded call may still overshoot. There is no claim that BurnBrake will outrun OpenAI forever.
 
-This release is the kit. It is not a Polar checkout. The $199 kit listing is not live until CoS publishes the re-list.
+This release is the kit. It is not a Polar checkout. The $199 kit Polar listing is archived. Re-list is on hold.
 EOF
 )"
 ```
@@ -305,14 +301,13 @@ The release is not created from this pull request. Do not upload a zip built fro
 - [x] 60s demo script ships in the kit (`npm run demo`, mock upstream)
 - [x] Operator CLI and operator HTTP shipped
 - [x] Historical zip `burnbrake-0.1.0.zip` left sealed. SHA-256 `585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8` remains `checksums/burnbrake-0.1.0.sha256`. Tag `v0.1.0` is not rewritten.
-- [x] Zip `burnbrake-0.1.1.zip` built. SHA-256 `25b42eedfdcced6ac9c6e1a3ef4c70e7d46cc707af7798dcfcb53565f81302e2` recorded in `checksums/burnbrake-0.1.1.sha256`
+- [x] Zip `burnbrake-0.1.1.zip` built. SHA-256 `a9a0330d3d5e97821fe7e962eb55d5d1ad4046f1b3178a6f31b2ff6cd46cdb45` recorded in `checksums/burnbrake-0.1.1.sha256`
 - [x] Refund **14 days** on the $199 kit only
 - [x] Soft-WTP off. No Autumn smuggle. No checkout URL in the README or the zip
 - [x] Copyright is PolyForm Noncommercial 1.0.0 plus the Suthirth Commercial Grant. Source-available: true. OSI open source: false.
 - [x] Hosted Polar product **LIVE** — **$59/mo** recurring, product `70b1a029-944f-4999-ae39-d39c041ae3e9`. No zip benefit. Soft-WTP off. Checkout URL stays in this file only.
-- [ ] Tag `v0.1.1` pushed — only after License Gate and LaunchGate say go
-- [ ] $199 kit Polar listing published under this fence — CoS only, after the Release asset exists. Prior product `b5649684-58ff-498c-a135-0b4b44623c3b` unlisted. Not claimed live here.
-- [ ] yellowgram.dev Current card updated — CoS only, after the kit publish
+- [x] $199 kit Polar listing **archived** (MIT-era product `b5649684-58ff-498c-a135-0b4b44623c3b` unlisted). Re-list is **on hold**. This PR does not ask CoS to republish it or to change price.
+- [ ] Tag `v0.1.1` pushed — only after License Gate lifts the hold and LaunchGate says go. Not this PR.
 
 ---
 
@@ -321,10 +316,10 @@ The release is not created from this pull request. Do not upload a zip built fro
 - Soft-WTP / coupons / cold invoices **forbidden**
 - Cap + kill only. No credits, entitlements, or invoice-overage on the spend path
 - Kit commerce is not in-path OpenAI metering
-- Do not claim the **$199 kit** Polar listing is already live. The hosted **$59/mo** product is live. Its checkout URL stays in this file only.
+- Do not claim the **$199 kit** Polar listing is live. It is archived. Re-list is on hold. The hosted **$59/mo** product remains live. Its checkout URL stays in this file only. Do not ask this PR to republish the $199 kit.
 - Do not call this OSI open source
 - Do not change the exhaust contract to seal this kit
 - Do not reseal `v0.1.0` or rewrite `checksums/burnbrake-0.1.0.*`
 - Do not push tag `v0.1.1` until License Gate and LaunchGate say go
 
-*License fence packed for CoS. $199 kit listing not live. Hosted $59/mo listing LIVE (product `70b1a029-944f-4999-ae39-d39c041ae3e9`). v0.1.0 checksums untouched. Tag v0.1.1 not pushed. Last updated: 2026-09-27. Soft-WTP off. Exhaust unchanged.*
+*License fence packed. $199 kit Polar listing archived; re-list on hold. Hosted $59/mo listing remains LIVE (product `70b1a029-944f-4999-ae39-d39c041ae3e9`). v0.1.0 checksums untouched. Tag v0.1.1 not pushed. Last updated: 2026-09-27. Soft-WTP off. Exhaust unchanged.*

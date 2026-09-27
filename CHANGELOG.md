@@ -6,7 +6,7 @@ License fence only. Not a feature release. Exhaust stays HTTP 402 `BUDGET_EXHAUS
 
 - Copyright is source-available commercial. `LICENSE` is the PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`) plus the Suthirth Commercial Grant (`docs/COMMERCIAL_GRANT.md`). OSI open source: false.
 - The $199 once kit is that grant, the kit zip, and 60-day Issues (no SLA), for one organization and the named tag, perpetual for that tag. Seller: Suthirth solutions. Contact: hello@yellowgram.dev. Refund: 14 days on the $199 kit only.
-- Hosted $59/mo stays a separate SKU. It does not grant self-host production rights. The $199 kit Polar listing is not live and is not claimed live. Soft-WTP, coupons, and cold invoices stay off.
+- Hosted $59/mo stays a separate live optional SKU. It does not grant self-host production rights. The $199 self-host kit Polar listing is archived (MIT-era SKU unlisted). Re-list under this fence is on hold (CoS/License Gate) and is not claimed live. Soft-WTP, coupons, and cold invoices stay off.
 - Kit archive for this fence: `burnbrake-0.1.1.zip`. SHA-256 is `checksums/burnbrake-0.1.1.sha256` in git. The digest is not copied into this file. Tag `v0.1.1` is not pushed in this change.
 - Tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay as the historical kit. They are not resealed. Health `version` for this kit is `0.1.1`.
 
@@ -15,7 +15,7 @@ License fence only. Not a feature release. Exhaust stays HTTP 402 `BUDGET_EXHAUS
 Self-host MVP sidecar. Cap + kill on the request path.
 
 - Brake curve (BB_BRAKE_CURVE_1): optional pre-cap delay in the sidecar. Exhaust stays HTTP 402 `BUDGET_EXHAUSTED`, halt, not retryable, never 429. `brake.enabled` defaults to false. One-shot allowance is not in this change.
-- Self-host kit archive `burnbrake-0.1.0.zip` (tag `v0.1.0`): built `dist/`, price table, demo script, operator and support docs. SHA-256 is `checksums/burnbrake-0.1.0.sha256` in git and on the GitHub Release. The digest is not copied into this file. The Polar listing is not live in this repository. Suthirth solutions publishes it after founder GO. Soft-WTP is off.
+- Self-host kit archive `burnbrake-0.1.0.zip` (tag `v0.1.0`): built `dist/`, price table, demo script, operator and support docs. SHA-256 is `checksums/burnbrake-0.1.0.sha256` in git and on the GitHub Release. The digest is not copied into this file. That tag is grandfathered MIT and is not resealed. Soft-WTP is off.
 - OpenAI-shaped routes: `POST /v1/chat/completions`, `POST /v1/completions`
 - SQLite ledger: estimate → reserve → forward or reject → settle
 - HTTP 402 `BUDGET_EXHAUSTED` (halt). Never 429 for budget exhaust

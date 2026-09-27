@@ -4,7 +4,7 @@
 **Depends on:** [`MVP_SCOPE.md`](./MVP_SCOPE.md), [`LAUNCHGATE_DR4_VERDICT.md`](./LAUNCHGATE_DR4_VERDICT.md)  
 **Date:** 2026-09-27 ET  
 **Status:** Implemented on this PR (curve only). Exhaust contract bytes are unchanged. Founder PQ1–PQ3 stay locked (2026-09-26 ET): `brake.enabled` default `false`, `black_delay_ms` default `0`, one-shot allowance later.  
-**Soft-WTP:** OFF · **Polar:** this curve ships inside the current kit (`burnbrake-0.1.1.zip`). The $199 kit listing is not live. This file does not light the listing and has no checkout URL. The curve first shipped in the historical v0.1.0 kit, which is not resealed.
+**Soft-WTP:** OFF · **Polar:** this curve ships inside the current kit (`burnbrake-0.1.1.zip`). The $199 self-host kit Polar listing is **archived** (MIT-era SKU unlisted). Re-list is **on hold** (CoS/License Gate). This file does not light a listing and has no checkout URL. The curve first shipped in the historical v0.1.0 kit, which stays MIT and is not resealed.
 
 This is **approach policy only**. It does **not** reopen exhaust.
 
@@ -183,6 +183,6 @@ Extra **allowed**:
 | --- | --- |
 | `approve_design_direction` (packet) | `true` — freeze still holds |
 | `approve_implement_now` | **this PR** — curve only; exhaust bytes unchanged |
-| Next | Curve is in the v0.1.1 kit. Founder PQ1–PQ3 stay locked. Soft-WTP off. The $199 kit Polar listing is not live. |
+| Next | Curve is in the v0.1.1 kit. Founder PQ1–PQ3 stay locked. Soft-WTP off. The $199 kit Polar listing is archived. Re-list is on hold. |
 
 *Amendment id: `BB_BRAKE_CURVE_1`. First shipped in v0.1.0. Included in the v0.1.1 kit. Exhaust contract bytes unchanged.*

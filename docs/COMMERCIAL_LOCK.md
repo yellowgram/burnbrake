@@ -5,7 +5,7 @@
 **Hosted optional price:** founder GO 2026-09-27 ET via Chief of Staff — **$59/mo** recurring. CoS published this product live on 2026-09-27. It is not the $199 kit and it does not grant self-host production rights. No zip and no GitHub benefit. This file has no checkout URL.  
 **Authority:** founder (price / refunds / Polar go-live)  
 **Refund:** **14 days** (founder lock) — $199 self-host one-org kit only. No hosted refund term is stated here.  
-**Soft-WTP:** OFF · **Polar:** the $199 kit listing is not live. CoS is re-listing it under this fence. Hosted optional **$59/mo** is live on Polar (CoS, 2026-09-27). No checkout URL in this file.  
+**Soft-WTP:** OFF · **Polar:** the $199 self-host kit listing is **archived** (MIT-era SKU unlisted). Re-list under PolyForm + the Suthirth Commercial Grant is **on hold** (CoS/License Gate). Not live in this repo. Hosted optional **$59/mo** remains the live optional SKU (CoS, 2026-09-27). No checkout URL in this file. This PR does not ask CoS to republish the $199 kit.  
 **Current kit:** `burnbrake-0.1.1.zip`. Tag `v0.1.1` is not pushed until License Gate and LaunchGate say go.  
 **Historical kit:** tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay. That seal is not rewritten and is not the 0.1.1 zip.  
 **Exhaust:** HTTP **402** / `BUDGET_EXHAUSTED` / halt / **not retryable** — unchanged  
@@ -41,7 +41,7 @@ The hosted **$59/mo** SKU does not grant self-host production rights and does no
 - Promise magical zero overspend or forever ahead of provider org limits
 - Put a Polar checkout URL in the README, in this file, or in any other zip-shipped doc
 - Call this OSI open source
-- Claim the $199 kit Polar listing is live
+- Claim the archived $199 kit Polar listing is live, or treat this PR as a republish request
 - Treat hosted $59/mo as the Suthirth Commercial Grant
 - Reseal tag `v0.1.0` or rewrite `checksums/burnbrake-0.1.0.*`
 - Push tag `v0.1.1` until License Gate and LaunchGate say go

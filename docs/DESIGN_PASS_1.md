@@ -40,7 +40,7 @@ One runaway agent loop can burn the founder’s OpenAI (or Anthropic) bill befor
 
 ### 3.1 Autumn ([useautumn.com](https://www.useautumn.com/), [docs](https://docs.useautumn.com/welcome))
 
-**What they are:** Open-source pricing & billing control layer on Stripe. Core triad `attach` / `check` / `track`. SoR for plans, credits, entitlements, usage → Stripe invoices.
+**What they are:** Autumn describes itself as an open-source pricing and billing control layer on Stripe. That sentence is about Autumn, not a BurnBrake claim. BurnBrake is source-available commercial. OSI open source: false. Core triad `attach` / `check` / `track`. SoR for plans, credits, entitlements, usage → Stripe invoices.
 
 **Hard-block gap (explicit):**
 

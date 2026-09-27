@@ -1,49 +1,49 @@
 # Suthirth Commercial Grant
 
+**Product:** BurnBrake  
 **Seller:** Suthirth solutions  
-**Contact:** hello@yellowgram.dev  
-**License field:** `PolyForm-Noncommercial-1.0.0`  
-**Published source:** [PolyForm Noncommercial License 1.0.0](../LICENSE)  
-**Soft-WTP / coupons / cold invoices:** off
+**Contact:** hello@yellowgram.dev · https://www.yellowgram.dev  
+**Public license:** PolyForm Noncommercial 1.0.0 (`LICENSE`) — source-available; not OSI open source  
+**Soft-WTP:** off (no coupons, no cold invoices)
 
-This grant is a separate permission from the PolyForm Noncommercial License 1.0.0. The software is source-available commercial. OSI open source: false. This grant does not make the software OSI open source.
+## What you buy
 
-## Published source without this grant
+A paid Polar purchase of the **BurnBrake** self-host kit grants **one organization** a **Suthirth Commercial Grant** for that kit.
 
-The PolyForm Noncommercial License 1.0.0 in [`LICENSE`](../LICENSE) is the copyright license for the published source. Noncommercial use, as that license defines permitted purposes, does not require this grant.
+| Term | Grant |
+| --- | --- |
+| Scope | **One organization** (the buyer named on the Polar order) |
+| Version | The **named git tag** delivered with that purchase (and its sealed zip SHA) |
+| Duration | **Perpetual** for that named tag |
+| Rights | Use and modify the kit for that organization’s own commercial production purposes for the product’s intended function |
+| Delivery | Kit zip + checksums as listed on Polar for that tag (and GitHub access when the listing includes it) |
+| Support | 60-day Issues, no SLA — no SLA unless a separate written agreement says otherwise |
+| Refund | **14 days** on the $199 self-host kit only (founder lock). Do not invent a hosted refund window here |
 
-Commercial production use of the self-host kit requires this grant.
+Price for the current kit SKU is set on Polar / yellowgram.dev Current card ($199 once one-org kit (hosted $59/mo is a separate SKU with no self-host grant)). Do **not** put Polar checkout URLs in the README or inside the zip.
 
-## What this grant is
+## What this grant does **not** include
 
-One organization. One named tag. Perpetual for that tag.
+- Rights for a **second organization** (each org needs its own purchase)
+- Rights to **other tags** or future major lines unless separately purchased or explicitly upgraded in writing
+- Permission to **resell, sublicense, republish, or redistribute** the kit (or a substantial portion) as a competing starter, boilerplate, template, course, or hosted service
+- **Self-host production rights** bundled into any **hosted** SKU (hosted is separate; it does not sell the self-host grant)
+- Permission to run a **competing hosted** offering of BurnBrake
+- Any OSI “open source” grant; payment does not convert the public PolyForm Noncommercial terms into MIT/Apache/BSD
 
-The organization is the organization named on the purchase record. The tag is the kit tag delivered with that purchase. The current kit for this fence is tag `v0.1.1` (`burnbrake-0.1.1.zip`). That tag is not pushed until License Gate and LaunchGate say go. The grant, once that named tag is delivered, is perpetual for that tag and that organization.
+## Relationship to `LICENSE`
 
-The grant does not transfer copyright. It does not include a service-level agreement.
+Without this grant, only PolyForm Noncommercial 1.0.0 applies.  
+With this grant, the named organization may use the named tag commercially as above. The public PolyForm text in `LICENSE` stays the public fence for everyone else.
 
-## What the $199 kit purchase is
+## Prior distributions
 
-A purchase of the **$199 once** self-host kit is all three of the following, and only these:
+Tags and zips already shipped under an older license (for example MIT, or a prior custom commercial license) are **not rewritten**. Rights already granted for those sealed artifacts are not clawed back. New purchases and new tags use this grant + PolyForm Noncommercial fence.
 
-1. This Commercial Grant for one organization and the named tag, perpetual for that tag.
-2. The kit zip for that tag.
-3. **60-day Issues**, no SLA. Contact hello@yellowgram.dev during that window.
+## Operator responsibility
 
-The Issues window is support access. It is not a term of the PolyForm Noncommercial License.
+BurnBrake is provided **as is**. You remain responsible for production correctness, compliance, and decisions made from its outputs. This is not legal, tax, or accounting advice.
 
-**Refund:** **14 days** on the $199 kit only. This document states no refund term for any other SKU. A refund under this window is not a budget release and not a debt clear inside the product.
+---
 
-## Hosted $59/mo
-
-The hosted **$59/mo** SKU is a separate product. Payment for that SKU does not grant self-host production rights under this grant. It does not grant rights to operate a competing hosted service. It is not a coupon, a cold invoice, or Soft-WTP.
-
-The hosted product remains a Chief of Staff listing. The **$199 kit** Polar listing is not live. It is being re-listed under this fence. This file has no checkout URL.
-
-## Exhaust
-
-HTTP **402** / `BUDGET_EXHAUSTED` / halt / **not retryable**. This grant does not change that contract.
-
-## Contact
-
-hello@yellowgram.dev · seller **Suthirth solutions**.
+*Fill placeholders before merge: PRODUCT_NAME, SUPPORT_WINDOW, PRICE_NOTE. Keep Soft-WTP off. Keep checkout URLs out of README/zip.*

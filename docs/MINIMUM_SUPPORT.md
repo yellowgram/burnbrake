@@ -5,7 +5,7 @@
 **Pricing (USD, founder lock):** **$199 once** self-host one-org kit (primary) · **$59/mo** hosted optional, separate · seller **Suthirth solutions** · source-available commercial (PolyForm Noncommercial 1.0.0 + [Suthirth Commercial Grant](./COMMERCIAL_GRANT.md)) · OSI open source: false · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
 **Contact:** hello@yellowgram.dev  
 **Goal:** Strangers self-serve the happy path; founder support stays thin and bounded.  
-**Polar:** the $199 kit listing is **not live** (being re-listed under this fence). Hosted **$59/mo** is a separate live product and does not grant self-host production rights. This file has no checkout URL. Seller checklist: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in the git repository (not in the buyer zip).  
+**Polar:** the $199 self-host kit listing is **archived** (MIT-era SKU unlisted). Re-list under PolyForm + the Suthirth Commercial Grant is **on hold** (CoS/License Gate). Not live in this repo. Hosted **$59/mo** remains a separate live product and does not grant self-host production rights. This file has no checkout URL. Seller record: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in the git repository (not in the buyer zip). This PR does not ask CoS to republish the $199 kit.  
 **Date:** 2026-09-27 ET — v0.1.1 license fence. Design Pass 3 was absorbed ([`DR3_ATTACKS.md`](./DR3_ATTACKS.md) stays in git; DR×3 complete)
 
 Modeled on yellowgram MINIMUM_SUPPORT discipline (docs replace the founder; boundary written once). Process quality borrowed from Guard checklist (decision table, localhost bind, fail-loud misconfig) — **wallet Guard ≠ BurnBrake scope**.
@@ -30,7 +30,7 @@ See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md) and [`COMMERCIAL_GRANT.md`](./C
 - **Brake-curve** config in the tree ([`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md))
 - **No claim** that BurnBrake will outrun OpenAI forever
 
-Hosted **$59/mo** is a separate optional SKU. It does not grant self-host production rights or rights to operate a competing hosted service. Month-2 platform caps are expected. The buyer of the $199 kit keeps the zip. The $199 kit Polar listing is not live. Soft-WTP, coupons, and cold invoices are off.
+Hosted **$59/mo** is a separate optional SKU. It does not grant self-host production rights or rights to operate a competing hosted service. Month-2 platform caps are expected. The buyer of the $199 kit keeps the zip. The $199 self-host kit Polar listing is **archived**. Re-list is **on hold**. Soft-WTP, coupons, and cold invoices are off.
 
 ---
 
@@ -61,7 +61,7 @@ Zip buyers: `unzip burnbrake-0.1.1.zip && cd burnbrake-0.1.1 && npm ci` (Node 22
 | 25–45s | Exhaust run (or lower cap) → next completion | HTTP **402** `BUDGET_EXHAUSTED` (halt, not retryable, not 429); **mock upstream count unchanged**; decision `upstream_forwarded=false` |
 | 45–60s | Show operator: remaining/debt; optional note | Promise honesty: next call gated; one in-flight call could have overshot |
 
-`npm run demo` is this script with the mock upstream. If any step needs live OpenAI spend or a founder screenshare, fix the kit before CoS publishes. The listing is not live yet.
+`npm run demo` is this script with the mock upstream. If any step needs live OpenAI spend or a founder screenshare, fix the kit. The $199 Polar listing is archived. Re-list is on hold. This file has no checkout URL.
 
 ---
 
@@ -134,7 +134,7 @@ Paste into agent repos. HTTP **402** is the exhaust status. **Halt semantics sta
 ## Money & listing hygiene
 
 - Product prices stay **USD**. Founder may track costs in INR privately; do not India-localize the wedge.  
-- The v0.1.1 kit is the current archive. The $199 kit Polar listing is **not live**. SHA-256 of `burnbrake-0.1.1.zip` is `checksums/burnbrake-0.1.1.sha256` in git (not inside the zip). Tag `v0.1.1` is not pushed until License Gate and LaunchGate say go. `checksums/burnbrake-0.1.0.*` stay historical and are not this kit. Seller steps: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in git. This file has no checkout URL.
+- The v0.1.1 kit is the current archive. The $199 self-host kit Polar listing is **archived** (MIT-era SKU unlisted). Re-list is **on hold** (CoS/License Gate). SHA-256 of `burnbrake-0.1.1.zip` is `checksums/burnbrake-0.1.1.sha256` in git (not inside the zip). Tag `v0.1.1` is not pushed until License Gate and LaunchGate say go. `checksums/burnbrake-0.1.0.*` stay historical MIT and are not this kit. Record: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in git. This file has no checkout URL.
 - Refund window for the **$199** self-host one-org kit is **14 days** (founder lock, [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); do not conflate with budget “release reservation” / debt language.
 - Soft-WTP, coupons, and cold invoices are off. No Polar checkout URL in the README.
 
@@ -145,7 +145,7 @@ Paste into agent repos. HTTP **402** is the exhaust status. **Halt semantics sta
 1. Support >2 h/week sustained with no doc gap closed → pause sales.  
 2. Buyers demand billing EMS / credits portal as “minimum support” → refuse; point to Autumn/Stigg/OpenMeter — do not build it.  
 3. Secret-in-ticket culture → close with template; do not debug live keys.  
-4. Strangers treat the zip as a live $199 Polar listing → correct them: that listing is not live. Soft-WTP stays off. There is no checkout URL in the kit.  
+4. Strangers treat the zip as a live $199 Polar listing → correct them: that MIT-era SKU is archived and re-list is on hold. Soft-WTP stays off. There is no checkout URL in the kit.  
 5. “BurnBrake lied — I still overspent one call” without FAQ/honesty copy → fix docs before more sales.
 
-*Last updated: 2026-09-27 ET — v0.1.1 license fence; source-available commercial (PolyForm Noncommercial 1.0.0 + Suthirth Commercial Grant); OSI open source: false; $199 kit listing not live; founder refund lock **14 days** on the $199 one-org kit only ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); 60-day Issues, no SLA; Soft-WTP off; exhaust HTTP 402 halt, not retryable.*
+*Last updated: 2026-09-27 ET — v0.1.1 license fence; source-available commercial (PolyForm Noncommercial 1.0.0 + Suthirth Commercial Grant); OSI open source: false; $199 kit Polar listing archived, re-list on hold; founder refund lock **14 days** on the $199 one-org kit only ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); 60-day Issues, no SLA; Soft-WTP off; exhaust HTTP 402 halt, not retryable.*

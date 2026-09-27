@@ -1,13 +1,23 @@
+# yellowgram — source-available (not OSI open source)
+
 Copyright (c) 2026 yellowgram
 
-Source-available commercial software. OSI open source: false.
+This repository is offered under the PolyForm Noncommercial License 1.0.0
+(the full official license text follows this header, unchanged).
 
-The published source is offered under the PolyForm Noncommercial License 1.0.0.
-The official license text follows this header, unchanged.
+Commercial production use, or any use outside that noncommercial license,
+requires a paid **Suthirth Commercial Grant** from Suthirth solutions for
+this product. The grant is sold via the Polar kit listing. Terms:
+docs/COMMERCIAL_GRANT.md.
 
-Commercial production use of the self-host kit requires the Suthirth Commercial Grant: docs/COMMERCIAL_GRANT.md
+Claims: source-available = true. OSI “open source” = false.
+Seller: Suthirth solutions. Contact: hello@yellowgram.dev
+https://www.yellowgram.dev
 
-Required Notice: Copyright yellowgram (https://yellowgram.dev). PolyForm Noncommercial License 1.0.0. Commercial production use of the self-host kit requires the Suthirth Commercial Grant (docs/COMMERCIAL_GRANT.md). Seller: Suthirth solutions. Contact: hello@yellowgram.dev.
+Required Notice: Copyright yellowgram (https://www.yellowgram.dev)
+
+---
+
 
 # PolyForm Noncommercial License 1.0.0
 
