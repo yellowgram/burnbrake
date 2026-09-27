@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-26 ET  
 **Authority:** founder (price / refunds / Polar go-live)  
+**Refund:** **14 days** (founder lock) — $199 self-host one-org kit  
 **Soft-WTP:** OFF · **Polar:** dark until zip/SHA + go-live  
 **Exhaust:** HTTP **402** / `BUDGET_EXHAUSTED` / halt / **not retryable** — unchanged
 
