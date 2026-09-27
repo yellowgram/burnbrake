@@ -109,6 +109,42 @@ describe("typescript sdk", () => {
     );
     assert.ok(Date.now() - started < 500);
   });
+
+  it("matches the live 402 shape and does not add a second sleep", async () => {
+    const sidecar = await bootSidecar({
+      caps: { user: null, run: 0, day: null },
+      env: { BURNBRAKE_BRAKE_ENABLED: "true", BURNBRAKE_BRAKE_BLACK_DELAY_MS: "80" },
+    });
+    try {
+      const client = new BurnBrake({ baseURL: sidecar.baseURL, apiKey: "bb_test_key" });
+      const started = Date.now();
+      await assert.rejects(
+        () =>
+          client.chat.completions.create(
+            { model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }], max_tokens: 16 },
+            { idempotencyKey: "sdk-live-402", runId: "run-1" },
+          ),
+        (err: unknown) => {
+          assert.ok(err instanceof BudgetExhausted);
+          assert.equal(err.httpStatus, 402);
+          assert.equal(err.code, "BUDGET_EXHAUSTED");
+          assert.equal(err.halt, true);
+          assert.equal(err.retryable, false);
+          assert.equal(err.scope, "run");
+          assert.equal(err.remaining_micros, 0);
+          assert.equal("delay_ms" in err, false);
+          assert.equal("zone" in err, false);
+          return true;
+        },
+      );
+      const elapsed = Date.now() - started;
+      assert.ok(elapsed >= 60);
+      assert.ok(elapsed < 500);
+      assert.equal(sidecar.mock.forwardCount, 0);
+    } finally {
+      await sidecar.close();
+    }
+  });
 });
 
 describe("operator cli", () => {

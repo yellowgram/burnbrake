@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
 import { describe, it } from "node:test";
 import {
   BRAKE_DEFAULTS,
@@ -112,6 +113,34 @@ describe("brake config", () => {
     const onRedLine = classifyOpenZone([{ scope: "run", cap_micros: 100, remaining_micros: 10 }], enabled({ red_delay_ms: 9 }));
     assert.equal(onRedLine.zone, "red");
     assert.equal(onRedLine.delay_ms, 9);
+
+    const onAmberLine = classifyOpenZone(
+      [{ scope: "user", cap_micros: 100, remaining_micros: 30 }],
+      enabled({ amber_delay_ms: 4 }),
+    );
+    assert.equal(onAmberLine.zone, "amber");
+    assert.equal(onAmberLine.scope, "user");
+    assert.equal(onAmberLine.delay_ms, 4);
+
+    const justAboveAmber = classifyOpenZone([{ scope: "user", cap_micros: 100, remaining_micros: 31 }], enabled());
+    assert.equal(justAboveAmber.zone, "green");
+    assert.equal(justAboveAmber.delay_ms, 0);
+
+    const coveringZero = classifyOpenZone([{ scope: "run", cap_micros: 100, remaining_micros: 0 }], enabled({ red_delay_ms: 6 }));
+    assert.equal(coveringZero.zone, "red");
+    assert.equal(coveringZero.delay_ms, 6);
+
+    // Later scope has the lower percent, so it sets the delay even though the earlier scope has fewer micros left.
+    const tightestPct = classifyOpenZone(
+      [
+        { scope: "user", cap_micros: 100_000, remaining_micros: 40_000 },
+        { scope: "run", cap_micros: 10_000, remaining_micros: 500 },
+      ],
+      enabled({ red_delay_ms: 12, amber_delay_ms: 3 }),
+    );
+    assert.equal(tightestPct.zone, "red");
+    assert.equal(tightestPct.scope, "run");
+    assert.equal(tightestPct.delay_ms, 12);
   });
 });
 
@@ -166,6 +195,29 @@ describe("brake preview", () => {
     assert.equal(denied.kind, "deny");
     if (denied.kind === "deny") assert.equal(denied.code, "NO_BUDGET_CONFIGURED");
     open.close();
+  });
+
+  it("keeps user debt black even when a later scope still has room", () => {
+    const ledger = new Ledger(tempLedgerPath(), { defaultCaps: { user: 1000, run: 100_000, day: 100_000 } });
+    const reserved = ledger.reserve(
+      reserveInput({ estimateMicros: 400, userId: "alice", runId: "r", idempotencyKey: "seed-debt" }),
+    );
+    assert.equal(reserved.kind, "reserved");
+    if (reserved.kind !== "reserved") return;
+    ledger.markForwarded(reserved.reservationId);
+    ledger.settle(reserved.reservationId, 1500);
+    const preview = ledger.previewBrake(
+      reserveInput({ estimateMicros: 100, userId: "alice", runId: "r", idempotencyKey: "next-debt" }),
+      enabled({ amber_delay_ms: 50, red_delay_ms: 80, black_delay_ms: 90 }),
+    );
+    assert.equal(preview.kind, "black");
+    if (preview.kind !== "black") return;
+    assert.equal(preview.deny.scope, "user");
+    assert.equal(preview.deny.remaining_micros, -500);
+    assert.equal(preview.deny.code, "BUDGET_EXHAUSTED");
+    assert.equal(preview.delay_ms, 90);
+    assert.equal(ledger.listReservations({ runId: "r" }).length, 1);
+    ledger.close();
   });
 
 });
@@ -650,6 +702,143 @@ describe("brake curve on the spend path", () => {
       assert.equal(allow.headers.get("x-burnbrake-zone"), "green");
     } finally {
       await sidecar.close();
+    }
+  });
+
+  it("rejects a spend-key brake write and a max_delay_ms above 15000 without storing either", async () => {
+    const sidecar = await bootSidecar();
+    try {
+      const spend = await fetch(`${sidecar.baseURL}/v1/operator/brake`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-burnbrake-key": "bb_test_key" },
+        body: JSON.stringify({ enabled: true, black_delay_ms: 1000 }),
+      });
+      assert.equal(spend.status, 401);
+      const ceiling = await operator(sidecar, "POST", "/v1/operator/brake", { max_delay_ms: 15_001 });
+      assert.equal(ceiling.status, 400);
+      assert.match(ceiling.json.error.message, /max_delay_ms/);
+      const invert = await operator(sidecar, "POST", "/v1/operator/brake", { amber_pct: 10 });
+      assert.equal(invert.status, 400);
+      assert.match(invert.json.error.message, /amber_pct/);
+      const shown = await operator(sidecar, "GET", "/v1/operator/brake");
+      assert.equal(shown.json.brake.enabled, false);
+      assert.equal(shown.json.brake.max_delay_ms, 15_000);
+      assert.equal(shown.json.brake.amber_pct, 30);
+      assert.equal(shown.json.brake.black_delay_ms, 0);
+    } finally {
+      await sidecar.close();
+    }
+  });
+
+  it("applies enabled false on the next reserve and does not rewind the in-flight delay", async () => {
+    let sleeps = 0;
+    const sidecar = await bootSidecar({
+      caps: { user: null, run: 50_000_000, day: null },
+      env: {
+        BURNBRAKE_BRAKE_ENABLED: "true",
+        BURNBRAKE_BRAKE_AMBER_PCT: "100",
+        BURNBRAKE_BRAKE_AMBER_DELAY_MS: "400",
+      },
+      sleep: async (ms) => {
+        sleeps += 1;
+        assert.equal(ms, 400);
+        sidecar.ledger.setBrake({ ...sidecar.ledger.getBrake(), enabled: false });
+      },
+    });
+    try {
+      const first = await postChat(sidecar, { idempotencyKey: "toggle-1", runId: "run-toggle" });
+      assert.equal(first.status, 200);
+      assert.equal(first.headers.get("x-burnbrake-zone"), "amber");
+      assert.equal(first.headers.get("x-burnbrake-delay-ms"), "400");
+      assert.equal(sleeps, 1);
+      const started = Date.now();
+      const second = await postChat(sidecar, { idempotencyKey: "toggle-2", runId: "run-toggle" });
+      assert.ok(Date.now() - started < 200);
+      assert.equal(second.status, 200);
+      assert.equal(second.headers.get("x-burnbrake-zone"), null);
+      assert.equal(second.headers.get("x-burnbrake-delay-ms"), null);
+      assert.equal(sleeps, 1);
+      assert.equal(sidecar.ledger.getBrake().enabled, false);
+    } finally {
+      await sidecar.close();
+    }
+  });
+
+  it("does not reserve or forward when the client times out during a real red delay", async () => {
+    const sidecar = await bootSidecar({
+      caps: { user: null, run: 10_000, day: null },
+      env: {
+        BURNBRAKE_BRAKE_ENABLED: "true",
+        BURNBRAKE_BRAKE_AMBER_PCT: "100",
+        BURNBRAKE_BRAKE_RED_PCT: "50",
+        BURNBRAKE_BRAKE_RED_DELAY_MS: "250",
+      },
+    });
+    try {
+      spend(sidecar.ledger, "run-red-timeout", 6_000);
+      await assert.rejects(
+        fetch(`${sidecar.baseURL}/v1/chat/completions`, {
+          method: "POST",
+          signal: AbortSignal.timeout(40),
+          headers: {
+            "content-type": "application/json",
+            "x-burnbrake-key": "bb_test_key",
+            "x-burnbrake-run-id": "run-red-timeout",
+            "idempotency-key": "red-timeout",
+          },
+          body: JSON.stringify({ ...CHAT, stream: true }),
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      assert.equal(sidecar.mock.forwardCount, 0);
+      assert.equal(sidecar.ledger.listReservations({ runId: "run-red-timeout" }).length, 1);
+      assert.equal(sidecar.ledger.listReservations({ state: "RESERVED", runId: "run-red-timeout" }).length, 0);
+      assert.equal(sidecar.ledger.listReservations({ state: "FORWARDED", runId: "run-red-timeout" }).length, 0);
+    } finally {
+      await sidecar.close();
+    }
+  });
+
+  it("debits an unfinished stream once after the amber delay", async () => {
+    let hits = 0;
+    const upstream = createServer((_req, res) => {
+      hits += 1;
+      res.writeHead(200, { "content-type": "text/event-stream" });
+      res.end(`data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: "x" } }] })}\n\n`);
+    });
+    await new Promise<void>((resolve) => upstream.listen(0, "127.0.0.1", () => resolve()));
+    const address = upstream.address();
+    if (!address || typeof address === "string") throw new Error("upstream port missing");
+    const sidecar = await bootSidecar({
+      mockUpstream: false,
+      openaiApiKey: "sk-test-upstream",
+      upstreamBaseURL: `http://127.0.0.1:${address.port}`,
+      caps: { user: null, run: 50_000_000, day: null },
+      env: {
+        BURNBRAKE_BRAKE_ENABLED: "true",
+        BURNBRAKE_BRAKE_AMBER_PCT: "100",
+        BURNBRAKE_BRAKE_AMBER_DELAY_MS: "40",
+      },
+    });
+    try {
+      const started = Date.now();
+      const response = await postChat(sidecar, {
+        idempotencyKey: "stream-open",
+        runId: "run-stream",
+        body: { stream: true },
+      });
+      assert.ok(Date.now() - started >= 30);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("x-burnbrake-zone"), "amber");
+      assert.equal(hits, 1);
+      const rows = sidecar.ledger.listReservations({ runId: "run-stream" });
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0]?.state, "DEBIT_RESERVED");
+      assert.notEqual(rows[0]?.state, "RESERVED");
+      assert.notEqual(rows[0]?.state, "FORWARDED");
+    } finally {
+      await sidecar.close();
+      await new Promise<void>((resolve, reject) => upstream.close((err) => (err ? reject(err) : resolve())));
     }
   });
 });
