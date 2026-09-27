@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Rebuild burnbrake-0.1.0.zip from this tree and check its SHA-256.
-# The digest is checksums/burnbrake-0.1.0.sha256 (git). It is not inside the zip.
+# Rebuild burnbrake-<version>.zip from this tree and check its SHA-256.
+# Version is package.json (this fence: 0.1.1).
+# The digest is checksums/burnbrake-<version>.sha256 (git). It is not inside the zip.
+# checksums/burnbrake-0.1.0.* stay historical. This script does not write them.
 # Usage: scripts/pack-release.sh [--write]
-#   --write  overwrite checksums/ after a deliberate kit change
+#   --write  overwrite checksums/burnbrake-<version>.* after a deliberate kit change
 #   default  fail if the rebuilt zip does not match the committed digest
 set -euo pipefail
 
@@ -18,8 +20,8 @@ elif [[ -n "${1:-}" ]]; then
 fi
 
 VERSION="$(node -p "require('./package.json').version")"
-if [[ "$VERSION" != "0.1.0" ]]; then
-  echo "package.json version must be 0.1.0 (got ${VERSION})" >&2
+if [[ "$VERSION" != "0.1.1" ]]; then
+  echo "package.json version must be 0.1.1 (got ${VERSION})" >&2
   exit 1
 fi
 
@@ -27,6 +29,7 @@ npm ci
 npm run build
 
 export BURNBRAKE_PACK_WRITE="$WRITE"
+export BURNBRAKE_PACK_VERSION="$VERSION"
 python3 - <<'PY'
 import hashlib
 import os
@@ -35,7 +38,9 @@ import zipfile
 from pathlib import Path
 
 root = Path(".").resolve()
-version = "0.1.0"
+version = os.environ["BURNBRAKE_PACK_VERSION"]
+if version != "0.1.1":
+    sys.exit(f"pack version must be 0.1.1 (got {version})")
 prefix = f"burnbrake-{version}"
 zip_name = f"{prefix}.zip"
 write = os.environ.get("BURNBRAKE_PACK_WRITE") == "1"
@@ -51,6 +56,7 @@ fixed = [
     "package-lock.json",
     "package.json",
     "tsconfig.json",
+    "docs/COMMERCIAL_GRANT.md",
     "docs/COMMERCIAL_LOCK.md",
     "docs/DEMO_60S.md",
     "docs/DESIGN_BRAKE_CURVE.md",

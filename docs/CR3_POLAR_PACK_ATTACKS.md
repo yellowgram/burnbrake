@@ -1,5 +1,7 @@
 # BurnBrake — Code Review ×3 (CR3) Attack Log — Polar pack v0.1.0
 
+**Superseded by the PolyForm fence.** This attack log is historical audit evidence for the v0.1.0 MIT-era pack. It is not live buyer guidance. Current copyright is source-available commercial: PolyForm Noncommercial 1.0.0 plus the Suthirth Commercial Grant (`docs/COMMERCIAL_GRANT.md`). OSI open source: false. Sentences below that say `LICENSE` stays MIT, that payment does not revoke MIT, that this pass did not replace MIT, or that the $199 listing was unpublished, describe that 2026-09-27 pass only. Tag `v0.1.0` stays MIT historically (grandfathered). It was not rewritten into 0.1.1. The MIT-era $199 Polar SKU is archived. Re-list is on hold.
+
 **Pass:** third hostile review. CR1 and CR2 are not the evidence.
 **PR:** https://github.com/yellowgram/burnbrake/pull/7 (`cursor/polar-ready-v010-3c0d`)
 **Head reviewed:** `4a7820969232b3922fb70971e38d382ffb14f86a`
