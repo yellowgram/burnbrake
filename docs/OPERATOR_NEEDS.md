@@ -3,7 +3,7 @@
 **Product:** BurnBrake — request-path spend governor  
 **Audience:** founding-customer operator (founder-CTO or the eng who owns the provider key)  
 **Date:** 2026-09-26 ET — Design Pass 3 absorbed ([`DR3_ATTACKS.md`](./DR3_ATTACKS.md); DR×3 complete)  
-**Polar:** the $199 self-host kit listing is **archived** (MIT-era SKU unlisted). Re-list under PolyForm + the Suthirth Commercial Grant is **on hold** (CoS/License Gate). Not live in this repo. No checkout URL here. Hosted **$59/mo** remains the live optional SKU and does not grant self-host production rights. ([`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) is in the git repository, not the buyer zip.)  
+**Polar:** the $199 self-host kit listing is **LIVE** (PolyForm + Suthirth Commercial Grant; CoS/www sell it). No checkout URL here. Soft-WTP is off. Hosted **$59/mo** remains a separate live optional SKU and does not grant self-host production rights. ([`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) is in the git repository, not the buyer zip.)  
 
 Operators must answer four questions without pinging yellowgram: **What’s left? What was denied? Can I stop a runaway run now? Did we accidentally call the provider after a reject?**
 
@@ -131,4 +131,4 @@ Operator surface: `burnbrake brake show|set` and `/v1/operator/brake` (operator 
 - “Guarantee zero overspend including in-flight calls.” → refuse; explain next-call gate + debt.  
 - “Stop the other client that never hits the sidecar.” → refuse; dual-client checklist.
 
-*Last updated: 2026-09-27 ET — operator surface is in the v0.1.1 kit. Copyright is source-available commercial (PolyForm Noncommercial 1.0.0 + Suthirth Commercial Grant). OSI open source: false. The $199 kit Polar listing is archived; re-list is on hold. Soft-WTP off. Exhaust unchanged.*
+*Last updated: 2026-09-27 ET — operator surface is in the v0.1.1 kit. Copyright is source-available commercial (PolyForm Noncommercial 1.0.0 + Suthirth Commercial Grant). OSI open source: false. The $199 kit Polar listing is LIVE. Soft-WTP off. Exhaust unchanged.*
