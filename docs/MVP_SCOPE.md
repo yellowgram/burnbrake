@@ -1,14 +1,14 @@
 # BurnBrake — MVP Scope (locked; Design Pass 3 absorbed — DR×3 complete)
 
 **Product:** BurnBrake — request-path spend governor  
-**Promise:** reject the next completion when user/run/day budget cannot cover the conservative estimate (including debt). Honesty: **one already-forwarded call may still overshoot** — not magical zero overspend.  
+**Promise:** reject the next completion when user/run/day budget cannot cover the conservative estimate (including debt). Honesty: **one already-forwarded call may still overshoot** — not magical zero overspend. **No claim** that BurnBrake will outrun OpenAI forever.  
 **Primary shape:** OpenAI-compatible **sidecar** (self-host); thin **SDK** secondary  
-**Pricing (USD, draft):** **~$149 self-host kit** = first cash SKU shape · ~$29/mo **hosted sidecar/ledger tenancy** = **Later**  
+**Pricing (USD, founder lock):** **$199 once** self-host one-org license (primary) · **$49/mo** hosted optional · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
 **Contact:** hello@yellowgram.dev  
 **Polar:** listing **DARK — not Polar-ready** ([`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md); no zip/SHA artifacts yet)  
 **Date:** 2026-09-26 ET — design only; no product code · DR3 remediations from [`DR3_ATTACKS.md`](./DR3_ATTACKS.md)
 
-Narrative: [`DESIGN_PASS_1.md`](./DESIGN_PASS_1.md) · Support: [`MINIMUM_SUPPORT.md`](./MINIMUM_SUPPORT.md) · Ops: [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md) · Brief: [`LAUNCHGATE_DR4_BRIEF.md`](./LAUNCHGATE_DR4_BRIEF.md)
+Narrative: [`DESIGN_PASS_1.md`](./DESIGN_PASS_1.md) · Price: [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md) · Support: [`MINIMUM_SUPPORT.md`](./MINIMUM_SUPPORT.md) · Ops: [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md) · Brief: [`LAUNCHGATE_DR4_BRIEF.md`](./LAUNCHGATE_DR4_BRIEF.md)
 
 Approach policy: [`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md) — amendment **BB_BRAKE_CURVE_1** (implemented on the curve PR; exhaust bytes unchanged).
 
@@ -69,7 +69,7 @@ An optional pre-cap brake curve (warn / slow before the cap) is implemented — 
 - Details: [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md).
 
 ### 7. Delivery honesty
-- **First cash SKU = self-host kit** (Polar-**shaped** when ready); hosted sidecar/ledger tenancy is Later.
+- **First cash SKU = $199 once** self-host one-org license (Polar-**shaped** when ready); hosted **$49/mo** optional later / not day-1 primary. Buyer keeps the zip. See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md).
 - Polar public listing **out** until zip / SHA / [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) + **founder** go-live.
 - This pack is **not Polar-ready**.
 - BurnBrake only governs traffic that hits the sidecar.
@@ -92,7 +92,7 @@ An optional pre-cap brake curve (warn / slow before the cap) is implemented — 
 | **Default `0.0.0.0` bind or auth-optional public proxy** | Fund-drain class |
 | **Day-1 hosted multi-tenant as co-equal first SKU** | Self-host first (DR3) |
 | **Multi-PSP spend aggregation as day-1** | Kit commerce ≠ OpenAI metering |
-| **Replacing OpenAI org hard limits / stopping ungated second clients** | Complement + honesty; don’t claim |
+| **Replacing OpenAI org hard limits / stopping ungated second clients / outrunning OpenAI forever** | Complement + honesty; don’t claim |
 | **Cryptographic compliance theater / FedRAMP path** | Upmarket SpendGuard-class; stay dumb |
 | **Implementation services as primary offer** | Product = governor |
 
@@ -100,7 +100,7 @@ An optional pre-cap brake curve (warn / slow before the cap) is implemented — 
 
 ## Later (not MVP)
 
-- Hosted multi-tenant sidecar/ledger tenancy (~$29/mo draft) after self-host proof.
+- Hosted multi-tenant sidecar/ledger tenancy (**$49/mo** optional, not day-1 primary) after self-host proof. Month-2 platform caps are expected; the buyer keeps the zip.
 - Additional providers beyond OpenAI-shaped HTTP (Anthropic native, etc.).
 - Richer estimate models (streaming true-up polish, tool-call graphs) beyond conservative ceiling + debt.
 - Optional Polar/Stripe **kit commerce** only (still not Autumn; still not in-path OpenAI credits).
@@ -119,7 +119,9 @@ An optional pre-cap brake curve (warn / slow before the cap) is implemented — 
 | `requested_micros` | What reserve asked for |
 | `run_id` / `user_id` | Echo of authenticated request identity |
 
-Sidecar: non-2xx + JSON body — **draft `402`**. SDK: thrown `BudgetExhausted`. Exact HTTP status frozen at **LaunchGate 4th DR**; agent **halt** semantics locked now.
+Sidecar: non-2xx + JSON body — **402** `BUDGET_EXHAUSTED`, halt, **not retryable**. SDK: thrown `BudgetExhausted`. Agent **halt** semantics stay. Exhaust path is unchanged by the price lock.
+
+**Honesty:** one already-forwarded call may still overshoot (settle above reserve, or debit-on-crash). That residual stays. **No claim** that BurnBrake will outrun OpenAI forever, or stay ahead of provider org limits.
 
 ---
 
@@ -127,7 +129,7 @@ Sidecar: non-2xx + JSON body — **draft `402`**. SDK: thrown `BudgetExhausted`.
 
 From [`DR2_ATTACKS.md`](./DR2_ATTACKS.md) + [`DR3_ATTACKS.md`](./DR3_ATTACKS.md); **do not market as closed**:
 
-1. **One in-flight overshoot / debit-on-crash** — pre-call gate + debt; already-forwarded call may exceed reserve or debit estimate; promise is next-call reject, not magical zero overspend.
+1. **One in-flight overshoot / debit-on-crash** — pre-call gate + debt; already-forwarded call may exceed reserve or debit estimate; promise is next-call reject, not magical zero overspend. **No claim** that BurnBrake will outrun OpenAI forever.
 2. **Day-boundary / multi-writer clock skew** — ledger uses store-side UTC day key; skewed multi-pod clocks without one store can split buckets near midnight.
 3. **Ungated second client** — process that ignores sidecar `baseURL` and calls the provider directly bypasses BurnBrake; docs/checklist elevated (DR3); still not code-forced.
 4. **Authenticated `run_id` rotation** — per-run-only configs are washable; production needs per-user and/or per-day AND.
@@ -168,4 +170,4 @@ Price · refund window · Polar public listing · Soft-WTP exceptions · paid sp
 
 > Cap + kill on the request path. Autumn/Stigg meter and entitle; BurnBrake stops the next completion (and honestly admits one in-flight call may still overshoot).
 
-*Last updated: 2026-09-26 ET — Design Pass 3 absorbed (DR×3 complete); design pack only; not Polar-ready.*
+*Last updated: 2026-09-27 ET — founder commercial lock ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); exhaust unchanged; Polar dark; not Polar-ready.*

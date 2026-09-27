@@ -1,7 +1,7 @@
 # BurnBrake — Minimum Support Surface (before Polar)
 
 **Product:** BurnBrake — request-path spend governor  
-**Pricing (USD, draft):** ~$149 self-host kit (first SKU) · ~$29/mo hosted sidecar/ledger tenancy later  
+**Pricing (USD, founder lock):** **$199 once** self-host one-org license (primary) · **$49/mo** hosted optional · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
 **Contact:** hello@yellowgram.dev  
 **Goal:** Strangers self-serve the happy path; founder support stays thin and bounded.  
 **Polar:** listing **DARK — not Polar-ready** ([`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md))  
@@ -13,11 +13,23 @@ Modeled on yellowgram MINIMUM_SUPPORT discipline (docs replace the founder; boun
 
 ## Support boundary (write once, link everywhere)
 
-- **Channel:** email `hello@yellowgram.dev` (Issues only if a private founding space exists).
+- **Channel:** **60-day Issues**, no SLA (same fence as HookSteel). Email `hello@yellowgram.dev` in that window.
 - **Scope:** BurnBrake sidecar/SDK behavior, budget config, reject path, auth/bind, operator CLI/UI shipped with the kit.
-- **Best-effort** founding support; **no SLA** until an explicit paid SLA SKU exists (do not invent one at launch).
-- **Time box (draft):** ≤2 h/week aggregate for founding cohort; if exceeded → pause new founders or productize the FAQ — do **not** Soft-WTP.
+- **No SLA.** Best-effort only. Do not invent a paid SLA at launch.
+- **Time box:** the fence is 60 days of Issues, not an on-call band. If volume exceeds what docs can absorb → pause new founders or productize the FAQ — do **not** Soft-WTP.
 - **Require for any ticket:** BurnBrake version/tag; sidecar vs SDK; OS; listen bind; auth enabled yes/no; failing request identity (`user_id`, `run_id`); expected vs actual (did upstream get called?); redacted config booleans only — **no live provider API keys**, no live Polar/Stripe secrets, no BurnBrake shared secrets in cleartext.
+
+### What the $199 fee includes
+
+See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md). The primary fee is the self-host one-org license. It includes:
+
+- Perpetual self-host for **one organization**
+- Tag + SHA + the **402 / debt / run-id** contract (exhaust unchanged: halt, not retryable)
+- **60-day Issues**, no SLA (same fence as HookSteel)
+- **Brake-curve** config in the tree ([`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md))
+- **No claim** that BurnBrake will outrun OpenAI forever
+
+Hosted **$49/mo** is optional and not the day-1 primary. Month-2 platform caps are expected. The buyer keeps the zip. Polar stays dark.
 
 ---
 
@@ -74,7 +86,7 @@ Paste into agent repos. LaunchGate may freeze final HTTP status; **halt semantic
 
 ## FAQ (DR3 honesty)
 
-**Can I still overspend one call?** Yes — one already-forwarded completion may settle above reserve or debit-on-crash. BurnBrake rejects the **next** call when reserve+debt cannot cover the conservative estimate. Do not market “never overspend.”
+**Can I still overspend one call?** Yes — one already-forwarded completion may settle above reserve or debit-on-crash. BurnBrake rejects the **next** call when reserve+debt cannot cover the conservative estimate. Do not market “never overspend.” **No claim** that BurnBrake will outrun OpenAI forever.
 
 **Does BurnBrake stop clients that never pointed at the sidecar?** No. Fix dual clients; see troubleshooting #1.
 
@@ -134,4 +146,4 @@ Paste into agent repos. LaunchGate may freeze final HTTP status; **halt semantic
 4. Strangers treat design “Polar candidate” as listed product → correct with DARK honesty; founder owns go-live.  
 5. “BurnBrake lied — I still overspent one call” without FAQ/honesty copy → fix docs before more sales.
 
-*Last updated: 2026-09-26 ET — Design Pass 3 absorbed (DR×3 complete); design pack only; not Polar-ready.*
+*Last updated: 2026-09-27 ET — founder commercial lock ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); 60-day Issues, no SLA; Polar dark; not Polar-ready.*

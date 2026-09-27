@@ -1,8 +1,8 @@
 # Support boundary
 
-- **Channel:** hello@yellowgram.dev
+- **Channel:** GitHub Issues for **60 days** (same fence as HookSteel), or hello@yellowgram.dev in that window.
 - **Scope:** sidecar and SDK behavior, budget config, the reject path, auth and bind, and the operator CLI shipped in this kit.
-- **Best effort.** No SLA in this kit.
+- **No SLA.** Best effort only. What the $199 fee includes: [COMMERCIAL_LOCK.md](./COMMERCIAL_LOCK.md).
 - **Every ticket needs:** version, sidecar or SDK, OS, listen bind, whether auth is on, `user_id`, `run_id`, and what you expected versus what happened (did upstream get called?). Redacted booleans only.
 - **Do not send:** live provider API keys, the BurnBrake shared secret, or payment-provider secrets.
 
