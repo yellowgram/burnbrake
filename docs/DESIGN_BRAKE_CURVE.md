@@ -3,7 +3,7 @@
 **Packet:** CoS design amendment · `schema_version: 1` · `packet_type: design_amendment`  
 **Depends on:** [`MVP_SCOPE.md`](./MVP_SCOPE.md), [`LAUNCHGATE_DR4_VERDICT.md`](./LAUNCHGATE_DR4_VERDICT.md)  
 **Date:** 2026-09-27 ET  
-**Status:** Design only. **Do not implement** until LaunchGate marks design direction approved **and** founder answers PQ1–PQ3 (or silence defaults apply).  
+**Status:** Design only. **Do not implement** until LaunchGate marks design direction approved. Founder PQ1–PQ3 are locked (2026-09-26 ET).  
 **Soft-WTP:** OFF · **Polar:** stays dark · **Do not** reseal zip / light listing because this doc landed.
 
 This is **approach policy only**. It does **not** reopen exhaust.
@@ -42,7 +42,7 @@ Screen-Time-style approach: **warn / slow BEFORE the cap**. At the cap, still **
 | **PQ2** | Allow a non-zero default `black_delay_ms` on hosted? | `0` | `0` |
 | **PQ3** | One-shot allowance grant this design slice or later? | later. Curve + exhaust lock this PR. Allowance is a follow-on. | later |
 
-Record answers in this file / MVP pointer once founder replies. Until then, design text uses silence defaults.
+**Founder answers (2026-09-26 ET):** PQ1 = `false` · PQ2 = `0` · PQ3 = later. Locked; silence defaults match.
 
 ---
 
@@ -183,6 +183,6 @@ Extra **allowed**:
 | --- | --- |
 | `approve_design_direction` (packet) | `true` — freeze still holds |
 | `approve_implement_now` | **false** |
-| Next | Founder PQ1–PQ3 → LaunchGate design ack → then implement PR (curve only; exhaust bytes unchanged) |
+| Next | LaunchGate design ack → then implement PR (curve only; exhaust bytes unchanged). Founder PQ1–PQ3 locked 2026-09-26 ET. |
 
 *Amendment id: `BB_BRAKE_CURVE_1`. Exhaust contract bytes unchanged.*
