@@ -251,7 +251,7 @@ The digest must match `checksums/burnbrake-0.1.0.sha256` on tag `v0.1.0`.
 
 ## What you get
 
-Perpetual self-host license for one organization. Sidecar rejects the next completion when the reserve (including debt) cannot cover a conservative estimate. Unzip, `cd burnbrake-0.1.0`, `npm ci` (Node 22.13+), then `npm run demo` or `node dist/cli.js serve`.
+Packaged self-host kit and 60-day Issues for one organization. Copyright in `LICENSE` is MIT. The fee does not revoke that grant. Sidecar rejects the next completion when the reserve (including debt) cannot cover a conservative estimate. Unzip, `cd burnbrake-0.1.0`, `npm ci` (Node 22.13+), then `npm run demo` or `node dist/cli.js serve`.
 
 ## Commercial
 
