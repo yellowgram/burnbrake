@@ -5,7 +5,8 @@
 **Stance:** three blades in one pass — (A) security/ops, (B) OSS DX/support, (C) agent-integrator buyer  
 **Rule:** attacks that would kill a stranger buy **or** burn provider $  
 **Outcome:** P0/P1 remediations absorbed into pack (`DESIGN_PASS_1.md`, `MVP_SCOPE.md`, `MINIMUM_SUPPORT.md`, `OPERATOR_NEEDS.md`). P2 left as known limits with LaunchGate/founder visibility.  
-**Not done:** product code · PRs · LaunchGate contact · Soft-WTP · Polar light
+**Not done:** product code · PRs · LaunchGate contact · Soft-WTP · Polar light  
+**Prices:** dollar figures below quote superseded drafts. Founder lock is [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md): **$199 once** self-host one-org · **$49/mo** hosted optional. Do not sell $149 or $29/mo.
 
 Process quality borrowed from Guard checklist discipline (decision table, localhost bind, fail-loud misconfig, honesty non-goals) — **wallet Guard ≠ BurnBrake scope**.
 
@@ -210,7 +211,7 @@ Ordinary freezes → **LaunchGate**. Founder only for price / refunds / Polar go
 | --- | --- | --- |
 | LG-1 | Exact HTTP status freeze | Pack **drafts `402`** for exhaust; LaunchGate may confirm or pick `429`+reason — must keep decision-table halt semantics |
 | LG-2 | Price-table SoT (static YAML vs live feed) | Unpriced = deny default (locked in pack) |
-| LG-3 | Hosted meter vs self-host-only first cash SKU | Pack: self-host first; hosted = Later; **founder** if price ladder changes |
+| LG-3 | Hosted meter vs self-host-only first cash SKU | Pack: self-host one-org first; hosted = Later. **Founder locked** **$199 once** / **$49/mo** hosted optional ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)). |
 | LG-4 | Anthropic / multi-provider day-1 | Pack: OpenAI-shaped only MVP |
 | LG-5 | Reservation TTL default numeric | State machine locked; **value** (e.g. 15m) still LaunchGate |
 | LG-6 | Default injected `max_tokens` ceiling value | Policy locked; number still LaunchGate |

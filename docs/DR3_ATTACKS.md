@@ -5,7 +5,8 @@
 **Stance:** attack what DR2 *fixed poorly* or left open — not theater rehash of DR2 P0s  
 **Rule:** attacks that would kill a stranger buy, burn provider $, or fail a 60s demo  
 **Outcome:** P0/P1 remediations absorbed into pack (`DESIGN_PASS_1.md`, `MVP_SCOPE.md`, `MINIMUM_SUPPORT.md`, `OPERATOR_NEEDS.md`) + new [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) + [`LAUNCHGATE_DR4_BRIEF.md`](./LAUNCHGATE_DR4_BRIEF.md). P2 = known limits with LaunchGate visibility.  
-**Not done:** product code · PRs · LaunchGate/agent messaging · Soft-WTP · Polar light
+**Not done:** product code · PRs · LaunchGate/agent messaging · Soft-WTP · Polar light  
+**Prices:** dollar figures below quote superseded drafts. Founder lock is [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md): **$199 once** self-host one-org · **$49/mo** hosted optional. Do not sell $149 or $29/mo.
 
 ---
 
@@ -135,7 +136,7 @@
 | **Blade** | Product shape / Autumn creep |
 | **Evidence** | Headers still say “~$29/mo hosted meter **and/or** ~$149 self-host.” DR2 leaned self-host first but pricing line keeps both co-equal. Implementers build tenancy early; strangers expect SaaS day-1. |
 | **Failure mode** | Scope creep into hosted multi-tenant before self-host proof; support for tenancy; Autumn-shaped roadmap. |
-| **Required design change** | **Pass-3 recommendation LOCK:** **First cash SKU = self-host kit only (~$149 draft).** Hosted multi-tenant sidecar/ledger (**rename off “meter”**) = **Later** after self-host proof — not day-1 Polar SKU. LaunchGate confirms shape (LG-3); **founder** if price ladder changes. Remove “and/or” co-equal framing from headers. |
+| **Required design change** | **Pass-3 recommendation LOCK (shape):** **First cash SKU = self-host one-org only.** Hosted multi-tenant sidecar/ledger (**rename off “meter”**) = **Later** after self-host proof — not day-1 Polar SKU. LaunchGate confirms shape (LG-3). **Founder price lock:** **$199 once** / hosted **$49/mo** optional ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)). The ~$149 figure in the evidence row is a superseded draft, not the plan. Remove “and/or” co-equal framing from headers. |
 | **Absorbed in** | DESIGN_PASS_1 header/§4 · MVP_SCOPE pricing · MINIMUM_SUPPORT · LAUNCHGATE_DR4_BRIEF |
 
 ---
@@ -212,7 +213,7 @@ All P0/P1 design-closed in this pass. P2 remain Known limits.
 4. **Bypass honesty elevated** — START_HERE + troubleshooting #1 dual-client; prove gated path only.  
 5. **Price-table freshness** — version + `priced_at`; warn when stale; static YAML MVP; unpriced still deny.  
 6. **Decision table v2** — no mid-stream reject; 5xx/partial → settle-or-DEBIT_RESERVED; idempotent retry only.  
-7. **First SKU lock** — self-host kit only; hosted ledger tenancy Later; scrub “hosted meter.”  
+7. **First SKU lock** — self-host one-org only (**$199 once**, founder lock); hosted **$49/mo** optional later; scrub “hosted meter.”  
 8. **POLAR_DELIVERABLES + 60s demo script** — dark listing checklist; mock-upstream demo.
 
 ---
