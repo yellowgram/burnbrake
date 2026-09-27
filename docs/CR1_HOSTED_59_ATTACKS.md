@@ -10,7 +10,7 @@
 
 This file is not a zip member. `scripts/pack-release.sh` refuses any `docs/CR*` name. Adding it does not reseal the kit.
 
-Polar listing stays unpublished. Soft-WTP stays off. Exhaust contract was not edited. The GitHub Release `v0.1.0` was not edited. This pass did not merge PR #8.
+At `6082235`, the Polar listing was still unpublished. Soft-WTP stays off. Exhaust contract was not edited. The GitHub Release `v0.1.0` was not edited. This pass did not merge PR #8. A later edit, after CoS published the hosted SKU, is the addendum below. It does not change this verdict.
 
 ---
 
@@ -146,4 +146,24 @@ Two lines in `docs/DR2_ATTACKS.md` and three lines in `docs/DR3_ATTACKS.md` now 
 - Did not publish Polar
 - Did not change product code
 
-**APPROVE.** No P0. No P1. P2-1 through P2-4 stay open. CoS publishes the hosted **$59/mo** product. BurnBrake does not operate the Polar UI.
+**APPROVE.** No P0. No P1. P2-1 through P2-4 stay open for the price-string head. The addendum below records the hosted listing going live after this log was written. BurnBrake does not operate the Polar UI.
+
+---
+
+## Addendum — hosted listing went live after this log
+
+**When:** after `2485023` (this file’s first commit), on the same branch.  
+**Fact from CoS:** the hosted Polar SKU is **LIVE**. Price **$59/mo** recurring. Product `70b1a029-944f-4999-ae39-d39c041ae3e9`. No zip and no GitHub benefit. Soft-WTP stays off. The **$199 kit** listing was not part of that publish.
+
+A7 above scored “hosted is already live” as a **P0** because, at `6082235`, that sentence would have been false. It is not a P0 once CoS has published. The follow-up edit states the hosted product is live. It does not state that the $199 kit listing is live.
+
+| Check | Result |
+| --- | --- |
+| Checkout URL | Only in `docs/POLAR_DELIVERABLES.md` (header and the checked CoS step). The admin URL is in that file only. This log does not repeat either URL. |
+| README and other zip-shipped docs | No `buy.polar.sh` and no `polar.sh/dashboard`. `docs/COMMERCIAL_LOCK.md` and `docs/MVP_SCOPE.md` say the hosted product is live and that those files have no checkout URL. |
+| $199 kit | Still **not live**. Publish checkbox for that SKU stays open. Refund **14 days** stays on that kit only. |
+| Soft-WTP | Still off. Hosted step still forbids coupons and cold invoices. |
+| Zip / checksums | Not resealed. `checksums/` not edited. Digest stays `585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8`. |
+| Historical CR logs | `docs/CR1_POLAR_PACK_ATTACKS.md`, `docs/CR2_POLAR_PACK_ATTACKS.md`, and `docs/CR2_BRAKE_CURVE_ATTACKS.md` still not edited. |
+
+**Addendum result:** no new P0 or P1. P2-1 still stands: the sealed zip’s own copies of `COMMERCIAL_LOCK.md` and `MVP_SCOPE.md` do not yet say the hosted product is live, because this pass did not reseal. Do not `--write`. Do not merge. Do not publish the $199 kit from this repository.
