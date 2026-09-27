@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1
+
+License fence only. Not a feature release. Exhaust stays HTTP 402 `BUDGET_EXHAUSTED`, halt, not retryable.
+
+- Copyright is source-available commercial. `LICENSE` is the PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`) plus the Suthirth Commercial Grant (`docs/COMMERCIAL_GRANT.md`). OSI open source: false.
+- The $199 once kit is that grant, the kit zip, and 60-day Issues (no SLA), for one organization and the named tag, perpetual for that tag. Seller: Suthirth solutions. Contact: hello@yellowgram.dev. Refund: 14 days on the $199 kit only.
+- Hosted $59/mo stays a separate SKU. It does not grant self-host production rights. The $199 kit Polar listing is not live and is not claimed live. Soft-WTP, coupons, and cold invoices stay off.
+- Kit archive for this fence: `burnbrake-0.1.1.zip`. SHA-256 is `checksums/burnbrake-0.1.1.sha256` in git. The digest is not copied into this file. Tag `v0.1.1` is not pushed in this change.
+- Tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay as the historical kit. They are not resealed. Health `version` for this kit is `0.1.1`.
+
 ## 0.1.0
 
 Self-host MVP sidecar. Cap + kill on the request path.

@@ -131,4 +131,4 @@ Operator surface: `burnbrake brake show|set` and `/v1/operator/brake` (operator 
 - “Guarantee zero overspend including in-flight calls.” → refuse; explain next-call gate + debt.  
 - “Stop the other client that never hits the sidecar.” → refuse; dual-client checklist.
 
-*Last updated: 2026-09-27 ET — operator surface is in the v0.1.0 kit. Polar listing is not live; Suthirth solutions publishes after founder GO. Soft-WTP off. Exhaust unchanged.*
+*Last updated: 2026-09-27 ET — operator surface is in the v0.1.1 kit. Copyright is source-available commercial (PolyForm Noncommercial 1.0.0 + Suthirth Commercial Grant). OSI open source: false. The $199 kit Polar listing is not live. Soft-WTP off. Exhaust unchanged.*

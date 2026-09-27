@@ -1,13 +1,13 @@
 # 60s demo (mock upstream)
 
-No live provider key and no provider spend. From a git checkout or from the unpacked `burnbrake-0.1.0/` kit (Node 22.13+):
+No live provider key and no provider spend. From a git checkout or from the unpacked `burnbrake-0.1.1/` kit (Node 22.13+):
 
 ```bash
 npm ci
 npm run demo
 ```
 
-`npm ci` installs the TypeScript runner. Do not pass `--omit=dev` for this script. The v0.1.0 zip already contains `dist/` and `prices/openai.yaml`. The script below still runs from TypeScript source (`scripts/demo-60s.ts`). Exhaust on the deny step is HTTP **402** `BUDGET_EXHAUSTED`, halt, not retryable, not 429.
+`npm ci` installs the TypeScript runner. Do not pass `--omit=dev` for this script. The v0.1.1 zip already contains `dist/` and `prices/openai.yaml`. The script below still runs from TypeScript source (`scripts/demo-60s.ts`). Exhaust on the deny step is HTTP **402** `BUDGET_EXHAUSTED`, halt, not retryable, not 429.
 
 Preconditions the script sets for you: sidecar on `127.0.0.1`, mock upstream on, BurnBrake key set, user/run/day caps set, run cap large enough for one short allow.
 

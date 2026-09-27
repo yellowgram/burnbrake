@@ -1,10 +1,12 @@
 # BurnBrake — Design Pass 1 (narrative)
 
+**Historical narrative (2026-09-26).** This file is not the current copyright lock and it is not in the buyer zip. Current copyright is source-available commercial: PolyForm Noncommercial 1.0.0 plus the [Suthirth Commercial Grant](./COMMERCIAL_GRANT.md). OSI open source: false. See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md). The “not Polar-ready” status below describes this design pass, not the 0.1.1 fence.
+
 **Status:** **Design Pass 3 absorbed (DR×3 complete)** — remediations from [`DR3_ATTACKS.md`](./DR3_ATTACKS.md) folded in; still narrative, not code  
 **Product:** BurnBrake — request-path spend governor for agent loops  
 **Promise:** budget per user / per run / per day → atomic reserve → **reject the next completion** before it hits the model provider when reserve (including **debt**) cannot cover the **conservative estimate**. Honesty: **one already-forwarded call may still overshoot**; debt gates the next call — **not** magical zero overspend.  
 **Not:** billing SoR, entitlement EMS, credit wallet, or Soft-WTP desk  
-**Pricing (USD, founder lock):** **$199 once** self-host one-org license (primary) · **$59/mo** hosted optional · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
+**Pricing (USD, founder lock):** **$199 once** self-host one-org kit (primary) · **$59/mo** hosted optional · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md) and [`COMMERCIAL_GRANT.md`](./COMMERCIAL_GRANT.md)  
 **Contact:** hello@yellowgram.dev  
 **Polar:** listing **DARK — not Polar-ready** (see [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md); no zip/SHA artifacts yet)  
 **Date:** 2026-09-26 ET — DR×3 complete; **no code**, no Polar listing, Soft-WTP OFF  
@@ -99,7 +101,7 @@ One runaway agent loop can burn the founder’s OpenAI (or Anthropic) bill befor
 
 **Secondary: thin SDK wrapper** (TypeScript first) for non-HTTP or non-OpenAI-shaped clients — same reserve/settle protocol talking to the same ledger (local process or sidecar).
 
-**First cash SKU (founder lock):** **$199 once** self-host one-org license (Polar **shape** after ready gate + **founder** go-live). **Hosted $59/mo** = optional later / **not** day-1 primary. Month-2 platform caps are expected; the buyer keeps the zip. Pack is **not Polar-ready** today. Checklist: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md). Price: [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md).
+**First cash SKU (founder lock):** **$199 once** self-host one-org kit (Polar **shape** after ready gate + **founder** go-live). **Hosted $59/mo** = optional later / **not** day-1 primary. Month-2 platform caps are expected; the buyer keeps the zip. The “not Polar-ready” sentence is this 2026-09-26 narrative. Current lock: [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md). Grant: [`COMMERCIAL_GRANT.md`](./COMMERCIAL_GRANT.md). Checklist: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md).
 
 Rationale: stranger happy path is “point the base URL”; sidecar survives process crash better than a lone in-memory SDK counter; stays dumber than building Autumn; self-host proof before tenancy.
 
