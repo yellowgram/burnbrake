@@ -10,7 +10,7 @@
 
 Narrative: [`DESIGN_PASS_1.md`](./DESIGN_PASS_1.md) · Price: [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md) · Support: [`MINIMUM_SUPPORT.md`](./MINIMUM_SUPPORT.md) · Ops: [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md) · Brief: [`LAUNCHGATE_DR4_BRIEF.md`](./LAUNCHGATE_DR4_BRIEF.md)
 
-Approach policy: [`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md) — amendment **BB_BRAKE_CURVE_1** (design only; not implement yet).
+Approach policy: [`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md) — amendment **BB_BRAKE_CURVE_1** (implemented on the curve PR; exhaust bytes unchanged).
 
 Fences: Soft-WTP OFF · not Autumn/Stigg · cap + kill only · **LaunchGate 4th DR** before implement · **CR×3 → LaunchGate 4th CR** before merge.
 
@@ -58,7 +58,7 @@ Fences: Soft-WTP OFF · not Autumn/Stigg · cap + kill only · **LaunchGate 4th 
 - Retries that re-enter the gate must not spend provider dollars; agents **halt** (non-retryable for spend).
 - **No MVP config** for soft-allow-overage / warn-only / fail-open ledger.
 
-An optional pre-cap brake curve (warn / slow before the cap) is design-amendment only — see [`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md) (**BB_BRAKE_CURVE_1**). At the cap, the sidecar still halts with the unchanged exhaust bytes (402, `BUDGET_EXHAUSTED`, halt true, retryable false, no Retry-After, no 429). Founder PQ1–PQ3 are locked (2026-09-26 ET): hosted `brake.enabled` `false`, `black_delay_ms` `0`, allowance later. Implement stays blocked until LaunchGate design ack. `brake.enabled` is not a halt-off switch.
+An optional pre-cap brake curve (warn / slow before the cap) is implemented — see [`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md) (**BB_BRAKE_CURVE_1**). At the cap, the sidecar still halts with the unchanged exhaust bytes (402, `BUDGET_EXHAUSTED`, halt true, retryable false, no Retry-After, no 429). Founder PQ1–PQ3 stay locked (2026-09-26 ET): hosted `brake.enabled` `false`, `black_delay_ms` `0`, allowance later. `brake.enabled` is not a halt-off switch.
 
 ### 5. Thin SDK (secondary)
 - TypeScript wrapper using the same reserve/settle protocol (local ledger or sidecar).

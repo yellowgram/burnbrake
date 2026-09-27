@@ -160,6 +160,7 @@ export class BurnBrake {
       parsed = text;
     }
     if (response.status === 402) {
+      // Curve delay is sidecar-side only. Do not sleep again on 402.
       const error = errorObject(parsed);
       if (error?.code === "BUDGET_EXHAUSTED") {
         throw new BudgetExhausted({

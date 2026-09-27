@@ -115,9 +115,9 @@ MVP can ship **CLI + minimal read UI** or logs-only — must cover balances (inc
 
 ---
 
-## Brake curve (design only — not shipped)
+## Brake curve (shipped)
 
-Future operator surface: `burnbrake brake show|set` and `/v1/operator/brake` (operator key only; spend key stays rejected). Design only; not shipped yet. See [`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md) (**BB_BRAKE_CURVE_1**). `brake.enabled` is not a halt-off switch. A black delay is a pre-402 pause only; waiting does not change the exhaust verdict.
+Operator surface: `burnbrake brake show|set` and `/v1/operator/brake` (operator key only; spend key stays rejected). See [`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md) and [`OPERATOR.md`](./OPERATOR.md) (**BB_BRAKE_CURVE_1**). `brake.enabled` defaults to false and is not a halt-off switch. A black delay is a pre-402 pause only; waiting does not change the exhaust verdict.
 
 ---
 

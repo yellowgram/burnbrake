@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { brakeFromEnv, type BrakeConfig } from "./brake.js";
 import { DEFAULT_HOST, DEFAULT_MAX_TOKENS, DEFAULT_PORT, RESERVATION_TTL_MS, STALE_PRICE_DAYS } from "./constants.js";
 import type { DefaultCaps } from "./ledger.js";
 import { usdToMicros } from "./money.js";
@@ -19,6 +20,8 @@ export interface AppConfig {
   reservationTtlMs: number;
   staleWarnDays: number;
   caps: DefaultCaps;
+  /** Curve only. `enabled: false` keeps the pre-curve halt path. Not a halt-off switch. */
+  brake: BrakeConfig;
   failClosed: true;
 }
 
@@ -89,6 +92,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, options: { requ
       run: readCap(env, "RUN"),
       day: readCap(env, "DAY"),
     },
+    brake: brakeFromEnv(env),
     failClosed: true,
   };
 }

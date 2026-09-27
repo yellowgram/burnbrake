@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { chmodSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
+import { BRAKE_DEFAULTS, classifyOpenZone, validateBrakeConfig, type BrakeConfig } from "./brake.js";
 import { IDEMPOTENCY_BODY_TTL_MS, RESERVATION_TTL_MS } from "./constants.js";
 
 export type ScopeName = "user" | "run" | "day";
@@ -62,6 +63,22 @@ export type ReserveResult =
       run_id: string | null;
       message: string;
     };
+
+/** Curve look-ahead. `black` is a locked deny. `color` still has to reserve after the wait. */
+export type BrakePreview =
+  | { kind: "skip" }
+  | { kind: "black"; delay_ms: number; deny: Extract<ReserveResult, { kind: "deny" }> }
+  | {
+      kind: "color";
+      zone: "green" | "amber" | "red";
+      delay_ms: number;
+      scope: ScopeName;
+      remaining_micros: number;
+    };
+
+type PreparedReserve =
+  | { outcome: "done"; result: ReserveResult }
+  | { outcome: "ready"; dayKey: string; accounts: AccountRow[] };
 
 export interface DecisionInput {
   userId: string | null;
@@ -309,6 +326,20 @@ export class Ledger {
     return Number(row.v);
   }
 
+  /** Stored operator/env curve. Missing meta uses the locked defaults (`enabled: false`). */
+  getBrake(): BrakeConfig {
+    const row = this.db.prepare("SELECT v FROM meta WHERE k = ?").get("brake_json") as { v: string } | undefined;
+    if (!row) return { ...BRAKE_DEFAULTS };
+    return validateBrakeConfig(JSON.parse(row.v) as unknown);
+  }
+
+  setBrake(config: BrakeConfig): void {
+    const validated = validateBrakeConfig(config);
+    this.db
+      .prepare("INSERT INTO meta(k, v) VALUES ('brake_json', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v")
+      .run(JSON.stringify(validated));
+  }
+
   setCap(scope: ScopeName, scopeKey: string, micros: number): void {
     assertMicros(micros, "cap");
     if (!scopeKey) throw new Error("scope key is required");
@@ -355,6 +386,33 @@ export class Ledger {
       });
     }
     return this.tx(() => this.reserveUnlocked(input));
+  }
+
+  /**
+   * Decide the curve without taking a hold. The write lock covers the same pre-check
+   * sweep as reserve, then commits. Sleep after this returns — never inside the transaction.
+   * A black verdict is locked: a later cap raise must not turn it into a forward.
+   */
+  previewBrake(input: ReserveInput, brake: BrakeConfig): BrakePreview {
+    if (!Number.isSafeInteger(input.estimateMicros) || input.estimateMicros < 0) {
+      return { kind: "skip" };
+    }
+    return this.tx(() => {
+      const prepared = this.prepareReserve(input);
+      if (prepared.outcome === "done") {
+        const result = prepared.result;
+        if (result.kind === "deny" && (result.code === "BUDGET_EXHAUSTED" || result.code === "SPEND_PAUSED")) {
+          return { kind: "black", delay_ms: brake.black_delay_ms, deny: result };
+        }
+        return { kind: "skip" };
+      }
+      const open = prepared.accounts.map((row) => ({
+        scope: row.scope as ScopeName,
+        cap_micros: row.cap_micros,
+        remaining_micros: row.cap_micros - row.spent_micros - row.held_micros,
+      }));
+      return { kind: "color", ...classifyOpenZone(open, brake) };
+    });
   }
 
   markForwarded(reservationId: string): void {
@@ -693,6 +751,10 @@ export class Ledger {
           );
         return;
       }
+      // A reservation_id means reserve() already claimed this key. The black curve
+      // sleeps outside the lock, so that claim can land during black_delay_ms.
+      // Overwriting the row would turn an in-flight hold into a false 402 replay.
+      if (existing.reservation_id) return;
       if (existing.state === "pending" || existing.response_body == null) {
         this.db
           .prepare(
@@ -704,11 +766,18 @@ export class Ledger {
   }
 
   private reserveUnlocked(input: ReserveInput): ReserveResult {
+    const prepared = this.prepareReserve(input);
+    if (prepared.outcome === "done") return prepared.result;
+    return this.commitReserve(input, prepared.dayKey, prepared.accounts);
+  }
+
+  private prepareReserve(input: ReserveInput): PreparedReserve {
+    const done = (result: ReserveResult): PreparedReserve => ({ outcome: "done", result });
     if (input.idempotencyKey) {
       const existing = this.idempotencyRow(input.idempotencyKey);
       if (existing) {
         if ((existing.user_id ?? null) !== input.userId || (existing.run_id ?? null) !== input.runId) {
-          return denyResult({
+          return done(denyResult({
             code: "IDEMPOTENCY_MISMATCH",
             httpStatus: 409,
             scope: null,
@@ -717,23 +786,23 @@ export class Ledger {
             user_id: input.userId,
             run_id: input.runId,
             message: "Idempotency key was already used for a different user_id or run_id.",
-          });
+          }));
         }
         if (existing.http_status && existing.response_body) {
-          return { kind: "replay", httpStatus: existing.http_status, body: existing.response_body };
+          return done({ kind: "replay", httpStatus: existing.http_status, body: existing.response_body });
         }
         const reservation = existing.reservation_id ? this.getReservation(existing.reservation_id) : undefined;
         const open = reservation?.state === "RESERVED" || reservation?.state === "FORWARDED";
         if (open) {
-          return { kind: "in_flight", reservationId: existing.reservation_id };
+          return done({ kind: "in_flight", reservationId: existing.reservation_id });
         }
-        return this.sealTerminalReplay(existing.idem_key, input);
+        return done(this.sealTerminalReplay(existing.idem_key, input));
       }
     }
 
     if (this.readControl("global", "global") || (input.runId && this.readControl("run", input.runId))) {
       const runPaused = Boolean(input.runId && this.readControl("run", input.runId));
-      return denyResult({
+      return done(denyResult({
         code: "SPEND_PAUSED",
         httpStatus: 402,
         scope: runPaused ? "run" : null,
@@ -744,7 +813,7 @@ export class Ledger {
         message: runPaused
           ? `Spend is paused for run ${input.runId}. Halt; do not open another client.`
           : "Spend is paused for this deploy. Halt; do not open another client.",
-      });
+      }));
     }
 
     this.sweepUnlocked();
@@ -759,7 +828,7 @@ export class Ledger {
     const dayConfigured = dayDefault != null || this.account("day", dayKey) != null;
 
     if (userConfigured && !input.userId) {
-      return denyResult({
+      return done(denyResult({
         code: "IDENTITY_REQUIRED",
         httpStatus: 400,
         scope: "user",
@@ -768,10 +837,10 @@ export class Ledger {
         user_id: null,
         run_id: input.runId,
         message: "user scope is configured; send x-burnbrake-user-id from the authenticated caller.",
-      });
+      }));
     }
     if (runConfigured && !input.runId) {
-      return denyResult({
+      return done(denyResult({
         code: "IDENTITY_REQUIRED",
         httpStatus: 400,
         scope: "run",
@@ -780,14 +849,14 @@ export class Ledger {
         user_id: input.userId,
         run_id: null,
         message: "run scope is configured; send x-burnbrake-run-id from the authenticated caller.",
-      });
+      }));
     }
     if (input.userId && userConfigured) wanted.push({ scope: "user", key: input.userId });
     if (input.runId && runConfigured) wanted.push({ scope: "run", key: input.runId });
     if (dayConfigured) wanted.push({ scope: "day", key: dayKey });
 
     if (wanted.length === 0) {
-      return denyResult({
+      return done(denyResult({
         code: "NO_BUDGET_CONFIGURED",
         httpStatus: 503,
         scope: null,
@@ -796,14 +865,14 @@ export class Ledger {
         user_id: input.userId,
         run_id: input.runId,
         message: "No user, run, or day cap is configured. Fail closed: refusing to forward.",
-      });
+      }));
     }
 
     const accounts: AccountRow[] = [];
     for (const scope of wanted) {
       const row = this.ensureAccount(scope.scope, scope.key);
       if (!row) {
-        return denyResult({
+        return done(denyResult({
           code: "NO_BUDGET_CONFIGURED",
           httpStatus: 503,
           scope: scope.scope,
@@ -812,7 +881,7 @@ export class Ledger {
           user_id: input.userId,
           run_id: input.runId,
           message: `No cap for ${scope.scope}. Fail closed.`,
-        });
+        }));
       }
       accounts.push(row);
     }
@@ -820,7 +889,7 @@ export class Ledger {
     for (const row of accounts) {
       const remaining = row.cap_micros - row.spent_micros - row.held_micros;
       if (remaining < input.estimateMicros) {
-        return denyResult({
+        return done(denyResult({
           code: "BUDGET_EXHAUSTED",
           httpStatus: 402,
           scope: row.scope as ScopeName,
@@ -829,10 +898,14 @@ export class Ledger {
           user_id: input.userId,
           run_id: input.runId,
           message: `Budget exhausted for scope ${row.scope}. Halt this spend loop. This is not a rate limit.`,
-        });
+        }));
       }
     }
 
+    return { outcome: "ready", dayKey, accounts };
+  }
+
+  private commitReserve(input: ReserveInput, dayKey: string, accounts: AccountRow[]): ReserveResult {
     const id = randomUUID();
     const now = this.now();
     const scopeNames = accounts.map((a) => a.scope).join(",");

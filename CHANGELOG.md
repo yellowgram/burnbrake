@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Brake curve (BB_BRAKE_CURVE_1): optional pre-cap delay in the sidecar. Exhaust stays HTTP 402 `BUDGET_EXHAUSTED`, halt, not retryable, never 429. `brake.enabled` defaults to false. One-shot allowance is not in this change. Soft-WTP stays off. Polar stays dark.
+
 ## 0.1.0
 
 Self-host MVP sidecar. Cap + kill on the request path.

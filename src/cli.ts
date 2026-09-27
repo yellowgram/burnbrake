@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { BrakeConfigError, mergeBrakeConfig } from "./brake.js";
 import { loadConfig } from "./config.js";
 import { decisionsToCsv, Ledger, type ScopeName } from "./ledger.js";
 import { microsToUsd, usdToMicros } from "./money.js";
@@ -25,6 +26,10 @@ const HELP = `BurnBrake — request-path spend governor (cap + kill)
   burnbrake pause --run id | --global
   burnbrake resume --run id | --global
   burnbrake caps set --scope user|run|day [--key id] (--usd N | --micros N)
+  burnbrake brake show [--json]
+  burnbrake brake set [--enabled true|false] [--amber-pct N] [--red-pct N]
+                       [--amber-delay-ms N] [--red-delay-ms N] [--black-delay-ms N]
+                       [--max-delay-ms N]
   burnbrake force-release --reservation id --reason "..." --attest-no-charge
   burnbrake top-runs [--window 1h|24h]
   burnbrake reservations [--state FORWARDED] [--run id]
@@ -35,6 +40,10 @@ HTTP /v1/operator/* requires BURNBRAKE_OPERATOR_KEY, a bb_ secret distinct from
 BURNBRAKE_KEY and from the provider key. If it is unset, operator HTTP is off.
 Auth rotation: change BURNBRAKE_KEY (agents) and BURNBRAKE_OPERATOR_KEY (operator
 HTTP), then restart. Do not rotate by pasting the provider key.
+
+brake.enabled defaults to false and is not a halt-off switch. A set applies on
+the next reserve. An in-flight FORWARDED call is not delayed or rewritten.
+At the cap the response is still HTTP 402 halt, not 429.
 `;
 
 export async function execute(argv: string[], io: Io = defaultIo()): Promise<number> {
@@ -55,6 +64,7 @@ export async function execute(argv: string[], io: Io = defaultIo()): Promise<num
     if (command === "pause") return pause(args, io, true);
     if (command === "resume") return pause(args, io, false);
     if (command === "caps") return caps(args[0] === "set" ? args.slice(1) : args, io);
+    if (command === "brake") return brake(args, io);
     if (command === "force-release") return forceRelease(args, io);
     if (command === "top-runs") return topRuns(args, io);
     if (command === "reservations") return reservations(args, io);
@@ -92,6 +102,11 @@ async function serve(argv: string[], io: Io): Promise<number> {
   io.log("402 BUDGET_EXHAUSTED means halt. Do not treat it as a rate limit.");
   if (warning) io.log(`warning: ${warning}`);
   if (sidecar.config.mockUpstream) io.log("mock upstream: on");
+  io.log(
+    sidecar.config.brake.enabled
+      ? "brake curve: on. Delays apply on the next reserve. 402 halt is unchanged."
+      : "brake curve: off. brake.enabled is not a halt-off switch.",
+  );
   await new Promise<void>((resolve) => {
     process.once("SIGINT", () => resolve());
     process.once("SIGTERM", () => resolve());
@@ -229,6 +244,93 @@ function caps(argv: string[], io: Io): number {
     ledger.close();
   }
 }
+
+function brake(argv: string[], io: Io): number {
+  const sub = argv[0];
+  const rest = argv.slice(1);
+  if (sub === "show") return brakeShow(rest, io);
+  if (sub === "set") return brakeSet(rest, io);
+  throw new Error("usage: burnbrake brake show|set");
+}
+
+function brakeShow(argv: string[], io: Io): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      json: { type: "boolean", default: false },
+      ledger: { type: "string" },
+    },
+    strict: true,
+  });
+  const { ledger } = openLedger(values.ledger, io.env);
+  try {
+    const current = ledger.getBrake();
+    if (values.json) {
+      io.log(JSON.stringify({ brake: current, note: BRAKE_NOTE }, null, 2));
+      return 0;
+    }
+    io.log(`brake.enabled ${current.enabled}`);
+    io.log(`amber_pct ${current.amber_pct}`);
+    io.log(`red_pct ${current.red_pct}`);
+    io.log(`amber_delay_ms ${current.amber_delay_ms}`);
+    io.log(`red_delay_ms ${current.red_delay_ms}`);
+    io.log(`black_delay_ms ${current.black_delay_ms}`);
+    io.log(`max_delay_ms ${current.max_delay_ms}`);
+    io.log(BRAKE_NOTE);
+    return 0;
+  } finally {
+    ledger.close();
+  }
+}
+
+function brakeSet(argv: string[], io: Io): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      enabled: { type: "string" },
+      "amber-pct": { type: "string" },
+      "red-pct": { type: "string" },
+      "amber-delay-ms": { type: "string" },
+      "red-delay-ms": { type: "string" },
+      "black-delay-ms": { type: "string" },
+      "max-delay-ms": { type: "string" },
+      ledger: { type: "string" },
+    },
+    strict: true,
+  });
+  const patch: Record<string, unknown> = {};
+  if (values.enabled != null) patch.enabled = parseEnabledFlag(values.enabled);
+  if (values["amber-pct"] != null) patch.amber_pct = Number(values["amber-pct"]);
+  if (values["red-pct"] != null) patch.red_pct = Number(values["red-pct"]);
+  if (values["amber-delay-ms"] != null) patch.amber_delay_ms = Number(values["amber-delay-ms"]);
+  if (values["red-delay-ms"] != null) patch.red_delay_ms = Number(values["red-delay-ms"]);
+  if (values["black-delay-ms"] != null) patch.black_delay_ms = Number(values["black-delay-ms"]);
+  if (values["max-delay-ms"] != null) patch.max_delay_ms = Number(values["max-delay-ms"]);
+  const { ledger } = openLedger(values.ledger, io.env);
+  try {
+    const next = mergeBrakeConfig(ledger.getBrake(), patch);
+    ledger.setBrake(next);
+    io.log(`brake.enabled ${next.enabled}`);
+    io.log(`amber_pct ${next.amber_pct}  red_pct ${next.red_pct}`);
+    io.log(
+      `delays amber ${next.amber_delay_ms}  red ${next.red_delay_ms}  black ${next.black_delay_ms}  max ${next.max_delay_ms}`,
+    );
+    io.log("applies on the next reserve. In-flight FORWARDED calls are not rewritten.");
+    io.log(BRAKE_NOTE);
+    return 0;
+  } finally {
+    ledger.close();
+  }
+}
+
+function parseEnabledFlag(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  throw new BrakeConfigError("enabled must be true or false");
+}
+
+const BRAKE_NOTE = "brake.enabled is not a halt-off switch. A black delay does not change a 402 halt.";
 
 function forceRelease(argv: string[], io: Io): number {
   const { values } = parseArgs({
