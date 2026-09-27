@@ -21,4 +21,4 @@ Self-host MVP sidecar. Cap + kill on the request path.
 - Decision table lists the non-402 codes, including 400 `IDENTITY_REQUIRED` and 502 `LEDGER_UNAVAILABLE` after forward. Compose reads `config.example.env`. The 60s demo ignores ambient fail-open, price-table, and TTL settings
 - Offline mock-upstream demo
 
-Seller: Suthirth solutions. Primary SKU: $199 once (one organization). Refund: 14 days. Support: 60-day Issues, no SLA. Hosted $49/mo is optional and not in the zip. Soft-WTP is off.
+Seller: Suthirth solutions. Primary SKU: $199 once (one organization). Refund: 14 days. Support: 60-day Issues, no SLA. Hosted $59/mo is optional and not in the zip. Soft-WTP is off.

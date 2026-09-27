@@ -2,7 +2,9 @@
 
 **Status:** pack ready for CoS Polar publish  
 **Founder GO:** received 2026-09-27. BurnBrake does not publish Polar itself and does not operate the Polar UI.  
-**Listing:** **not live.** Suthirth solutions publishes after this kit is on `main` and the GitHub Release asset exists.  
+**Listing ($199 kit):** **not live.** Suthirth solutions publishes the kit after this kit is on `main` and the GitHub Release asset exists.  
+**Hosted listing:** **LIVE** (CoS published 2026-09-27). Product `70b1a029-944f-4999-ae39-d39c041ae3e9`. **$59/mo** recurring. No zip and no GitHub benefit on this SKU. Soft-WTP off. Checkout (this file only; do not copy into README or any zip-shipped doc): https://buy.polar.sh/polar_cl_A2dCr3WcvuTv5lLvNlp8AaC9kziCr8apYfunr0f60ci  
+**Hosted admin (CoS):** https://polar.sh/dashboard/suthirth-solutions/products/70b1a029-944f-4999-ae39-d39c041ae3e9  
 **Tag:** `v0.1.0`  
 **Zip:** `burnbrake-0.1.0.zip`  
 **Archive root:** `burnbrake-0.1.0/`  
@@ -12,7 +14,7 @@
 **Seller:** Suthirth solutions  
 **Contact:** hello@yellowgram.dev  
 **Primary SKU:** self-host one-org **$199 once**  
-**Hosted optional:** **$49/mo** (separate product only if Polar needs a second SKU; not in this zip; not Soft-WTP)  
+**Hosted optional:** **$59/mo** recurring, **LIVE** (founder GO 2026-09-27 ET via Chief of Staff; CoS published product `70b1a029-944f-4999-ae39-d39c041ae3e9`; not this zip; no GitHub benefit; not Soft-WTP)  
 **Refund:** **14 days** on the $199 kit (not a budget release and not a debt clear)  
 **Support:** **60-day Issues**, no SLA  
 **Soft-WTP / coupons / cold invoices:** **none**  
@@ -43,7 +45,7 @@ Copyright in `LICENSE` is MIT. Payment does not revoke that grant and does not a
 
 Price: $199 once. Refund window: 14 days. Seller: Suthirth solutions. Support email in that window: hello@yellowgram.dev.
 
-Hosted operation at $49/mo is optional and is not this product. Create it as a separate Polar product only if Polar requires one. It is not a coupon, a cold invoice, or Soft-WTP.
+Hosted operation at $59/mo recurring is a separate Polar product and is not this kit. It does not include the zip or GitHub Issues. It is not a coupon, a cold invoice, or Soft-WTP.
 
 SHA-256 of `burnbrake-0.1.0.zip`: `585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8`
 
@@ -86,7 +88,7 @@ The digest must match the line above and `checksums/burnbrake-0.1.0.sha256` on t
 | Email | hello@yellowgram.dev |
 | Seller | **Suthirth solutions** |
 | Soft-WTP | **none** |
-| Hosted | **$49/mo** optional, separate product only if Polar needs it |
+| Hosted | **$59/mo** recurring. **LIVE.** Product `70b1a029-944f-4999-ae39-d39c041ae3e9`. No zip, no GitHub benefit. Not the $199 kit. |
 
 ---
 
@@ -101,9 +103,9 @@ BurnBrake will not do these clicks.
 - [ ] In Polar, create the product under **Suthirth solutions**. Paste the title, one-liner, and description from this file.
 - [ ] Set price **$199 once**. Set the refund window to **14 days**. Support text: 60-day Issues, no SLA, hello@yellowgram.dev.
 - [ ] Attach the deliverable: the GitHub Release asset, plus this SHA-256. Do not attach an unpinned “latest”.
-- [ ] Hosted **$49/mo**: add a second product only if Polar requires it. Do not fold it into the $199 SKU. Do not add coupons. Do not send cold invoices. Soft-WTP stays off.
-- [ ] Publish the Polar product.
-- [ ] Update the yellowgram.dev Current card: BurnBrake, $199 once, 14-day refund, tag `v0.1.0`, hosted $49/mo called out as optional and not day-1. Do not add a checkout URL to the BurnBrake README.
+- [x] Hosted **$59/mo** recurring is **LIVE** (CoS, 2026-09-27). Product `70b1a029-944f-4999-ae39-d39c041ae3e9`. Checkout: https://buy.polar.sh/polar_cl_A2dCr3WcvuTv5lLvNlp8AaC9kziCr8apYfunr0f60ci. Admin: https://polar.sh/dashboard/suthirth-solutions/products/70b1a029-944f-4999-ae39-d39c041ae3e9. No zip and no GitHub benefit. Do not fold it into the $199 SKU. Do not add coupons. Do not send cold invoices. Soft-WTP stays off. The 14-day refund stays on the $199 kit only. Do not copy the checkout URL into `README.md` or any file that ships in the zip.
+- [ ] Publish the **$199 kit** Polar product. The hosted product above is already live and is not this step.
+- [ ] Update the yellowgram.dev Current card: BurnBrake, $199 once, 14-day refund, tag `v0.1.0`, hosted $59/mo called out as optional, live, and not day-1. Do not add a checkout URL to the BurnBrake README.
 
 ---
 
@@ -258,7 +260,7 @@ Packaged self-host kit and 60-day Issues for one organization. Copyright in `LIC
 - Price: **$199 once**
 - Refund: **14 days**
 - Support: **60-day GitHub Issues**, no SLA. hello@yellowgram.dev
-- Hosted **$49/mo** is optional and is not this asset
+- Hosted **$59/mo** is optional and is not this asset
 - Soft-WTP, coupons, and cold invoices: none
 
 ## Exhaust
@@ -288,8 +290,9 @@ The release was not created from the pack pull request. The pack commit was not 
 - [x] Zip `burnbrake-0.1.0.zip` built. SHA-256 `585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8` recorded in `checksums/burnbrake-0.1.0.sha256`
 - [x] Refund **14 days** on the $199 kit
 - [x] Soft-WTP off. No Autumn smuggle. No checkout URL in the README
-- [ ] Polar listing published — CoS only, after the Release asset exists
-- [ ] yellowgram.dev Current card updated — CoS only, after publish
+- [x] Hosted Polar product **LIVE** — **$59/mo** recurring, product `70b1a029-944f-4999-ae39-d39c041ae3e9`. No zip benefit. Soft-WTP off. Checkout URL stays in this file only.
+- [ ] $199 kit Polar listing published — CoS only, after the Release asset exists
+- [ ] yellowgram.dev Current card updated — CoS only, after the kit publish
 
 ---
 
@@ -298,7 +301,7 @@ The release was not created from the pack pull request. The pack commit was not 
 - Soft-WTP / coupons / cold invoices **forbidden**
 - Cap + kill only. No credits, entitlements, or invoice-overage on the spend path
 - Kit commerce is not in-path OpenAI metering
-- Do not claim the Polar listing is already live
+- Do not claim the **$199 kit** Polar listing is already live. The hosted **$59/mo** product is live. Its checkout URL stays in this file only.
 - Do not change the exhaust contract to seal this kit
 
-*Pack ready for CoS. Listing not live. Last updated: 2026-09-27. Soft-WTP off. Exhaust unchanged.*
+*Pack ready for CoS. $199 kit listing not live. Hosted $59/mo listing LIVE (product `70b1a029-944f-4999-ae39-d39c041ae3e9`). Last updated: 2026-09-27. Soft-WTP off. Exhaust unchanged.*

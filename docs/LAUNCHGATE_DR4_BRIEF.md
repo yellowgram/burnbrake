@@ -20,14 +20,14 @@
 
 **Out:** Autumn/Stigg clone; credits/entitlements/invoice-overage on spend path; Soft-WTP; fail-open; public bind without auth; Polar light; hosted multi-tenant as day-1 SKU; claiming ungated-client stop or org-limit replacement.
 
-**Later:** Hosted optional **$49/mo** (not day-1 primary); multi-provider; richer estimates; multi-secret auth. See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md).
+**Later:** Hosted optional **$59/mo** (not day-1 primary); multi-provider; richer estimates; multi-secret auth. See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md).
 
 ---
 
 ## Resolved locks from DR×3 (treat as pack truth unless you REJECT)
 
 1. Promise = **pre-call reject of next completion** + debt — **not** magical zero overspend on in-flight call.  
-2. First cash SKU = **$199 once** self-host one-org; hosted **$49/mo** optional later / not day-1 primary (rename off “hosted meter”).  
+2. First cash SKU = **$199 once** self-host one-org; hosted **$59/mo** optional later / not day-1 primary (rename off “hosted meter”).  
 3. Auth: distinct BurnBrake secret; never reuse provider key; preferred header `X-BurnBrake-Key`.  
 4. `max_tokens`: inject default only when omitted; never silent down-clamp of buyer value.  
 5. Price table: **static versioned YAML** + `priced_at`; unpriced → deny; stale → warn (not fail-open).  
@@ -45,7 +45,7 @@ DR2 holdings that still stand: localhost default; fail-closed ledger; no soft-al
 | --- | --- | --- | --- |
 | **LG-1** | HTTP status for budget exhaust | `402` + `BUDGET_EXHAUSTED` (halt non-retryable) | APPROVE `402` **or** REJECT→alternate status **with same halt semantics** |
 | **LG-2** | Price-table source of truth | Static versioned YAML (not live feed) | APPROVE static **or** REJECT→live feed shape |
-| **LG-3** | First cash SKU | **$199 once** self-host one-org (founder lock); hosted **$49/mo** optional later | Shape held; **price is founder-locked** ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)) |
+| **LG-3** | First cash SKU | **$199 once** self-host one-org (founder lock); hosted **$59/mo** optional later | Shape held; **price is founder-locked** ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)) |
 | **LG-4** | Providers day-1 | OpenAI-shaped HTTP only | APPROVE **or** REJECT→add Anthropic/etc. |
 | **LG-5** | Reservation TTL default | State machine locked; numeric draft **15m** | Freeze seconds/minutes |
 | **LG-6** | Default injected `max_tokens` | Policy locked; numeric draft **4096** | Freeze number |
@@ -94,7 +94,7 @@ Price · refund window · Polar public listing light · Soft-WTP exceptions · p
 | [`DR3_ATTACKS.md`](./DR3_ATTACKS.md) | Final attack log + DR2 scorecard |
 | [`DR2_ATTACKS.md`](./DR2_ATTACKS.md) | Prior pass (held fixes) |
 | [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) | Dark listing zip/SHA checklist (design) |
-| [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md) | Founder price lock ($199 once / $49/mo hosted optional) |
+| [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md) | Founder price lock ($199 once / $59/mo hosted optional) |
 
 **Repo root for pack:** `/workspace/burnbrake/`
 

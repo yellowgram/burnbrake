@@ -4,7 +4,7 @@ Request-path spend governor for agent loops. The sidecar estimates a completion,
 
 One already-forwarded call may still overshoot. Debt gates the next call. This is not a promise of zero spend on a call that already left the process.
 
-Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. First cash SKU: self-host **one-org kit $199 once** (seller **Suthirth solutions**). [LICENSE](LICENSE) is MIT. The fee does not revoke that grant and does not add a copyright limit MIT does not contain. It buys this packaged kit and 60-day Issues, scoped to one organization. Hosted **$49/mo** is optional and not the day-1 plan. Kit archive: `burnbrake-0.1.0.zip` (tag `v0.1.0`). Suthirth solutions publishes the Polar listing after founder GO. The listing is not live in this repository, and this file has no checkout URL. Soft-WTP is off. Pricing lock: [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md).
+Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. First cash SKU: self-host **one-org kit $199 once** (seller **Suthirth solutions**). [LICENSE](LICENSE) is MIT. The fee does not revoke that grant and does not add a copyright limit MIT does not contain. It buys this packaged kit and 60-day Issues, scoped to one organization. Hosted **$59/mo** is optional and not the day-1 plan. Kit archive: `burnbrake-0.1.0.zip` (tag `v0.1.0`). Suthirth solutions publishes the Polar listing after founder GO. The listing is not live in this repository, and this file has no checkout URL. Soft-WTP is off. Pricing lock: [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md).
 
 Contact: hello@yellowgram.dev
 
@@ -206,7 +206,7 @@ try {
 - npm package: `npm ci` / `npm run build` / `node dist/cli.js serve` (Node 22.13+). The zip already includes `dist/`.
 - optional Docker: the image listens on `127.0.0.1` unless you opt in. `docker compose up --build` publishes **only** `127.0.0.1:8787` and sets `BURNBRAKE_HOST=0.0.0.0` plus `BURNBRAKE_ALLOW_PUBLIC_BIND=1` inside the container so Docker can reach that process. Compose loads `config.example.env` as its env file. Edit that file. A copied `.env` is not read. The placeholder keys in the example are public and are only appropriate on that localhost publish. Do not `docker run -p 8787:8787` and do not publish `0.0.0.0` without an ACL.
 
-Hosted multi-tenant ledger service is later (**$49/mo** optional, not day-1, and a separate product only if the seller needs one). It is not in this kit. The buyer keeps the zip. See [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md). Soft-WTP, coupons, and cold invoices are not part of this kit. Refund on the **$199** one-org kit is **14 days**. Support is **60-day Issues**, no SLA: hello@yellowgram.dev.
+Hosted multi-tenant ledger service is later (**$59/mo** optional, not day-1, and a separate product only if the seller needs one). It is not in this kit. The buyer keeps the zip. See [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md). Soft-WTP, coupons, and cold invoices are not part of this kit. Refund on the **$199** one-org kit is **14 days**. Support is **60-day Issues**, no SLA: hello@yellowgram.dev.
 
 ## Tests
 
