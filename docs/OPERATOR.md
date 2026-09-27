@@ -44,6 +44,10 @@ burnbrake caps set --scope run --usd 1   # default for new runs
 
 There is no switch to allow spend past a cap, and no switch to forward when the ledger is down.
 
+## Brake curve (not shipped)
+
+Future operator surface, design only: `burnbrake brake show|set` and `/v1/operator/brake` (operator key only). Not shipped yet. See [DESIGN_BRAKE_CURVE.md](./DESIGN_BRAKE_CURVE.md) (**BB_BRAKE_CURVE_1**). `brake.enabled` is not a halt-off switch. A black delay is a pre-402 pause only; the wait does not change the exhaust verdict.
+
 ## Stuck reservations
 
 TTL is 15 minutes from reserve time.

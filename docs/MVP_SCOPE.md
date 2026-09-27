@@ -10,6 +10,8 @@
 
 Narrative: [`DESIGN_PASS_1.md`](./DESIGN_PASS_1.md) · Support: [`MINIMUM_SUPPORT.md`](./MINIMUM_SUPPORT.md) · Ops: [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md) · Brief: [`LAUNCHGATE_DR4_BRIEF.md`](./LAUNCHGATE_DR4_BRIEF.md)
 
+Approach policy: [`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md) — amendment **BB_BRAKE_CURVE_1** (design only; not implement yet).
+
 Fences: Soft-WTP OFF · not Autumn/Stigg · cap + kill only · **LaunchGate 4th DR** before implement · **CR×3 → LaunchGate 4th CR** before merge.
 
 **Gate process:** ordinary design/code freezes → **LaunchGate**. Founder only for price / refunds / Polar go-live / Soft-WTP / spend / Autumn-scope creep.
@@ -55,6 +57,8 @@ Fences: Soft-WTP OFF · not Autumn/Stigg · cap + kill only · **LaunchGate 4th 
 - **Draft HTTP status `402`** (LaunchGate freezes; halt semantics required either way).
 - Retries that re-enter the gate must not spend provider dollars; agents **halt** (non-retryable for spend).
 - **No MVP config** for soft-allow-overage / warn-only / fail-open ledger.
+
+An optional pre-cap brake curve (warn / slow before the cap) is design-amendment only — see [`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md) (**BB_BRAKE_CURVE_1**). At the cap, the sidecar still halts with the unchanged exhaust bytes (402, `BUDGET_EXHAUSTED`, halt true, retryable false, no Retry-After, no 429). Implement is blocked until LaunchGate design ack and founder answers PQ1–PQ3 (silence defaults apply until then). `brake.enabled` is not a halt-off switch.
 
 ### 5. Thin SDK (secondary)
 - TypeScript wrapper using the same reserve/settle protocol (local ledger or sidecar).
