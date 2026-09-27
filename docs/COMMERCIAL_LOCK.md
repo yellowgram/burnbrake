@@ -1,6 +1,7 @@
 # BurnBrake — Commercial lock (founder)
 
 **Date:** 2026-09-26 ET  
+**Hosted optional price:** founder GO 2026-09-27 ET via Chief of Staff — **$59/mo**. Not published from this repository. CoS publishes the second product.  
 **Authority:** founder (price / refunds / Polar go-live)  
 **Refund:** **14 days** (founder lock) — $199 self-host one-org kit  
 **Soft-WTP:** OFF · **Polar:** v0.1.0 kit `burnbrake-0.1.0.zip` is ready for CoS publish after founder GO; the listing is not live in this repo  
@@ -12,7 +13,7 @@
 | SKU | Price | Notes |
 | --- | --- | --- |
 | **Primary** — self-host one-org kit | **$199 once** | Not $149. Not $79/mo as the plan. Copyright is MIT. |
-| **Hosted** (optional) | **$49/mo** | Not the day-1 primary plan. |
+| **Hosted** (optional) | **$59/mo** | Not the day-1 primary plan. |
 | Month-2 | Platform caps expected | Buyer **keeps the zip**. |
 
 ## What the $199 fee must include

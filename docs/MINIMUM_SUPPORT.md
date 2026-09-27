@@ -2,7 +2,7 @@
 
 **Product:** BurnBrake — request-path spend governor  
 **Kit:** `burnbrake-0.1.0.zip` (tag `v0.1.0`, archive directory `burnbrake-0.1.0/`)  
-**Pricing (USD, founder lock):** **$199 once** self-host one-org kit (primary) · **$49/mo** hosted optional · seller **Suthirth solutions** · copyright MIT · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
+**Pricing (USD, founder lock):** **$199 once** self-host one-org kit (primary) · **$59/mo** hosted optional · seller **Suthirth solutions** · copyright MIT · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
 **Contact:** hello@yellowgram.dev  
 **Goal:** Strangers self-serve the happy path; founder support stays thin and bounded.  
 **Polar:** kit ready; Suthirth solutions publishes Polar after founder GO. The listing is **not live**. Seller checklist: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in the git repository (not in the buyer zip).  
@@ -30,7 +30,7 @@ See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md). The primary fee is the package
 - **Brake-curve** config in the tree ([`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md))
 - **No claim** that BurnBrake will outrun OpenAI forever
 
-Hosted **$49/mo** is optional and not the day-1 primary. Month-2 platform caps are expected. The buyer keeps the zip. The Polar listing is not live until Suthirth solutions publishes it. Soft-WTP, coupons, and cold invoices are off.
+Hosted **$59/mo** is optional and not the day-1 primary. Month-2 platform caps are expected. The buyer keeps the zip. The Polar listing is not live until Suthirth solutions publishes it. Soft-WTP, coupons, and cold invoices are off.
 
 ---
 

@@ -12,7 +12,7 @@
 **Seller:** Suthirth solutions  
 **Contact:** hello@yellowgram.dev  
 **Primary SKU:** self-host one-org **$199 once**  
-**Hosted optional:** **$49/mo** (separate product only if Polar needs a second SKU; not in this zip; not Soft-WTP)  
+**Hosted optional:** **$59/mo** (founder GO 2026-09-27 ET via Chief of Staff; separate product only if Polar needs a second SKU; not in this zip; not Soft-WTP; not live — CoS publishes)  
 **Refund:** **14 days** on the $199 kit (not a budget release and not a debt clear)  
 **Support:** **60-day Issues**, no SLA  
 **Soft-WTP / coupons / cold invoices:** **none**  
@@ -43,7 +43,7 @@ Copyright in `LICENSE` is MIT. Payment does not revoke that grant and does not a
 
 Price: $199 once. Refund window: 14 days. Seller: Suthirth solutions. Support email in that window: hello@yellowgram.dev.
 
-Hosted operation at $49/mo is optional and is not this product. Create it as a separate Polar product only if Polar requires one. It is not a coupon, a cold invoice, or Soft-WTP.
+Hosted operation at $59/mo is optional and is not this product. Create it as a separate Polar product only if Polar requires one. It is not a coupon, a cold invoice, or Soft-WTP. The hosted product is not live. CoS publishes it.
 
 SHA-256 of `burnbrake-0.1.0.zip`: `585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8`
 
@@ -86,7 +86,7 @@ The digest must match the line above and `checksums/burnbrake-0.1.0.sha256` on t
 | Email | hello@yellowgram.dev |
 | Seller | **Suthirth solutions** |
 | Soft-WTP | **none** |
-| Hosted | **$49/mo** optional, separate product only if Polar needs it |
+| Hosted | **$59/mo** optional, separate product only if Polar needs it. Not live. CoS publishes. |
 
 ---
 
@@ -101,9 +101,9 @@ BurnBrake will not do these clicks.
 - [ ] In Polar, create the product under **Suthirth solutions**. Paste the title, one-liner, and description from this file.
 - [ ] Set price **$199 once**. Set the refund window to **14 days**. Support text: 60-day Issues, no SLA, hello@yellowgram.dev.
 - [ ] Attach the deliverable: the GitHub Release asset, plus this SHA-256. Do not attach an unpinned “latest”.
-- [ ] Hosted **$49/mo**: add a second product only if Polar requires it. Do not fold it into the $199 SKU. Do not add coupons. Do not send cold invoices. Soft-WTP stays off.
+- [ ] Hosted **$59/mo** (founder GO 2026-09-27 ET via Chief of Staff): CoS adds a second product only if Polar requires it. That product is not live. Do not fold it into the $199 SKU. Do not add coupons. Do not send cold invoices. Soft-WTP stays off. The 14-day refund stays on the $199 kit only.
 - [ ] Publish the Polar product.
-- [ ] Update the yellowgram.dev Current card: BurnBrake, $199 once, 14-day refund, tag `v0.1.0`, hosted $49/mo called out as optional and not day-1. Do not add a checkout URL to the BurnBrake README.
+- [ ] Update the yellowgram.dev Current card: BurnBrake, $199 once, 14-day refund, tag `v0.1.0`, hosted $59/mo called out as optional and not day-1. Do not add a checkout URL to the BurnBrake README.
 
 ---
 
@@ -258,7 +258,7 @@ Packaged self-host kit and 60-day Issues for one organization. Copyright in `LIC
 - Price: **$199 once**
 - Refund: **14 days**
 - Support: **60-day GitHub Issues**, no SLA. hello@yellowgram.dev
-- Hosted **$49/mo** is optional and is not this asset
+- Hosted **$59/mo** is optional and is not this asset
 - Soft-WTP, coupons, and cold invoices: none
 
 ## Exhaust
