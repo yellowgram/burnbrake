@@ -40,10 +40,10 @@ With this grant, the named organization may use the named tag commercially as ab
 
 Tags and zips already shipped under an older license (for example MIT, or a prior custom commercial license) are **not rewritten**. Rights already granted for those sealed artifacts are not clawed back. New purchases and new tags use this grant + PolyForm Noncommercial fence.
 
+| Artifact | Status |
+| --- | --- |
+| Tag `v0.1.0`, zip SHA-256 `585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8` | MIT-era sealed kit. Grandfathered. Not rewritten. Rights already granted for that sealed artifact are not clawed back. |
+
 ## Operator responsibility
 
 BurnBrake is provided **as is**. You remain responsible for production correctness, compliance, and decisions made from its outputs. This is not legal, tax, or accounting advice.
-
----
-
-*Fill placeholders before merge: PRODUCT_NAME, SUPPORT_WINDOW, PRICE_NOTE. Keep Soft-WTP off. Keep checkout URLs out of README/zip.*

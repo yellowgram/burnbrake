@@ -9,7 +9,7 @@
 **Tag for this fence:** `v0.1.1` — **not pushed** until License Gate and LaunchGate say go.  
 **Zip:** `burnbrake-0.1.1.zip`  
 **Archive root:** `burnbrake-0.1.1/`  
-**SHA-256:** `a9a0330d3d5e97821fe7e962eb55d5d1ad4046f1b3178a6f31b2ff6cd46cdb45`  
+**SHA-256:** `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`  
 **Checksum file:** `checksums/burnbrake-0.1.1.sha256` (in git; **not** inside the zip — the archive cannot contain its own digest)  
 **Manifest:** `checksums/burnbrake-0.1.1.manifest.txt`  
 **Historical kit (do not reseal):** tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay. SHA-256 of that older zip remains `585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8`. That digest is not the 0.1.1 zip.  
@@ -53,7 +53,7 @@ Hosted operation at $59/mo recurring is a separate Polar product and is not this
 
 The $199 self-host kit Polar listing is **archived** (MIT-era SKU unlisted). Re-list under PolyForm + the Suthirth Commercial Grant is **on hold** (CoS/License Gate). This description is not a request to republish. Do not describe product `b5649684-58ff-498c-a135-0b4b44623c3b` as live.
 
-SHA-256 of `burnbrake-0.1.1.zip`: `a9a0330d3d5e97821fe7e962eb55d5d1ad4046f1b3178a6f31b2ff6cd46cdb45`
+SHA-256 of `burnbrake-0.1.1.zip`: `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`
 
 Verify:
 
@@ -255,7 +255,7 @@ Source-available commercial. OSI open source: false.
 ## Asset
 
 - File: `burnbrake-0.1.1.zip`
-- SHA-256: `a9a0330d3d5e97821fe7e962eb55d5d1ad4046f1b3178a6f31b2ff6cd46cdb45`
+- SHA-256: `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`
 
 Verify:
 
@@ -301,7 +301,7 @@ The release is not created from this pull request. Do not upload a zip built fro
 - [x] 60s demo script ships in the kit (`npm run demo`, mock upstream)
 - [x] Operator CLI and operator HTTP shipped
 - [x] Historical zip `burnbrake-0.1.0.zip` left sealed. SHA-256 `585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8` remains `checksums/burnbrake-0.1.0.sha256`. Tag `v0.1.0` is not rewritten.
-- [x] Zip `burnbrake-0.1.1.zip` built. SHA-256 `a9a0330d3d5e97821fe7e962eb55d5d1ad4046f1b3178a6f31b2ff6cd46cdb45` recorded in `checksums/burnbrake-0.1.1.sha256`
+- [x] Zip `burnbrake-0.1.1.zip` built. SHA-256 `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c` recorded in `checksums/burnbrake-0.1.1.sha256`
 - [x] Refund **14 days** on the $199 kit only
 - [x] Soft-WTP off. No Autumn smuggle. No checkout URL in the README or the zip
 - [x] Copyright is PolyForm Noncommercial 1.0.0 plus the Suthirth Commercial Grant. Source-available: true. OSI open source: false.
