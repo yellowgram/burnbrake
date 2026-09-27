@@ -1,0 +1,151 @@
+# BurnBrake — Minimum Support Surface
+
+**Product:** BurnBrake — request-path spend governor  
+**Kit:** `burnbrake-0.1.1.zip` (archive directory `burnbrake-0.1.1/`). Tag `v0.1.1` is not pushed until License Gate and LaunchGate say go.  
+**Pricing (USD, founder lock):** **$199 once** self-host one-org kit (primary) · **$59/mo** hosted optional, separate · seller **Suthirth solutions** · source-available commercial (PolyForm Noncommercial 1.0.0 + [Suthirth Commercial Grant](./COMMERCIAL_GRANT.md)) · OSI open source: false · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
+**Contact:** hello@yellowgram.dev  
+**Goal:** Strangers self-serve the happy path; founder support stays thin and bounded.  
+**Polar:** the $199 self-host kit listing is **archived** (MIT-era SKU unlisted). Re-list under PolyForm + the Suthirth Commercial Grant is **on hold** (CoS/License Gate). Not live in this repo. Hosted **$59/mo** remains a separate live product and does not grant self-host production rights. This file has no checkout URL. Seller record: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in the git repository (not in the buyer zip). This PR does not ask CoS to republish the $199 kit.  
+**Date:** 2026-09-27 ET — v0.1.1 license fence. Design Pass 3 was absorbed ([`DR3_ATTACKS.md`](./DR3_ATTACKS.md) stays in git; DR×3 complete)
+
+Modeled on yellowgram MINIMUM_SUPPORT discipline (docs replace the founder; boundary written once). Process quality borrowed from Guard checklist (decision table, localhost bind, fail-loud misconfig) — **wallet Guard ≠ BurnBrake scope**.
+
+---
+
+## Support boundary (write once, link everywhere)
+
+- **Channel:** **60-day Issues**, no SLA (same fence as HookSteel). Email `hello@yellowgram.dev` in that window.
+- **Scope:** BurnBrake sidecar/SDK behavior, budget config, reject path, auth/bind, operator CLI/UI shipped with the kit.
+- **No SLA.** Best-effort only. Do not invent a paid SLA at launch.
+- **Time box:** the fence is 60 days of Issues, not an on-call band. If volume exceeds what docs can absorb → pause new founders or productize the FAQ — do **not** Soft-WTP.
+- **Require for any ticket:** BurnBrake version/tag; sidecar vs SDK; OS; listen bind; auth enabled yes/no; failing request identity (`user_id`, `run_id`); expected vs actual (did upstream get called?); redacted config booleans only — **no live provider API keys**, no live Polar/Stripe secrets, no BurnBrake shared secrets in cleartext.
+
+### What the $199 fee includes
+
+See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md) and [`COMMERCIAL_GRANT.md`](./COMMERCIAL_GRANT.md). The $199 purchase is the Suthirth Commercial Grant, the packaged self-host kit, and 60-day Issues for one organization and the named tag, perpetual for that tag. [`LICENSE`](../LICENSE) is the PolyForm Noncommercial License 1.0.0. OSI open source: false. Noncommercial use of the published source does not require the grant. Commercial production use of the self-host kit does. The purchase includes:
+
+- Perpetual self-host for **one organization**
+- Tag + SHA + the **402 / debt / run-id** contract (exhaust unchanged: halt, not retryable)
+- **60-day Issues**, no SLA (same fence as HookSteel)
+- **Brake-curve** config in the tree ([`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md))
+- **No claim** that BurnBrake will outrun OpenAI forever
+
+Hosted **$59/mo** is a separate optional SKU. It does not grant self-host production rights or rights to operate a competing hosted service. Month-2 platform caps are expected. The buyer of the $199 kit keeps the zip. The $199 self-host kit Polar listing is **archived**. Re-list is **on hold**. Soft-WTP, coupons, and cold invoices are off.
+
+---
+
+## Stranger-reproducible happy path (must work offline of founder)
+
+1. Install / start sidecar from kit README (Docker or one binary — pick one default in implement). **Default listen `127.0.0.1`**; set app→sidecar **`X-BurnBrake-Key`** (or Bearer `bb_…`). **Never** put the provider key in the BurnBrake auth header.
+2. Set budgets: e.g. run=$1, day=$5, user=$10 (document exact config keys). Prefer setting **user or day** in addition to run.
+3. Point OpenAI client `baseURL` at sidecar with BurnBrake auth header; use **mock upstream** for first proof (kit must ship mock path).
+4. **Confirm no second ungated client** in the app (no raw `api.openai.com` client left in tree). BurnBrake only governs traffic that hits the sidecar.
+5. **Under budget:** one completion succeeds; operator view shows reserve → settle (or debit path).
+6. Lower run cap (or burn it with N calls) → **next** completion returns `BUDGET_EXHAUSTED` (HTTP **`402`**, halt, **not retryable**, not 429) and **upstream call count stays flat** (prove with mock/counter).
+7. Confirm agent sample **halts** (does not retry-as-rate-limit; does not open second ungated client).
+8. For long jobs: set your own `max_tokens` (sidecar injects default **only when omitted**; it will not silently lower your higher ceiling — but a high ceiling means a larger reserve and may deny earlier).
+9. Operator kills or raises cap → further calls behave as documented.
+
+Zip buyers: `unzip burnbrake-0.1.1.zip && cd burnbrake-0.1.1 && npm ci` (Node 22.13+), then the README **START_HERE** block or `npm run demo`. `dist/` is already in the zip. `npm ci` is still required. Do not pass `--omit=dev` if you run the demo. If this path needs a founder screenshare, do not hand the zip to a buyer.
+
+---
+
+## 60s demo script (ready-gate; mock upstream)
+
+**Preconditions:** sidecar already running on `127.0.0.1`, mock upstream on, BurnBrake key set, run cap tiny (e.g. enough for one short allow then deny).
+
+| t | Step | Pass criterion |
+| --- | --- | --- |
+| 0–10s | `GET /health` | listen=`127.0.0.1`, `auth.required=true`, `fail_closed=true`, `ledger.writable=true` |
+| 10–25s | One under-budget completion via sidecar | `200`; mock upstream count += 1; reserve→settle visible |
+| 25–45s | Exhaust run (or lower cap) → next completion | HTTP **402** `BUDGET_EXHAUSTED` (halt, not retryable, not 429); **mock upstream count unchanged**; decision `upstream_forwarded=false` |
+| 45–60s | Show operator: remaining/debt; optional note | Promise honesty: next call gated; one in-flight call could have overshot |
+
+`npm run demo` is this script with the mock upstream. If any step needs live OpenAI spend or a founder screenshare, fix the kit. The $199 Polar listing is archived. Re-list is on hold. This file has no checkout URL.
+
+---
+
+## Agent decision table v2 (DR2 + DR3 — docs replace founder)
+
+Paste into agent repos. HTTP **402** is the exhaust status. **Halt semantics stay.** It is not retryable and it is not 429.
+
+| Signal | HTTP | `code` / shape | Retry spend call? | Agent action | Human action |
+| --- | --- | --- | --- | --- | --- |
+| Budget exhausted | **`402`** | `BUDGET_EXHAUSTED` + scope + remaining + requested | **No** (non-retryable) | **Halt** run/loop for spend; surface error | Raise cap, wait day boundary, clear debt, or kill run |
+| Auth failure to sidecar | `401`/`403` | sidecar auth | No (fix config) | Halt; **do not** fall back to `api.openai.com` | Fix `X-BurnBrake-Key` / bind; do not paste provider key as BurnBrake secret |
+| Ledger / fail-closed refuse | non-2xx | `LEDGER_UNAVAILABLE` (or refuse-start) | No blind retry storm | Halt or backoff with operator alert | Fix disk/ledger; never “soft allow” |
+| In-flight duplicate | same as first | same idempotency key | Do not start a **second** forward | Wait / reuse key | — |
+| Streaming in flight (`FORWARDED`) | n/a mid-stream | — | n/a | **No mid-stream budget kill**; wait for settle; next call gated | — |
+| Provider rate limit | provider `429` (pass-through) | upstream body | Per provider policy — **not** BurnBrake exhaust | Distinguish from `BUDGET_EXHAUSTED` | — |
+| Provider 5xx / disconnect after forward | upstream / transport | — | Only with **idempotency key**; else risk double bill | Prefer kill-run or cautious retry | Check log: settle if usage known else expect **DEBIT_RESERVED** |
+| Partial upstream + usage known | settle path | — | n/a | Continue per settle | Debt if settle > reserve |
+| Upstream success | `200` | — | n/a | Continue | — |
+
+**Hard rules:** `BUDGET_EXHAUSTED` is never “treat like 429 and retry.” Never open a second ungated `baseURL` to “work around” BurnBrake. Once forwarded, BurnBrake will not mid-stream kill for budget.
+
+---
+
+## FAQ (DR3 honesty)
+
+**Can I still overspend one call?** Yes — one already-forwarded completion may settle above reserve or debit-on-crash. BurnBrake rejects the **next** call when reserve+debt cannot cover the conservative estimate. Do not market “never overspend.” **No claim** that BurnBrake will outrun OpenAI forever.
+
+**Does BurnBrake stop clients that never pointed at the sidecar?** No. Fix dual clients; see troubleshooting #1.
+
+**Why was my long completion truncated / denied early?** If you omitted `max_tokens`, sidecar injected a default ceiling for estimate. Set your own `max_tokens` for long jobs; a high value reserves more and may deny earlier (correct).
+
+---
+
+## What founding customers get (least surface)
+
+### Included
+1. **START_HERE** — localhost sidecar → `X-BurnBrake-Key` → baseURL → dual-client check → first allow → first reject in ≤15 min.  
+2. **Reject contract + decision table v2** — `BUDGET_EXHAUSTED` fields, HTTP **402**, SDK mapping, halt / no mid-stream kill / 5xx settle matrix.  
+3. **60s demo script** — mock upstream proof.  
+4. **Operator runbook** — balances (incl. debt), decisions log, kill run, adjust caps, auth rotation ([`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md)).  
+5. **Known limits** — not Autumn; not org-limit replacement; OpenAI-shaped routes only at MVP; hosted tenancy later; one-call overshoot honesty; P2 list in [`MVP_SCOPE.md`](./MVP_SCOPE.md).  
+6. **Honesty** — Autumn/Stigg hard-block gap called out so wrong-fit buyers walk to billing EMS instead of opening feature tickets.  
+7. **Bind/auth poison labels** — `0.0.0.0` without ACL + auth = fund drain; provider key ≠ BurnBrake key.
+
+### Explicitly not included
+- Building the buyer’s agent product or prompt graph.  
+- Debugging live provider keys or PCI questions.  
+- Invoice/tax/dunning/entitlement packaging / “credit wallets.”  
+- On-call for buyer’s agent loops in production.  
+- Soft-WTP outreach or “free forever upgrades.”  
+- Custom multi-provider adapters beyond documented MVP routes.  
+- Making BurnBrake stop clients that never pointed at the sidecar.  
+- Magical zero overspend on already-forwarded calls.
+
+---
+
+## Docs that replace the founder
+
+| Doc / surface | Job |
+| --- | --- |
+| **START_HERE** | Happy path above (localhost + auth + dual-client check first) |
+| **DEMO_60S** | Timed mock-upstream reject proof |
+| **Reject / status contract + decision table v2** | Exhaust vs upstream; halt vs retry; streaming/5xx |
+| **Troubleshooting top 10** | **#1 dual ungated client / baseURL not used**; provider key sent as BurnBrake auth (or reverse); auth missing; bind `0.0.0.0` drain; estimate undercount → debt; price-table stale; reservation TTL **debit** surprise; injected `max_tokens` UX; day boundary UTC; unpriced model deny; idempotency / timeout double-forward |
+| **Out-of-scope auto-reply** | Invoicing / Autumn clone / credits portal / Soft-WTP / live-key dump / “make my agent smarter” / “fail open when ledger down” / “stop my other client that never hit the sidecar” / “guarantee zero overspend on in-flight calls” |
+| **Glossary** | Reserve ≠ charge · reject ≠ refund · debt ≠ invoice · BurnBrake gate ≠ OpenAI org limit · free-release only pre-forward · one in-flight overshoot possible · replay N/A (not HookSteel) |
+
+---
+
+## Money & listing hygiene
+
+- Product prices stay **USD**. Founder may track costs in INR privately; do not India-localize the wedge.  
+- The v0.1.1 kit is the current archive. The $199 self-host kit Polar listing is **archived** (MIT-era SKU unlisted). Re-list is **on hold** (CoS/License Gate). SHA-256 of `burnbrake-0.1.1.zip` is `checksums/burnbrake-0.1.1.sha256` in git (not inside the zip). Tag `v0.1.1` is not pushed until License Gate and LaunchGate say go. `checksums/burnbrake-0.1.0.*` stay historical MIT and are not this kit. Record: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in git. This file has no checkout URL.
+- Refund window for the **$199** self-host one-org kit is **14 days** (founder lock, [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); do not conflate with budget “release reservation” / debt language.
+- Soft-WTP, coupons, and cold invoices are off. No Polar checkout URL in the README.
+
+---
+
+## Kill clocks
+
+1. Support >2 h/week sustained with no doc gap closed → pause sales.  
+2. Buyers demand billing EMS / credits portal as “minimum support” → refuse; point to Autumn/Stigg/OpenMeter — do not build it.  
+3. Secret-in-ticket culture → close with template; do not debug live keys.  
+4. Strangers treat the zip as a live $199 Polar listing → correct them: that MIT-era SKU is archived and re-list is on hold. Soft-WTP stays off. There is no checkout URL in the kit.  
+5. “BurnBrake lied — I still overspent one call” without FAQ/honesty copy → fix docs before more sales.
+
+*Last updated: 2026-09-27 ET — v0.1.1 license fence; source-available commercial (PolyForm Noncommercial 1.0.0 + Suthirth Commercial Grant); OSI open source: false; $199 kit Polar listing archived, re-list on hold; founder refund lock **14 days** on the $199 one-org kit only ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); 60-day Issues, no SLA; Soft-WTP off; exhaust HTTP 402 halt, not retryable.*
