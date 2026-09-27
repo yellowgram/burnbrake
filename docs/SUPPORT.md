@@ -1,6 +1,6 @@
 # Support boundary
 
-Kit **v0.1.1** (`burnbrake-0.1.1.zip`). Seller **Suthirth solutions**. Contact hello@yellowgram.dev. Source-available commercial: PolyForm Noncommercial 1.0.0 plus the [Suthirth Commercial Grant](./COMMERCIAL_GRANT.md). OSI open source: false. The $199 self-host kit Polar listing is **archived** (MIT-era SKU unlisted). Re-list under PolyForm + the Suthirth Commercial Grant is **on hold** (CoS/License Gate). Not live in this repo. This file has no checkout URL. Soft-WTP is off. Tag `v0.1.1` is not pushed until License Gate and LaunchGate say go.
+Kit **v0.1.1** (`burnbrake-0.1.1.zip`). Seller **Suthirth solutions**. Contact hello@yellowgram.dev. Source-available commercial: PolyForm Noncommercial 1.0.0 plus the [Suthirth Commercial Grant](./COMMERCIAL_GRANT.md). OSI open source: false. The $199 self-host kit Polar listing is **LIVE** (PolyForm + Suthirth Commercial Grant; CoS/www sell it). This file has no checkout URL. Soft-WTP is off. Release `v0.1.1` is on GitHub (`burnbrake-0.1.1.zip`, SHA-256 matches `checksums/burnbrake-0.1.1.sha256`).
 
 - **Channel:** GitHub Issues for **60 days** (same fence as HookSteel), or hello@yellowgram.dev in that window. Soft-WTP, coupons, and cold invoices are off.
 - **Scope:** sidecar and SDK behavior, budget config, the reject path, auth and bind, and the operator CLI shipped in this kit.
