@@ -1,12 +1,14 @@
 # BurnBrake — MVP Scope (locked; Design Pass 3 absorbed — DR×3 complete)
 
+**Kit status (v0.1.0):** the sidecar in this zip is the shipped product (`burnbrake-0.1.0.zip`, tag `v0.1.0`). This file remains the locked scope record. Attack logs and LaunchGate briefs stay in the git repository and are not in the buyer zip. The Polar listing is not live. Suthirth solutions publishes it after founder GO. Seller paste copy is [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in git (not in the zip).
+
 **Product:** BurnBrake — request-path spend governor  
 **Promise:** reject the next completion when user/run/day budget cannot cover the conservative estimate (including debt). Honesty: **one already-forwarded call may still overshoot** — not magical zero overspend. **No claim** that BurnBrake will outrun OpenAI forever.  
 **Primary shape:** OpenAI-compatible **sidecar** (self-host); thin **SDK** secondary  
 **Pricing (USD, founder lock):** **$199 once** self-host one-org license (primary) · **$49/mo** hosted optional · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
 **Contact:** hello@yellowgram.dev  
-**Polar:** listing **DARK — not Polar-ready** ([`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md); no zip/SHA artifacts yet)  
-**Date:** 2026-09-26 ET — design only; no product code · DR3 remediations from [`DR3_ATTACKS.md`](./DR3_ATTACKS.md)
+**Polar:** kit ready for CoS publish after founder GO; listing is not live  
+**Date:** 2026-09-26 ET scope lock · shipped in the v0.1.0 kit · DR3 remediations from [`DR3_ATTACKS.md`](./DR3_ATTACKS.md) (git only)
 
 Narrative: [`DESIGN_PASS_1.md`](./DESIGN_PASS_1.md) · Price: [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md) · Support: [`MINIMUM_SUPPORT.md`](./MINIMUM_SUPPORT.md) · Ops: [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md) · Brief: [`LAUNCHGATE_DR4_BRIEF.md`](./LAUNCHGATE_DR4_BRIEF.md)
 
@@ -69,9 +71,8 @@ An optional pre-cap brake curve (warn / slow before the cap) is implemented — 
 - Details: [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md).
 
 ### 7. Delivery honesty
-- **First cash SKU = $199 once** self-host one-org license (Polar-**shaped** when ready); hosted **$49/mo** optional later / not day-1 primary. Buyer keeps the zip. See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md).
-- Polar public listing **out** until zip / SHA / [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) + **founder** go-live.
-- This pack is **not Polar-ready**.
+- **First cash SKU = $199 once** self-host one-org license; hosted **$49/mo** optional later / not day-1 primary. Buyer keeps the zip. See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md).
+- Polar public listing is **not live**. The v0.1.0 kit is ready for Suthirth solutions to publish after founder GO. This repository does not publish Polar.
 - BurnBrake only governs traffic that hits the sidecar.
 
 ---
@@ -88,7 +89,7 @@ An optional pre-cap brake curve (warn / slow before the cap) is implemented — 
 | **Marketing “never overspend” / magical zero burn** | Dishonest vs one in-flight call residual |
 | **Soft-alert-only MVP** (no reject) / **fail-open ledger** | Breaks the promise |
 | **Soft-WTP / cold invoices** | Forbidden |
-| **Polar public listing / Polar-ready claims** | Dark until deliverables + founder |
+| **Claiming the Polar listing is already live** | Kit is ready; CoS publishes after founder GO |
 | **Default `0.0.0.0` bind or auth-optional public proxy** | Fund-drain class |
 | **Day-1 hosted multi-tenant as co-equal first SKU** | Self-host first (DR3) |
 | **Multi-PSP spend aggregation as day-1** | Kit commerce ≠ OpenAI metering |
@@ -134,22 +135,23 @@ From [`DR2_ATTACKS.md`](./DR2_ATTACKS.md) + [`DR3_ATTACKS.md`](./DR3_ATTACKS.md)
 3. **Ungated second client** — process that ignores sidecar `baseURL` and calls the provider directly bypasses BurnBrake; docs/checklist elevated (DR3); still not code-forced.
 4. **Authenticated `run_id` rotation** — per-run-only configs are washable; production needs per-user and/or per-day AND.
 5. **Estimate polish residual** — conservative ceiling + debt mitigates but does not eliminate all streaming/tool/vision surprise.
-6. **Not Polar-ready** until ready-gate checklist green + founder listing light.
+6. **Polar listing is not live** in this kit. Suthirth solutions publishes after founder GO. Do not treat the zip as a checkout.
 
 ---
 
-## Ready gate (before Polar light)
+## Ready gate
 
-- [x] DR×3 on this pack  
-- [ ] **LaunchGate 4th DR APPROVE** (opens implement)  
-- [ ] Implement + CR×3  
-- [ ] **LaunchGate 4th CR APPROVE** (opens squash-merge)  
-- [ ] Stranger happy path in [`MINIMUM_SUPPORT.md`](./MINIMUM_SUPPORT.md) green  
-- [ ] **60s demo script** (mock upstream) green  
-- [ ] Operator surfaces in [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md) shipped or CLI-complete  
-- [ ] Bind/auth/fail-closed/state-machine behaviors covered in demo or tests  
-- [ ] zip + SHA + [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) checklist complete  
-- [ ] Listing stays **dark** until **founder** Polar go-live (LaunchGate may approve ready-gate docs only)
+Design-time gate, updated for the v0.1.0 kit. Attack logs and the DR4 verdict stay in git and are not in the buyer zip.
+
+- [x] DR×3 on this pack
+- [x] LaunchGate 4th DR verdict on file: **APPROVE_WITH_CHANGES** (`docs/LAUNCHGATE_DR4_VERDICT.md` in git). Implement was unblocked.
+- [x] MVP sidecar, brake curve (**BB_BRAKE_CURVE_1**, default off), and CI smoke are on main and in this zip
+- [ ] A LaunchGate 4th CR verdict file is not in the repository. This kit does not invent one. The implementation is already merged.
+- [x] Stranger happy path in [`MINIMUM_SUPPORT.md`](./MINIMUM_SUPPORT.md), [`START_HERE.md`](./START_HERE.md), and the README
+- [x] **60s demo script** (mock upstream) in this kit
+- [x] Operator surfaces in [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md) shipped
+- [x] Zip `burnbrake-0.1.0.zip`. SHA-256 lives in git at `checksums/burnbrake-0.1.0.sha256` (not inside the zip)
+- [ ] Polar listing live. Suthirth solutions publishes after founder GO. This kit does not publish it.
 
 ### Founder-only (not LaunchGate)
 Price · refund window · Polar public listing · Soft-WTP exceptions · paid spend · any scope that becomes Autumn/billing EMS.  
@@ -170,4 +172,4 @@ Price · refund window · Polar public listing · Soft-WTP exceptions · paid sp
 
 > Cap + kill on the request path. Autumn/Stigg meter and entitle; BurnBrake stops the next completion (and honestly admits one in-flight call may still overshoot).
 
-*Last updated: 2026-09-27 ET — founder commercial lock ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); exhaust unchanged; Polar dark; not Polar-ready.*
+*Last updated: 2026-09-27 ET — founder commercial lock ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); v0.1.0 kit packed; listing not live; Soft-WTP off; exhaust unchanged.*

@@ -1,11 +1,12 @@
-# BurnBrake — Minimum Support Surface (before Polar)
+# BurnBrake — Minimum Support Surface
 
 **Product:** BurnBrake — request-path spend governor  
-**Pricing (USD, founder lock):** **$199 once** self-host one-org license (primary) · **$49/mo** hosted optional · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
+**Kit:** `burnbrake-0.1.0.zip` (tag `v0.1.0`, archive directory `burnbrake-0.1.0/`)  
+**Pricing (USD, founder lock):** **$199 once** self-host one-org license (primary) · **$49/mo** hosted optional · seller **Suthirth solutions** · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
 **Contact:** hello@yellowgram.dev  
 **Goal:** Strangers self-serve the happy path; founder support stays thin and bounded.  
-**Polar:** listing **DARK — not Polar-ready** ([`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md))  
-**Date:** 2026-09-26 ET — Design Pass 3 absorbed ([`DR3_ATTACKS.md`](./DR3_ATTACKS.md); DR×3 complete)
+**Polar:** kit ready; Suthirth solutions publishes Polar after founder GO. The listing is **not live**. Seller checklist: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in the git repository (not in the buyer zip).  
+**Date:** 2026-09-27 ET — v0.1.0 kit. Design Pass 3 was absorbed ([`DR3_ATTACKS.md`](./DR3_ATTACKS.md) stays in git; DR×3 complete)
 
 Modeled on yellowgram MINIMUM_SUPPORT discipline (docs replace the founder; boundary written once). Process quality borrowed from Guard checklist (decision table, localhost bind, fail-loud misconfig) — **wallet Guard ≠ BurnBrake scope**.
 
@@ -29,7 +30,7 @@ See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md). The primary fee is the self-ho
 - **Brake-curve** config in the tree ([`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md))
 - **No claim** that BurnBrake will outrun OpenAI forever
 
-Hosted **$49/mo** is optional and not the day-1 primary. Month-2 platform caps are expected. The buyer keeps the zip. Polar stays dark.
+Hosted **$49/mo** is optional and not the day-1 primary. Month-2 platform caps are expected. The buyer keeps the zip. The Polar listing is not live until Suthirth solutions publishes it. Soft-WTP, coupons, and cold invoices are off.
 
 ---
 
@@ -40,12 +41,12 @@ Hosted **$49/mo** is optional and not the day-1 primary. Month-2 platform caps a
 3. Point OpenAI client `baseURL` at sidecar with BurnBrake auth header; use **mock upstream** for first proof (kit must ship mock path).
 4. **Confirm no second ungated client** in the app (no raw `api.openai.com` client left in tree). BurnBrake only governs traffic that hits the sidecar.
 5. **Under budget:** one completion succeeds; operator view shows reserve → settle (or debit path).
-6. Lower run cap (or burn it with N calls) → **next** completion returns `BUDGET_EXHAUSTED` (**draft HTTP `402`**) and **upstream call count stays flat** (prove with mock/counter).
+6. Lower run cap (or burn it with N calls) → **next** completion returns `BUDGET_EXHAUSTED` (HTTP **`402`**, halt, **not retryable**, not 429) and **upstream call count stays flat** (prove with mock/counter).
 7. Confirm agent sample **halts** (does not retry-as-rate-limit; does not open second ungated client).
 8. For long jobs: set your own `max_tokens` (sidecar injects default **only when omitted**; it will not silently lower your higher ceiling — but a high ceiling means a larger reserve and may deny earlier).
 9. Operator kills or raises cap → further calls behave as documented.
 
-If this path needs a founder screenshare, the product is not Polar-ready.
+Zip buyers: `unzip burnbrake-0.1.0.zip && cd burnbrake-0.1.0 && npm ci` (Node 22.13+), then the README **START_HERE** block or `npm run demo`. `dist/` is already in the zip. `npm ci` is still required. Do not pass `--omit=dev` if you run the demo. If this path needs a founder screenshare, do not hand the zip to a buyer.
 
 ---
 
@@ -57,18 +58,18 @@ If this path needs a founder screenshare, the product is not Polar-ready.
 | --- | --- | --- |
 | 0–10s | `GET /health` | listen=`127.0.0.1`, `auth.required=true`, `fail_closed=true`, `ledger.writable=true` |
 | 10–25s | One under-budget completion via sidecar | `200`; mock upstream count += 1; reserve→settle visible |
-| 25–45s | Exhaust run (or lower cap) → next completion | non-2xx `BUDGET_EXHAUSTED` (draft `402`); **mock upstream count unchanged**; decision `upstream_forwarded=false` |
+| 25–45s | Exhaust run (or lower cap) → next completion | HTTP **402** `BUDGET_EXHAUSTED` (halt, not retryable, not 429); **mock upstream count unchanged**; decision `upstream_forwarded=false` |
 | 45–60s | Show operator: remaining/debt; optional note | Promise honesty: next call gated; one in-flight call could have overshot |
 
-If any step needs live OpenAI $ or a founder screenshare → not Polar-ready.
+`npm run demo` is this script with the mock upstream. If any step needs live OpenAI spend or a founder screenshare, fix the kit before CoS publishes. The listing is not live yet.
 
 ---
 
 ## Agent decision table v2 (DR2 + DR3 — docs replace founder)
 
-Paste into agent repos. LaunchGate may freeze final HTTP status; **halt semantics stay**.
+Paste into agent repos. HTTP **402** is the exhaust status. **Halt semantics stay.** It is not retryable and it is not 429.
 
-| Signal | HTTP (draft) | `code` / shape | Retry spend call? | Agent action | Human action |
+| Signal | HTTP | `code` / shape | Retry spend call? | Agent action | Human action |
 | --- | --- | --- | --- | --- | --- |
 | Budget exhausted | **`402`** | `BUDGET_EXHAUSTED` + scope + remaining + requested | **No** (non-retryable) | **Halt** run/loop for spend; surface error | Raise cap, wait day boundary, clear debt, or kill run |
 | Auth failure to sidecar | `401`/`403` | sidecar auth | No (fix config) | Halt; **do not** fall back to `api.openai.com` | Fix `X-BurnBrake-Key` / bind; do not paste provider key as BurnBrake secret |
@@ -98,7 +99,7 @@ Paste into agent repos. LaunchGate may freeze final HTTP status; **halt semantic
 
 ### Included
 1. **START_HERE** — localhost sidecar → `X-BurnBrake-Key` → baseURL → dual-client check → first allow → first reject in ≤15 min.  
-2. **Reject contract + decision table v2** — `BUDGET_EXHAUSTED` fields, draft `402`, SDK mapping, halt / no mid-stream kill / 5xx settle matrix.  
+2. **Reject contract + decision table v2** — `BUDGET_EXHAUSTED` fields, HTTP **402**, SDK mapping, halt / no mid-stream kill / 5xx settle matrix.  
 3. **60s demo script** — mock upstream proof.  
 4. **Operator runbook** — balances (incl. debt), decisions log, kill run, adjust caps, auth rotation ([`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md)).  
 5. **Known limits** — not Autumn; not org-limit replacement; OpenAI-shaped routes only at MVP; hosted tenancy later; one-call overshoot honesty; P2 list in [`MVP_SCOPE.md`](./MVP_SCOPE.md).  
@@ -133,8 +134,9 @@ Paste into agent repos. LaunchGate may freeze final HTTP status; **halt semantic
 ## Money & listing hygiene
 
 - Product prices stay **USD**. Founder may track costs in INR privately; do not India-localize the wedge.  
-- Polar listing **dark** until zip/SHA/[`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md); this doc does **not** claim Polar-ready.  
+- The v0.1.0 kit is ready for CoS to publish. The Polar listing is **not live**. SHA-256 of `burnbrake-0.1.0.zip` is `checksums/burnbrake-0.1.0.sha256` on tag `v0.1.0` (not inside the zip). Seller steps: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in git.
 - Refund window for the **$199** self-host one-org kit is **14 days** (founder lock, [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); do not conflate with budget “release reservation” / debt language.
+- Soft-WTP, coupons, and cold invoices are off. No Polar checkout URL in the README.
 
 ---
 
@@ -143,7 +145,7 @@ Paste into agent repos. LaunchGate may freeze final HTTP status; **halt semantic
 1. Support >2 h/week sustained with no doc gap closed → pause sales.  
 2. Buyers demand billing EMS / credits portal as “minimum support” → refuse; point to Autumn/Stigg/OpenMeter — do not build it.  
 3. Secret-in-ticket culture → close with template; do not debug live keys.  
-4. Strangers treat design “Polar candidate” as listed product → correct with DARK honesty; founder owns go-live.  
+4. Strangers treat the zip as a live Polar listing → correct them: the kit is ready, Suthirth solutions publishes after founder GO, the listing is not live.  
 5. “BurnBrake lied — I still overspent one call” without FAQ/honesty copy → fix docs before more sales.
 
-*Last updated: 2026-09-27 ET — founder refund lock **14 days** on the $199 one-org kit ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); 60-day Issues, no SLA; Soft-WTP off; Polar dark; exhaust unchanged; not Polar-ready.*
+*Last updated: 2026-09-27 ET — v0.1.0 kit ready for CoS Polar publish; listing not live; founder refund lock **14 days** on the $199 one-org kit ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); 60-day Issues, no SLA; Soft-WTP off; exhaust HTTP 402 halt, not retryable.*

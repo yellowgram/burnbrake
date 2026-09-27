@@ -33,6 +33,7 @@
     "dev": "node --disable-warning=ExperimentalWarning --import tsx src/cli.ts serve",
     "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/*.test.ts",
     "demo": "node --disable-warning=ExperimentalWarning --import tsx scripts/demo-60s.ts",
+    "pack": "bash scripts/pack-release.sh",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

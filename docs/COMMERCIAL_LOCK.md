@@ -3,8 +3,9 @@
 **Date:** 2026-09-26 ET  
 **Authority:** founder (price / refunds / Polar go-live)  
 **Refund:** **14 days** (founder lock) — $199 self-host one-org kit  
-**Soft-WTP:** OFF · **Polar:** dark until zip/SHA + go-live  
-**Exhaust:** HTTP **402** / `BUDGET_EXHAUSTED` / halt / **not retryable** — unchanged
+**Soft-WTP:** OFF · **Polar:** v0.1.0 kit `burnbrake-0.1.0.zip` is ready for CoS publish after founder GO; the listing is not live in this repo  
+**Exhaust:** HTTP **402** / `BUDGET_EXHAUSTED` / halt / **not retryable** — unchanged  
+**Seller:** Suthirth solutions · **Contact:** hello@yellowgram.dev
 
 ## SKUs
 
@@ -25,8 +26,8 @@
 ## Do not
 
 - Market $149 or $79/mo as the plan
-- Soft-WTP / cold invoices
+- Soft-WTP / coupons / cold invoices
 - Promise magical zero overspend or forever ahead of provider org limits
-- Light Polar listing without zip/SHA + founder go-live
+- Put a Polar checkout URL in the README, or publish the Polar listing from this repository (CoS publishes after founder GO; BurnBrake does not operate the Polar UI)
 
 *Prior ~$149 / ~$29 draft strings are superseded by this lock.*

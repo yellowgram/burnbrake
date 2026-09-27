@@ -4,7 +4,7 @@
 **Depends on:** [`MVP_SCOPE.md`](./MVP_SCOPE.md), [`LAUNCHGATE_DR4_VERDICT.md`](./LAUNCHGATE_DR4_VERDICT.md)  
 **Date:** 2026-09-27 ET  
 **Status:** Implemented on this PR (curve only). Exhaust contract bytes are unchanged. Founder PQ1–PQ3 stay locked (2026-09-26 ET): `brake.enabled` default `false`, `black_delay_ms` default `0`, one-shot allowance later.  
-**Soft-WTP:** OFF · **Polar:** stays dark · **Do not** reseal zip / light listing because this curve shipped.
+**Soft-WTP:** OFF · **Polar:** this curve ships inside the v0.1.0 kit (`burnbrake-0.1.0.zip`). The listing is not live. Suthirth solutions publishes Polar after founder GO. This file does not light the listing.
 
 This is **approach policy only**. It does **not** reopen exhaust.
 
@@ -173,7 +173,7 @@ Extra **allowed**:
 - Add `Retry-After` on 402
 - Delay above `max_delay_ms`
 - Reopen exhaust from this packet. The curve PR implements the delay only; halt bytes stay as specified above
-- Reseal zip / list Polar because a curve doc landed
+- Light the Polar listing from this amendment. The v0.1.0 zip includes the curve because founder GO packed the kit. This file does not publish Polar.
 
 ---
 
@@ -183,6 +183,6 @@ Extra **allowed**:
 | --- | --- |
 | `approve_design_direction` (packet) | `true` — freeze still holds |
 | `approve_implement_now` | **this PR** — curve only; exhaust bytes unchanged |
-| Next | CR×3 then LaunchGate CR4. Founder PQ1–PQ3 stay locked. Soft-WTP off. Polar stays dark. |
+| Next | Curve is on main inside the v0.1.0 kit. Founder PQ1–PQ3 stay locked. Soft-WTP off. The Polar listing is not live. Suthirth solutions publishes after founder GO. |
 
-*Amendment id: `BB_BRAKE_CURVE_1`. Implemented on this PR. Exhaust contract bytes unchanged.*
+*Amendment id: `BB_BRAKE_CURVE_1`. Shipped in v0.1.0. Exhaust contract bytes unchanged.*
