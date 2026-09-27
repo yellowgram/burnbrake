@@ -6,7 +6,7 @@
 **Stance:** third independent set. Ledger death during a delay, pause and kill during a delay, UTC day flip, unpriced models, stale price tables, bind and compose, client-supplied zone headers, two callers on one idempotency key after a shared amber wait, disabled-brake exhaust bytes, and Soft-WTP / allowance / `Retry-After` / 429. CR1 and CR2 catalogs are not re-opened.
 **Outcome:** No new P0 or P1. Two P2 limits below. **CR×3 is ready for LaunchGate CR4.** Do not squash-merge. Soft-WTP off. Polar dark.
 
-**Refund docs:** deferred. `origin/main` is still `6bba67e` (commercial lock $199 / $49). The founder 14-day refund window on the $199 kit is not on main yet. This pass does not invent that text and does not invent Soft-WTP.
+**Refund docs:** the review found them absent (`origin/main` was `6bba67e`). They landed immediately after, from main `afa3633`: **14 days** on the $199 self-host one-org kit, in `docs/COMMERCIAL_LOCK.md`. This pass did not invent that text. Soft-WTP stays off.
 
 ---
 
