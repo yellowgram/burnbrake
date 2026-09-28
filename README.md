@@ -4,7 +4,7 @@ Request-path spend governor for agent loops. The sidecar estimates a completion,
 
 One already-forwarded call may still overshoot. Debt gates the next call. This is not a promise of zero spend on a call that already left the process.
 
-Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. First cash SKU: self-host **one-org kit $199 once** (seller **Suthirth solutions**). The software is source-available commercial. [LICENSE](LICENSE) is the PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`). OSI open source: false. Commercial production use of the self-host kit requires the [BurnBrake commercial grant](docs/COMMERCIAL_GRANT.md): one organization, the named tag, perpetual for that tag. The $199 purchase is that grant, this packaged kit, and 60-day Issues (no SLA). Hosted **$59/mo** is a separate optional SKU. It does not grant self-host production rights. Current kit archive: `burnbrake-0.1.1.zip`. Release **v0.1.1** is on GitHub (`burnbrake-0.1.1.zip`, SHA-256 `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`, matches `checksums/burnbrake-0.1.1.sha256`). Tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay as the historical kit and are not resealed. The $199 self-host kit Polar listing is **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant; CoS/www sell it). Hosted **$59/mo** remains a separate live optional SKU and does not grant self-host production rights. This file has no checkout URL. Soft-WTP is off. Pricing lock: [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md).
+Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. First cash SKU: self-host **one-org kit $199 once** (seller **Suthirth solutions**). The software is source-available commercial. [LICENSE](LICENSE) is the PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`). OSI open source: false. Commercial production use of the self-host kit requires the [BurnBrake commercial grant](docs/COMMERCIAL_GRANT.md): one organization, the named tag, perpetual for that tag. The $199 purchase is that grant, this packaged kit, and 60-day Issues (no SLA). Hosted **$59/mo** is a separate optional SKU. It does not grant self-host production rights. Current kit archive: `burnbrake-0.1.1.zip`. Release **v0.1.1** is on GitHub (`burnbrake-0.1.1.zip`, SHA-256 `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`, matches `checksums/burnbrake-0.1.1.sha256`). Tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay as the historical kit and are not resealed. The $199 self-host kit Polar listing is **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant; CoS/www sell it). Hosted **$59/mo** remains a separate live optional SKU and does not grant self-host production rights. This file has no checkout URL. Pricing lock: [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md).
 
 Contact: hello@yellowgram.dev
 
@@ -21,7 +21,7 @@ npm run demo
 
 Needs Node 22.13+ and a full `npm ci`. The demo uses the TypeScript runner, so do not pass `--omit=dev`. From the kit zip: unzip `burnbrake-0.1.1.zip`, `cd burnbrake-0.1.1`, then the same commands (`dist/` is already in the zip).
 
-What it proves: health, then one under-budget allow, then **402** `BUDGET_EXHAUSTED` with the mock forward count flat. Soft-WTP is off.
+What it proves: health, then one under-budget allow, then **402** `BUDGET_EXHAUSTED` with the mock forward count flat.
 
 Honesty: one already-forwarded call may still overshoot; the deny step is HTTP **402** `BUDGET_EXHAUSTED` (halt, not retryable, not 429) and does not call upstream.
 
@@ -221,7 +221,7 @@ try {
 - npm package: `npm ci` / `npm run build` / `node dist/cli.js serve` (Node 22.13+). The zip already includes `dist/`.
 - optional Docker: the image listens on `127.0.0.1` unless you opt in. `docker compose up --build` publishes **only** `127.0.0.1:8787` and sets `BURNBRAKE_HOST=0.0.0.0` plus `BURNBRAKE_ALLOW_PUBLIC_BIND=1` inside the container so Docker can reach that process. Compose loads `config.example.env` as its env file. Edit that file. A copied `.env` is not read. The placeholder keys in the example are public and are only appropriate on that localhost publish. Do not `docker run -p 8787:8787` and do not publish `0.0.0.0` without an ACL.
 
-Hosted multi-tenant ledger service is a separate optional SKU (**$59/mo**). It is not in this kit, and it does not grant self-host production rights or rights to run a competing hosted service. The buyer of the $199 kit keeps the zip. See [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md) and [docs/COMMERCIAL_GRANT.md](docs/COMMERCIAL_GRANT.md). Soft-WTP, coupons, and cold invoices are not part of this kit. Refund on the **$199** one-org kit is **14 days**. Support is **60-day Issues**, no SLA: hello@yellowgram.dev. Legal seller: Suthirth Solutions, operating as yellowgram.
+Hosted multi-tenant ledger service is a separate optional SKU (**$59/mo**). It is not in this kit, and it does not grant self-host production rights or rights to run a competing hosted service. The buyer of the $199 kit keeps the zip. See [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md) and [docs/COMMERCIAL_GRANT.md](docs/COMMERCIAL_GRANT.md). coupons, coupons, and cold invoices are not part of this kit. Refund on the **$199** one-org kit is **14 days**. Support is **60-day Issues**, no SLA: hello@yellowgram.dev. Legal seller: Suthirth Solutions, operating as yellowgram.
 
 ## Tests
 
@@ -243,6 +243,14 @@ Pull requests and pushes to `main` run `npm ci`, `npm run typecheck`, `npm test`
 - Filesystem access to the ledger is full operator control. The CLI has no key of its own.
 - `X-BurnBrake-Key` comparison returns early when the lengths differ, so a local observer can learn the secret's length. It does not reveal the secret. Process logs print error messages only. They do not print the BurnBrake key, the operator key, or the provider key. Do not put a secret in an idempotency key; that key is stored in the ledger.
 - A TTL or crash debit records `debt_delta_micros` as 0 on the decision row. Balances still show debt when spent plus held exceeds the cap, and the next reserve still denies. Force-release is the only path that drops a hold after `FORWARDED`, and it requires the operator key plus `attest_no_charge`. A false attestation is operator misuse.
-- The $199 self-host kit Polar listing is **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). Soft-WTP stays off. There is no checkout URL in this file. Hosted **$59/mo** stays a separate live optional SKU and is not this kit.
+- The $199 self-host kit Polar listing is **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). There is no checkout URL in this file. Hosted **$59/mo** stays a separate live optional SKU and is not this kit.
 
 Design record and LaunchGate freezes stay in the git repository (not in the buyer zip): [docs/LAUNCHGATE_DR4_VERDICT.md](docs/LAUNCHGATE_DR4_VERDICT.md). CR*/DR* attack logs stay in git as well.
+
+
+## Paid delta
+
+
+**Paid delta:** PolyForm Noncommercial 1.0.0 alone does not grant commercial production use. A paid purchase is the [BurnBrake commercial grant](docs/COMMERCIAL_GRANT.md) for one organization and the named tag. Legal seller: Suthirth Solutions, operating as yellowgram.
+
+Buy: [www.yellowgram.dev/burnbrake](https://www.yellowgram.dev/burnbrake) or hello@yellowgram.dev. This page is not a Checkout link. Security reports: [SECURITY.md](SECURITY.md).
