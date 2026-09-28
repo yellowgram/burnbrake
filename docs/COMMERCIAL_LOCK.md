@@ -5,7 +5,7 @@
 **Hosted optional price:** founder GO 2026-09-27 ET via Chief of Staff — **$59/mo** recurring. CoS published this product live on 2026-09-27. It is not the $199 kit and it does not grant self-host production rights. No zip and no GitHub benefit. This file has no checkout URL.  
 **Authority:** founder (price / refunds / Polar go-live)  
 **Refund:** **14 days** (founder lock) — $199 self-host one-org kit only. No hosted refund term is stated here.  
-**Soft-WTP:** OFF · **Polar:** the $199 self-host kit listing is **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant; CoS/www sell it). Hosted optional **$59/mo** remains a separate live optional SKU (CoS, 2026-09-27) and does not grant self-host production rights. No checkout URL in this file. Soft-WTP, coupons, and cold invoices stay off.  
+**coupons:** OFF · **Polar:** the $199 self-host kit listing is **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant; CoS/www sell it). Hosted optional **$59/mo** remains a separate live optional SKU (CoS, 2026-09-27) and does not grant self-host production rights. No checkout URL in this file. coupons, coupons, and cold invoices stay off.  
 **Current kit:** `burnbrake-0.1.1.zip`. Release **v0.1.1** is on GitHub (zip SHA-256 `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`, matches `checksums/burnbrake-0.1.1.sha256`).  
 **Historical kit:** tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay. That seal is not rewritten and is not the 0.1.1 zip.  
 **Exhaust:** HTTP **402** / `BUDGET_EXHAUSTED` / halt / **not retryable** — unchanged  
@@ -37,7 +37,7 @@ The hosted **$59/mo** SKU does not grant self-host production rights and does no
 ## Do not
 
 - Market $149 or $79/mo as the plan
-- Soft-WTP / coupons / cold invoices
+- coupons / coupons / cold invoices
 - Promise magical zero overspend or forever ahead of provider org limits
 - Put a Polar checkout URL in the README, in this file, or in any other zip-shipped doc
 - Call this OSI open source

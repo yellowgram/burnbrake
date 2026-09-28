@@ -5,7 +5,7 @@
 **Public brand:** BurnBrake · yellowgram  
 **Contact:** hello@yellowgram.dev · https://www.yellowgram.dev  
 **Public license:** PolyForm Noncommercial 1.0.0 (`LICENSE`) — source-available; not an OSI-approved license  
-**Soft-WTP:** off (no coupons, no cold invoices)
+**Coupons / cold invoices:** off
 
 ## What you buy
 

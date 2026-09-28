@@ -5,7 +5,7 @@
 **Pricing (USD, founder lock):** **$199 once** self-host one-org kit (primary) · **$59/mo** hosted optional, separate · seller **Suthirth solutions** · source-available commercial (PolyForm Noncommercial 1.0.0 + [BurnBrake commercial grant](./COMMERCIAL_GRANT.md)) · OSI open source: false · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
 **Contact:** hello@yellowgram.dev  
 **Goal:** Strangers self-serve the happy path; founder support stays thin and bounded.  
-**Polar:** the $199 self-host kit listing is **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). Hosted **$59/mo** remains a separate live product and does not grant self-host production rights. This file has no checkout URL. Soft-WTP is off. Seller record: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in the git repository (not in the buyer zip).  
+**Polar:** the $199 self-host kit listing is **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). Hosted **$59/mo** remains a separate live product and does not grant self-host production rights. This file has no checkout URL. Seller record: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in the git repository (not in the buyer zip).  
 **Date:** 2026-09-27 ET — v0.1.1 license fence. Design Pass 3 was absorbed ([`DR3_ATTACKS.md`](./DR3_ATTACKS.md) stays in git; DR×3 complete)
 
 Modeled on yellowgram MINIMUM_SUPPORT discipline (docs replace the founder; boundary written once). Process quality borrowed from Guard checklist (decision table, localhost bind, fail-loud misconfig) — **wallet Guard ≠ BurnBrake scope**.
@@ -17,7 +17,7 @@ Modeled on yellowgram MINIMUM_SUPPORT discipline (docs replace the founder; boun
 - **Channel:** **60-day Issues**, no SLA (same fence as HookSteel). Email `hello@yellowgram.dev` in that window.
 - **Scope:** BurnBrake sidecar/SDK behavior, budget config, reject path, auth/bind, operator CLI/UI shipped with the kit.
 - **No SLA.** Best-effort only. Do not invent a paid SLA at launch.
-- **Time box:** the fence is 60 days of Issues, not an on-call band. If volume exceeds what docs can absorb → pause new founders or productize the FAQ — do **not** Soft-WTP.
+- **Time box:** the fence is 60 days of Issues, not an on-call band. If volume exceeds what docs can absorb → pause new founders or productize the FAQ — do **not** coupons.
 - **Require for any ticket:** BurnBrake version/tag; sidecar vs SDK; OS; listen bind; auth enabled yes/no; failing request identity (`user_id`, `run_id`); expected vs actual (did upstream get called?); redacted config booleans only — **no live provider API keys**, no live Polar/Stripe secrets, no BurnBrake shared secrets in cleartext.
 
 ### What the $199 fee includes
@@ -30,7 +30,7 @@ See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md) and [`COMMERCIAL_GRANT.md`](./C
 - **Brake-curve** config in the tree ([`DESIGN_BRAKE_CURVE.md`](./DESIGN_BRAKE_CURVE.md))
 - **No claim** that BurnBrake will outrun OpenAI forever
 
-Hosted **$59/mo** is a separate optional SKU. It does not grant self-host production rights or rights to operate a competing hosted service. Month-2 platform caps are expected. The buyer of the $199 kit keeps the zip. The $199 self-host kit Polar listing is **LIVE**. Soft-WTP, coupons, and cold invoices are off.
+Hosted **$59/mo** is a separate optional SKU. It does not grant self-host production rights or rights to operate a competing hosted service. Month-2 platform caps are expected. The buyer of the $199 kit keeps the zip. The $199 self-host kit Polar listing is **LIVE**. coupons, coupons, and cold invoices are off.
 
 ---
 
@@ -61,7 +61,7 @@ Zip buyers: `unzip burnbrake-0.1.1.zip && cd burnbrake-0.1.1 && npm ci` (Node 22
 | 25–45s | Exhaust run (or lower cap) → next completion | HTTP **402** `BUDGET_EXHAUSTED` (halt, not retryable, not 429); **mock upstream count unchanged**; decision `upstream_forwarded=false` |
 | 45–60s | Show operator: remaining/debt; optional note | Promise honesty: next call gated; one in-flight call could have overshot |
 
-`npm run demo` is this script with the mock upstream. If any step needs live OpenAI spend or a founder screenshare, fix the kit. The $199 Polar listing is LIVE. Soft-WTP is off. This file has no checkout URL.
+`npm run demo` is this script with the mock upstream. If any step needs live OpenAI spend or a founder screenshare, fix the kit. The $199 Polar listing is LIVE. This file has no checkout URL.
 
 ---
 
@@ -111,7 +111,7 @@ Paste into agent repos. HTTP **402** is the exhaust status. **Halt semantics sta
 - Debugging live provider keys or PCI questions.  
 - Invoice/tax/dunning/entitlement packaging / “credit wallets.”  
 - On-call for buyer’s agent loops in production.  
-- Soft-WTP outreach or “free forever upgrades.”  
+- coupons outreach or “free forever upgrades.”  
 - Custom multi-provider adapters beyond documented MVP routes.  
 - Making BurnBrake stop clients that never pointed at the sidecar.  
 - Magical zero overspend on already-forwarded calls.
@@ -126,7 +126,7 @@ Paste into agent repos. HTTP **402** is the exhaust status. **Halt semantics sta
 | **DEMO_60S** | Timed mock-upstream reject proof |
 | **Reject / status contract + decision table v2** | Exhaust vs upstream; halt vs retry; streaming/5xx |
 | **Troubleshooting top 10** | **#1 dual ungated client / baseURL not used**; provider key sent as BurnBrake auth (or reverse); auth missing; bind `0.0.0.0` drain; estimate undercount → debt; price-table stale; reservation TTL **debit** surprise; injected `max_tokens` UX; day boundary UTC; unpriced model deny; idempotency / timeout double-forward |
-| **Out-of-scope auto-reply** | Invoicing / Autumn clone / credits portal / Soft-WTP / live-key dump / “make my agent smarter” / “fail open when ledger down” / “stop my other client that never hit the sidecar” / “guarantee zero overspend on in-flight calls” |
+| **Out-of-scope auto-reply** | Invoicing / Autumn clone / credits portal / coupons / live-key dump / “make my agent smarter” / “fail open when ledger down” / “stop my other client that never hit the sidecar” / “guarantee zero overspend on in-flight calls” |
 | **Glossary** | Reserve ≠ charge · reject ≠ refund · debt ≠ invoice · BurnBrake gate ≠ OpenAI org limit · free-release only pre-forward · one in-flight overshoot possible · replay N/A (not HookSteel) |
 
 ---
@@ -134,9 +134,9 @@ Paste into agent repos. HTTP **402** is the exhaust status. **Halt semantics sta
 ## Money & listing hygiene
 
 - Product prices stay **USD**. Founder may track costs in INR privately; do not India-localize the wedge.  
-- The v0.1.1 kit is the current archive. The $199 self-host kit Polar listing is **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). SHA-256 of `burnbrake-0.1.1.zip` is `checksums/burnbrake-0.1.1.sha256` in git (not inside the zip). Release `v0.1.1` is on GitHub with that zip. `checksums/burnbrake-0.1.0.*` stay historical MIT and are not this kit. Record: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in git. This file has no checkout URL. Soft-WTP is off.
+- The v0.1.1 kit is the current archive. The $199 self-host kit Polar listing is **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). SHA-256 of `burnbrake-0.1.1.zip` is `checksums/burnbrake-0.1.1.sha256` in git (not inside the zip). Release `v0.1.1` is on GitHub with that zip. `checksums/burnbrake-0.1.0.*` stay historical MIT and are not this kit. Record: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in git. This file has no checkout URL.
 - Refund window for the **$199** self-host one-org kit is **14 days** (founder lock, [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); do not conflate with budget “release reservation” / debt language.
-- Soft-WTP, coupons, and cold invoices are off. No Polar checkout URL in the README.
+- coupons, coupons, and cold invoices are off. No Polar checkout URL in the README.
 
 ---
 
@@ -145,7 +145,7 @@ Paste into agent repos. HTTP **402** is the exhaust status. **Halt semantics sta
 1. Support >2 h/week sustained with no doc gap closed → pause sales.  
 2. Buyers demand billing EMS / credits portal as “minimum support” → refuse; point to Autumn/Stigg/OpenMeter — do not build it.  
 3. Secret-in-ticket culture → close with template; do not debug live keys.  
-4. Strangers treat the zip as a Polar checkout → correct them: the $199 kit is LIVE on Polar/www (CoS sells it), but this kit ships no checkout URL. Soft-WTP stays off.  
+4. Strangers treat the zip as a Polar checkout → correct them: the $199 kit is LIVE on Polar/www (CoS sells it), but this kit ships no checkout URL.  
 5. “BurnBrake lied — I still overspent one call” without FAQ/honesty copy → fix docs before more sales.
 
-*Last updated: 2026-09-27 ET — v0.1.1 license fence; source-available commercial (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant); OSI open source: false; $199 kit Polar listing LIVE; Release v0.1.1 on GitHub; founder refund lock **14 days** on the $199 one-org kit only ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); 60-day Issues, no SLA; Soft-WTP off; exhaust HTTP 402 halt, not retryable.*
+*Last updated: 2026-09-27 ET — v0.1.1 license fence; source-available commercial (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant); OSI open source: false; $199 kit Polar listing LIVE; Release v0.1.1 on GitHub; founder refund lock **14 days** on the $199 one-org kit only ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); 60-day Issues, no SLA; coupons off; exhaust HTTP 402 halt, not retryable.*
