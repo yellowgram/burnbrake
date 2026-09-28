@@ -1,6 +1,6 @@
 # LaunchGate CR4 — paste brief (hosted $59/mo)
 
-**Superseded by the PolyForm fence.** This brief records the hosted $59/mo pass. It is not live buyer guidance for the $199 kit. That MIT-era Polar SKU is **archived**. Re-list under PolyForm + the Suthirth Commercial Grant is **on hold**. Sentences below that say the $199 listing is “not live” describe this pass only.
+**Superseded by the PolyForm fence.** This brief records the hosted $59/mo pass. It is not live buyer guidance for the $199 kit. That MIT-era Polar SKU is **archived**. Re-list under PolyForm + the BurnBrake commercial grant is **on hold**. Sentences below that say the $199 listing is “not live” describe this pass only.
 
 **PR:** https://github.com/yellowgram/burnbrake/pull/8
 **Branch:** `cursor/hosted-optional-sku-59-f7af`

@@ -2,16 +2,16 @@
 
 ## Unreleased
 
-- Docs honesty: the $199 self-host kit Polar listing is **LIVE** (PolyForm Noncommercial 1.0.0 + Suthirth Commercial Grant; CoS/www sell it). Soft-WTP, coupons, and cold invoices stay off. No Polar price change. No checkout URL added to README or zip-shipped stranger docs. Hosted $59/mo remains a separate live optional SKU and does not grant self-host production rights.
+- Docs honesty: the $199 self-host kit Polar listing is **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant; CoS/www sell it). Soft-WTP, coupons, and cold invoices stay off. No Polar price change. No checkout URL added to README or zip-shipped stranger docs. Hosted $59/mo remains a separate live optional SKU and does not grant self-host production rights.
 - Docs honesty: Release **v0.1.1** exists on GitHub with `burnbrake-0.1.1.zip` (SHA-256 `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`, matches `checksums/burnbrake-0.1.1.sha256`). This change does not reseal the kit zip.
 
 ## 0.1.1
 
 License fence only. Not a feature release. Exhaust stays HTTP 402 `BUDGET_EXHAUSTED`, halt, not retryable.
 
-- Copyright is source-available commercial. `LICENSE` is the PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`) plus the Suthirth Commercial Grant (`docs/COMMERCIAL_GRANT.md`). OSI open source: false.
-- The $199 once kit is that grant, the kit zip, and 60-day Issues (no SLA), for one organization and the named tag, perpetual for that tag. Seller: Suthirth solutions. Contact: hello@yellowgram.dev. Refund: 14 days on the $199 kit only.
-- Hosted $59/mo stays a separate live optional SKU. It does not grant self-host production rights. The $199 self-host kit Polar listing is **LIVE** under this fence (PolyForm + Suthirth Commercial Grant; CoS/www sell it). Soft-WTP, coupons, and cold invoices stay off.
+- Copyright is source-available commercial. `LICENSE` is the PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`) plus the BurnBrake commercial grant (`docs/COMMERCIAL_GRANT.md`). OSI open source: false.
+- The $199 once kit is that grant, the kit zip, and 60-day Issues (no SLA), for one organization and the named tag, perpetual for that tag. Legal seller: Suthirth Solutions, operating as yellowgram. Contact: hello@yellowgram.dev. Refund: 14 days on the $199 kit only.
+- Hosted $59/mo stays a separate live optional SKU. It does not grant self-host production rights. The $199 self-host kit Polar listing is **LIVE** under this fence (PolyForm + BurnBrake commercial grant; CoS/www sell it). Soft-WTP, coupons, and cold invoices stay off.
 - Kit archive for this fence: `burnbrake-0.1.1.zip`. SHA-256 is `checksums/burnbrake-0.1.1.sha256` in git. The digest is not copied into this file. Release `v0.1.1` is on GitHub with that zip (SHA-256 `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`).
 - Tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay as the historical kit. They are not resealed. Health `version` for this kit is `0.1.1`.
 
@@ -36,4 +36,4 @@ Self-host MVP sidecar. Cap + kill on the request path.
 - Decision table lists the non-402 codes, including 400 `IDENTITY_REQUIRED` and 502 `LEDGER_UNAVAILABLE` after forward. Compose reads `config.example.env`. The 60s demo ignores ambient fail-open, price-table, and TTL settings
 - Offline mock-upstream demo
 
-Seller: Suthirth solutions. Primary SKU: $199 once (one organization). Refund: 14 days. Support: 60-day Issues, no SLA. Hosted $59/mo is optional and not in the zip. Soft-WTP is off.
+Legal seller: Suthirth Solutions, operating as yellowgram. Primary SKU: $199 once (one organization). Refund: 14 days. Support: 60-day Issues, no SLA. Hosted $59/mo is optional and not in the zip. Soft-WTP is off.
