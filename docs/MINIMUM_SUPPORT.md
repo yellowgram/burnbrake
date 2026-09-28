@@ -2,10 +2,10 @@
 
 **Product:** BurnBrake — request-path spend governor  
 **Kit:** `burnbrake-0.1.1.zip` (archive directory `burnbrake-0.1.1/`). Release `v0.1.1` is on GitHub (SHA-256 matches `checksums/burnbrake-0.1.1.sha256`).  
-**Pricing (USD, founder lock):** **$199 once** self-host one-org kit (primary) · **$59/mo** hosted optional, separate · seller **Suthirth solutions** · source-available commercial (PolyForm Noncommercial 1.0.0 + [Suthirth Commercial Grant](./COMMERCIAL_GRANT.md)) · OSI open source: false · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
+**Pricing (USD, founder lock):** **$199 once** self-host one-org kit (primary) · **$59/mo** hosted optional, separate · seller **Suthirth solutions** · source-available commercial (PolyForm Noncommercial 1.0.0 + [BurnBrake commercial grant](./COMMERCIAL_GRANT.md)) · OSI open source: false · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
 **Contact:** hello@yellowgram.dev  
 **Goal:** Strangers self-serve the happy path; founder support stays thin and bounded.  
-**Polar:** the $199 self-host kit listing is **LIVE** (PolyForm + Suthirth Commercial Grant; CoS/www sell it). Hosted **$59/mo** remains a separate live product and does not grant self-host production rights. This file has no checkout URL. Soft-WTP is off. Seller record: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in the git repository (not in the buyer zip).  
+**Polar:** the $199 self-host kit listing is **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). Hosted **$59/mo** remains a separate live product and does not grant self-host production rights. This file has no checkout URL. Soft-WTP is off. Seller record: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in the git repository (not in the buyer zip).  
 **Date:** 2026-09-27 ET — v0.1.1 license fence. Design Pass 3 was absorbed ([`DR3_ATTACKS.md`](./DR3_ATTACKS.md) stays in git; DR×3 complete)
 
 Modeled on yellowgram MINIMUM_SUPPORT discipline (docs replace the founder; boundary written once). Process quality borrowed from Guard checklist (decision table, localhost bind, fail-loud misconfig) — **wallet Guard ≠ BurnBrake scope**.
@@ -22,7 +22,7 @@ Modeled on yellowgram MINIMUM_SUPPORT discipline (docs replace the founder; boun
 
 ### What the $199 fee includes
 
-See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md) and [`COMMERCIAL_GRANT.md`](./COMMERCIAL_GRANT.md). The $199 purchase is the Suthirth Commercial Grant, the packaged self-host kit, and 60-day Issues for one organization and the named tag, perpetual for that tag. [`LICENSE`](../LICENSE) is the PolyForm Noncommercial License 1.0.0. OSI open source: false. Noncommercial use of the published source does not require the grant. Commercial production use of the self-host kit does. The purchase includes:
+See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md) and [`COMMERCIAL_GRANT.md`](./COMMERCIAL_GRANT.md). The $199 purchase is the BurnBrake commercial grant, the packaged self-host kit, and 60-day Issues for one organization and the named tag, perpetual for that tag. [`LICENSE`](../LICENSE) is the PolyForm Noncommercial License 1.0.0. OSI open source: false. Noncommercial use of the published source does not require the grant. Commercial production use of the self-host kit does. The purchase includes:
 
 - Perpetual self-host for **one organization**
 - Tag + SHA + the **402 / debt / run-id** contract (exhaust unchanged: halt, not retryable)
@@ -134,7 +134,7 @@ Paste into agent repos. HTTP **402** is the exhaust status. **Halt semantics sta
 ## Money & listing hygiene
 
 - Product prices stay **USD**. Founder may track costs in INR privately; do not India-localize the wedge.  
-- The v0.1.1 kit is the current archive. The $199 self-host kit Polar listing is **LIVE** (PolyForm + Suthirth Commercial Grant; CoS/www sell it). SHA-256 of `burnbrake-0.1.1.zip` is `checksums/burnbrake-0.1.1.sha256` in git (not inside the zip). Release `v0.1.1` is on GitHub with that zip. `checksums/burnbrake-0.1.0.*` stay historical MIT and are not this kit. Record: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in git. This file has no checkout URL. Soft-WTP is off.
+- The v0.1.1 kit is the current archive. The $199 self-host kit Polar listing is **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). SHA-256 of `burnbrake-0.1.1.zip` is `checksums/burnbrake-0.1.1.sha256` in git (not inside the zip). Release `v0.1.1` is on GitHub with that zip. `checksums/burnbrake-0.1.0.*` stay historical MIT and are not this kit. Record: [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in git. This file has no checkout URL. Soft-WTP is off.
 - Refund window for the **$199** self-host one-org kit is **14 days** (founder lock, [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); do not conflate with budget “release reservation” / debt language.
 - Soft-WTP, coupons, and cold invoices are off. No Polar checkout URL in the README.
 
@@ -148,4 +148,4 @@ Paste into agent repos. HTTP **402** is the exhaust status. **Halt semantics sta
 4. Strangers treat the zip as a Polar checkout → correct them: the $199 kit is LIVE on Polar/www (CoS sells it), but this kit ships no checkout URL. Soft-WTP stays off.  
 5. “BurnBrake lied — I still overspent one call” without FAQ/honesty copy → fix docs before more sales.
 
-*Last updated: 2026-09-27 ET — v0.1.1 license fence; source-available commercial (PolyForm Noncommercial 1.0.0 + Suthirth Commercial Grant); OSI open source: false; $199 kit Polar listing LIVE; Release v0.1.1 on GitHub; founder refund lock **14 days** on the $199 one-org kit only ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); 60-day Issues, no SLA; Soft-WTP off; exhaust HTTP 402 halt, not retryable.*
+*Last updated: 2026-09-27 ET — v0.1.1 license fence; source-available commercial (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant); OSI open source: false; $199 kit Polar listing LIVE; Release v0.1.1 on GitHub; founder refund lock **14 days** on the $199 one-org kit only ([`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)); 60-day Issues, no SLA; Soft-WTP off; exhaust HTTP 402 halt, not retryable.*

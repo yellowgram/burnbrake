@@ -1,13 +1,13 @@
 # BurnBrake — MVP Scope (locked; Design Pass 3 absorbed — DR×3 complete)
 
-**Kit status (v0.1.1):** the sidecar in this zip is the current kit (`burnbrake-0.1.1.zip`). Release `v0.1.1` is on GitHub (SHA-256 matches `checksums/burnbrake-0.1.1.sha256`). Tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay historical and are not resealed. This file remains the locked scope record. Attack logs and LaunchGate briefs stay in the git repository and are not in the buyer zip. The $199 self-host kit Polar listing is **LIVE** (PolyForm + Suthirth Commercial Grant; CoS/www sell it). The optional hosted **$59/mo** Polar product remains a separate live SKU (CoS, 2026-09-27) and does not grant self-host production rights. This file has no checkout URL. Soft-WTP is off. Seller paste copy is [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in git (not in the zip).
+**Kit status (v0.1.1):** the sidecar in this zip is the current kit (`burnbrake-0.1.1.zip`). Release `v0.1.1` is on GitHub (SHA-256 matches `checksums/burnbrake-0.1.1.sha256`). Tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay historical and are not resealed. This file remains the locked scope record. Attack logs and LaunchGate briefs stay in the git repository and are not in the buyer zip. The $199 self-host kit Polar listing is **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). The optional hosted **$59/mo** Polar product remains a separate live SKU (CoS, 2026-09-27) and does not grant self-host production rights. This file has no checkout URL. Soft-WTP is off. Seller paste copy is [`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) in git (not in the zip).
 
 **Product:** BurnBrake — request-path spend governor  
 **Promise:** reject the next completion when user/run/day budget cannot cover the conservative estimate (including debt). Honesty: **one already-forwarded call may still overshoot** — not magical zero overspend. **No claim** that BurnBrake will outrun OpenAI forever.  
 **Primary shape:** OpenAI-compatible **sidecar** (self-host); thin **SDK** secondary  
-**Pricing (USD, founder lock):** **$199 once** self-host one-org kit (primary) · **$59/mo** hosted optional, separate · source-available commercial (PolyForm Noncommercial 1.0.0 + [Suthirth Commercial Grant](./COMMERCIAL_GRANT.md)) · OSI open source: false · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
+**Pricing (USD, founder lock):** **$199 once** self-host one-org kit (primary) · **$59/mo** hosted optional, separate · source-available commercial (PolyForm Noncommercial 1.0.0 + [BurnBrake commercial grant](./COMMERCIAL_GRANT.md)) · OSI open source: false · see [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md)  
 **Contact:** hello@yellowgram.dev  
-**Polar:** the $199 self-host kit listing is **LIVE** (PolyForm + Suthirth Commercial Grant; CoS/www sell it). Hosted optional **$59/mo** remains a separate live SKU (CoS, 2026-09-27). No checkout URL in this file. Soft-WTP is off.  
+**Polar:** the $199 self-host kit listing is **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). Hosted optional **$59/mo** remains a separate live SKU (CoS, 2026-09-27). No checkout URL in this file. Soft-WTP is off.  
 **Date:** 2026-09-26 ET scope lock · current kit v0.1.1 (license fence) · first shipped in the historical v0.1.0 kit · DR3 remediations from [`DR3_ATTACKS.md`](./DR3_ATTACKS.md) (git only)
 
 Narrative: [`DESIGN_PASS_1.md`](./DESIGN_PASS_1.md) · Price: [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md) · Support: [`MINIMUM_SUPPORT.md`](./MINIMUM_SUPPORT.md) · Ops: [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md) · Brief: [`LAUNCHGATE_DR4_BRIEF.md`](./LAUNCHGATE_DR4_BRIEF.md)
@@ -71,8 +71,8 @@ An optional pre-cap brake curve (warn / slow before the cap) is implemented — 
 - Details: [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md).
 
 ### 7. Delivery honesty
-- **First cash SKU = $199 once** self-host one-org kit. [`LICENSE`](../LICENSE) is the PolyForm Noncommercial License 1.0.0. OSI open source: false. The $199 purchase is the [Suthirth Commercial Grant](./COMMERCIAL_GRANT.md), the packaged kit, and 60-day Issues for one organization and the named tag, perpetual for that tag. Noncommercial use of the published source does not require the grant. Commercial production use of the self-host kit does. Hosted **$59/mo** is a separate SKU and does not grant self-host production rights. Buyer of the $199 kit keeps the zip. See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md).
-- The $199 self-host kit Polar listing is **LIVE** (PolyForm + Suthirth Commercial Grant; CoS/www sell it). Hosted optional **$59/mo** remains a separate live SKU on Polar (CoS, 2026-09-27) and is not this kit. This file has no checkout URL. Soft-WTP is off.
+- **First cash SKU = $199 once** self-host one-org kit. [`LICENSE`](../LICENSE) is the PolyForm Noncommercial License 1.0.0. OSI open source: false. The $199 purchase is the [BurnBrake commercial grant](./COMMERCIAL_GRANT.md), the packaged kit, and 60-day Issues for one organization and the named tag, perpetual for that tag. Noncommercial use of the published source does not require the grant. Commercial production use of the self-host kit does. Hosted **$59/mo** is a separate SKU and does not grant self-host production rights. Buyer of the $199 kit keeps the zip. See [`COMMERCIAL_LOCK.md`](./COMMERCIAL_LOCK.md).
+- The $199 self-host kit Polar listing is **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). Hosted optional **$59/mo** remains a separate live SKU on Polar (CoS, 2026-09-27) and is not this kit. This file has no checkout URL. Soft-WTP is off.
 - BurnBrake only governs traffic that hits the sidecar.
 
 ---
@@ -89,7 +89,7 @@ An optional pre-cap brake curve (warn / slow before the cap) is implemented — 
 | **Marketing “never overspend” / magical zero burn** | Dishonest vs one in-flight call residual |
 | **Soft-alert-only MVP** (no reject) / **fail-open ledger** | Breaks the promise |
 | **Soft-WTP / cold invoices** | Forbidden |
-| **Claiming the $199 kit Polar listing is archived / on hold / not live** | The $199 kit is LIVE under PolyForm + the Suthirth Commercial Grant (CoS/www sell it). Hosted $59/mo is a separate live product and is not this zip. Soft-WTP stays off. |
+| **Claiming the $199 kit Polar listing is archived / on hold / not live** | The $199 kit is LIVE under PolyForm + the BurnBrake commercial grant (CoS/www sell it). Hosted $59/mo is a separate live product and is not this zip. Soft-WTP stays off. |
 | **Default `0.0.0.0` bind or auth-optional public proxy** | Fund-drain class |
 | **Day-1 hosted multi-tenant as co-equal first SKU** | Self-host first (DR3) |
 | **Multi-PSP spend aggregation as day-1** | Kit commerce ≠ OpenAI metering |
@@ -135,7 +135,7 @@ From [`DR2_ATTACKS.md`](./DR2_ATTACKS.md) + [`DR3_ATTACKS.md`](./DR3_ATTACKS.md)
 3. **Ungated second client** — process that ignores sidecar `baseURL` and calls the provider directly bypasses BurnBrake; docs/checklist elevated (DR3); still not code-forced.
 4. **Authenticated `run_id` rotation** — per-run-only configs are washable; production needs per-user and/or per-day AND.
 5. **Estimate polish residual** — conservative ceiling + debt mitigates but does not eliminate all streaming/tool/vision surprise.
-6. **$199 kit Polar listing is LIVE** (PolyForm + Suthirth Commercial Grant; CoS/www sell it). Hosted **$59/mo** is a separate live Polar product (CoS, 2026-09-27) and is not a checkout in this file. Soft-WTP is off. Do not treat the zip as a checkout.
+6. **$199 kit Polar listing is LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). Hosted **$59/mo** is a separate live Polar product (CoS, 2026-09-27) and is not a checkout in this file. Soft-WTP is off. Do not treat the zip as a checkout.
 
 ---
 
