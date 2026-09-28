@@ -254,3 +254,6 @@ Design record and LaunchGate freezes stay in the git repository (not in the buye
 **Paid delta:** PolyForm Noncommercial 1.0.0 alone does not grant commercial production use. A paid purchase is the [BurnBrake commercial grant](docs/COMMERCIAL_GRANT.md) for one organization and the named tag. Legal seller: Suthirth Solutions, operating as yellowgram.
 
 Buy: [www.yellowgram.dev/burnbrake](https://www.yellowgram.dev/burnbrake) or hello@yellowgram.dev. This page is not a Checkout link. Security reports: [SECURITY.md](SECURITY.md).
+
+
+Status: [docs/STATUS.md](docs/STATUS.md).
