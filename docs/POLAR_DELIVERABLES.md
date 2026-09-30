@@ -299,7 +299,7 @@ Release `v0.1.1` already exists. Do not upload a replacement zip from a docs-onl
 - [x] MVP sidecar merged to `main`
 - [x] Brake curve **BB_BRAKE_CURVE_1** merged. `brake.enabled` defaults to false. Exhaust is still HTTP 402, halt, not retryable, never 429
 - [x] CI smoke merged (typecheck, unit tests, and build on Node 22)
-- [x] LaunchGate 4th DR verdict on file: **APPROVE_WITH_CHANGES** (`docs/LAUNCHGATE_DR4_VERDICT.md`). This checklist does not invent a 4th CR verdict file. The implementation is already on `main`.
+- [x] LaunchGate 4th DR verdict on file: **APPROVE_WITH_CHANGES** (`docs/LAUNCHGATE_DR4_VERDICT.md`). 4th CR: founder exception in `docs/STATUS.md` (merged without a 4th CR verdict). This checklist does not invent one.
 - [x] Stranger path (README, `docs/START_HERE.md`, `docs/MINIMUM_SUPPORT.md`, `docs/DEMO_60S.md`) describes HTTP **402**, not a draft status
 - [x] 60s demo script ships in the kit (`npm run demo`, mock upstream)
 - [x] Operator CLI and operator HTTP shipped

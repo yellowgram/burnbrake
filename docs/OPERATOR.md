@@ -15,7 +15,7 @@ burnbrake balances --json
 
 Each scope shows cap, spent, held (active reservations), remaining, debt (uncovered when spent + held exceeds the cap), and cumulative overshoot. Day keys are UTC dates from the ledger clock. `GET /health` and balances both show price-table `version`, `priced_at`, and a stale warning after 30 days. Stale still enforces.
 
-If you only configured per-run, the CLI prints a warning: set a user and/or day cap.
+If you only configured per-run, the CLI prints a warning: set a user and/or day cap. `NODE_ENV=production` or `BURNBRAKE_PRODUCTION=1` refuses to start in that state. Health `deploy.stops_all_spend` is false: a second client is outside this process. See [DEPLOY_INVARIANTS.md](./DEPLOY_INVARIANTS.md). Exhaust bytes are frozen in [EXHAUST_CONTRACT.md](./EXHAUST_CONTRACT.md).
 
 ## Decisions
 

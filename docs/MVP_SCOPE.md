@@ -146,7 +146,7 @@ Design-time gate, updated for the v0.1.1 kit. Attack logs and the DR4 verdict st
 - [x] DR×3 on this pack
 - [x] LaunchGate 4th DR verdict on file: **APPROVE_WITH_CHANGES** (`docs/LAUNCHGATE_DR4_VERDICT.md` in git). Implement was unblocked.
 - [x] MVP sidecar, brake curve (**BB_BRAKE_CURVE_1**, default off), and CI smoke are on main and in this zip
-- [ ] A LaunchGate 4th CR verdict file is not in the repository. This kit does not invent one. The implementation is already merged.
+- [x] LaunchGate 4th CR: no verdict file. Founder exception frozen in [`STATUS.md`](./STATUS.md) — merged without a 4th CR verdict. This kit does not invent one.
 - [x] Stranger happy path in [`MINIMUM_SUPPORT.md`](./MINIMUM_SUPPORT.md), [`START_HERE.md`](./START_HERE.md), and the README
 - [x] **60s demo script** (mock upstream) in this kit
 - [x] Operator surfaces in [`OPERATOR_NEEDS.md`](./OPERATOR_NEEDS.md) shipped

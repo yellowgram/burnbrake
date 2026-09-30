@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { VERSION } from "./constants.js";
 import { authenticate } from "./auth.js";
+import { assertProductionScopes, DUAL_CLIENT_NOTE, EXHAUST_CONTRACT, HOSTED_FENCE_NOTE } from "./deploy.js";
 import { BrakeConfigError, mergeBrakeConfig, sleepMs, type BrakeConfig } from "./brake.js";
 import { loadConfig, type AppConfig } from "./config.js";
 import { errorBody, httpStatusForEstimate, type ErrorFields } from "./errors.js";
@@ -59,6 +60,8 @@ export async function startSidecar(options: StartOptions = {}): Promise<RunningS
   if (options.reservationTtlMs != null) env.BURNBRAKE_RESERVATION_TTL_MS = String(options.reservationTtlMs);
 
   const config = loadConfig(env);
+  const effectiveCaps = options.caps ?? config.caps;
+  assertProductionScopes(effectiveCaps, env);
   const table = loadPriceTable(config.priceTablePath);
   const freshness = priceTableFreshness(table, Date.now(), config.staleWarnDays);
   if (freshness.stale) {
@@ -69,8 +72,15 @@ export async function startSidecar(options: StartOptions = {}): Promise<RunningS
   const ledger = new Ledger(config.ledgerPath, {
     reservationTtlMs: config.reservationTtlMs,
     now: options.now,
-    defaultCaps: options.caps ?? config.caps,
+    defaultCaps: effectiveCaps,
+    productionDurableScope: config.production,
   });
+  console.warn(`BurnBrake deploy invariant: ${DUAL_CLIENT_NOTE}`);
+  if (!effectiveCaps.user && !effectiveCaps.day) {
+    console.warn(
+      "BurnBrake scope warning: run-only or empty caps. Production requires a user cap and/or a day cap. Caller-chosen run ids can be rotated.",
+    );
+  }
   ledger.setBrake(config.brake);
   ledger.sweep();
   const sleep = options.sleep ?? sleepMs;
@@ -213,6 +223,37 @@ function healthBody(ctx: { config: AppConfig; ledger: Ledger; table: PriceTable;
       ? { enabled: true, forward_count: ctx.mock.forwardCount }
       : { enabled: false },
     routes: ["/v1/chat/completions", "/v1/completions"],
+    deploy: deployBody(ctx),
+  };
+}
+
+function deployBody(ctx: { config: AppConfig; ledger: Ledger }): Record<string, unknown> {
+  const posture = ctx.ledger.scopePosture();
+  return {
+    product: "http request-path spend governor",
+    stops_all_spend: false,
+    dual_client: {
+      bypass_possible: true,
+      detected_here: false,
+      note: DUAL_CLIENT_NOTE,
+    },
+    exhaust: EXHAUST_CONTRACT,
+    scopes: {
+      production: ctx.config.production,
+      require: "user_or_day",
+      user: posture.user,
+      run: posture.run,
+      day: posture.day,
+      run_alone: posture.run_alone,
+      durable: posture.durable,
+      warning: ctx.ledger.scopeWarning(),
+    },
+    hosted: {
+      this_process: "single-tenant self-host kit",
+      hosted_monthly_sku: "separate product; not this process",
+      multi_tenant_runtime: false,
+      note: HOSTED_FENCE_NOTE,
+    },
   };
 }
 

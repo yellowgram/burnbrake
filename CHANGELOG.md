@@ -2,7 +2,12 @@
 
 ## Unreleased
 
-- Docs honesty: the $199 self-host kit Polar listing is **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant; CoS/www sell it). Soft-WTP, coupons, and cold invoices stay off. No Polar price change. No checkout URL added to README or zip-shipped stranger docs. Hosted $59/mo remains a separate live optional SKU and does not grant self-host production rights.
+- Deploy invariant (#15): health `deploy.stops_all_spend` is false, startup warns, and buyer docs state that a second client bypasses the sidecar. This kit does not claim it governs every provider call.
+- Exhaust freeze (#16): startup refuses soft halt, retryable exhaust, and a non-402 exhaust status. Exhaust bytes stay HTTP 402 `BUDGET_EXHAUSTED`, `halt: true`, `retryable: false`.
+- Production scopes (#17): `NODE_ENV=production` or `BURNBRAKE_PRODUCTION=1` requires a user cap and/or a day cap. Run-alone is refused at start and, if those caps are removed later, on the next reserve (`503` `PRODUCTION_SCOPE_REQUIRED`).
+- Hosted versus kit (#18): buyer copy and `docs/HOSTED_VS_KIT.md` keep the hosted SKU as a separate product. This repo stays single-tenant SQLite. No price change. No checkout URL in the README.
+- Process (#22): founder exception in `docs/STATUS.md` — merged implement path has no on-file 4th CR verdict. DR4 stays the verdict on file. No invented CR4 verdict.
+- Docs honesty: the $199 self-host kit Polar listing is **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant; CoS/www sell it). Coupons and cold invoices stay off. No Polar price change. No checkout URL added to README or zip-shipped stranger docs. Hosted $59/mo remains a separate live optional SKU and does not grant self-host production rights.
 - Docs honesty: Release **v0.1.1** exists on GitHub with `burnbrake-0.1.1.zip` (SHA-256 `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`, matches `checksums/burnbrake-0.1.1.sha256`). This change does not reseal the kit zip.
 
 ## 0.1.1

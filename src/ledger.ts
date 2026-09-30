@@ -23,6 +23,8 @@ export interface LedgerOptions {
   reservationTtlMs?: number;
   now?: () => number;
   defaultCaps?: DefaultCaps;
+  /** When true, a reserve with neither user nor day scope is refused. */
+  productionDurableScope?: boolean;
 }
 
 export interface ReserveInput {
@@ -246,6 +248,7 @@ CREATE INDEX IF NOT EXISTS idx_dec_user ON decisions(user_id, ts);
 export class Ledger {
   private readonly db: DatabaseSync;
   private readonly ttlMs: number;
+  private readonly productionDurableScope: boolean;
   private nowFn: () => number;
 
   constructor(path: string, opts: LedgerOptions = {}) {
@@ -258,6 +261,7 @@ export class Ledger {
     this.db.exec("PRAGMA foreign_keys = ON");
     this.db.exec(SCHEMA);
     this.ttlMs = opts.reservationTtlMs ?? RESERVATION_TTL_MS;
+    this.productionDurableScope = opts.productionDurableScope === true;
     this.nowFn = opts.now ?? (() => Date.now());
     if (!this.isWritable()) {
       throw new Error("Ledger is not writable. Refusing to start (fail closed).");
@@ -626,14 +630,28 @@ export class Ledger {
     };
   }
 
-  scopeWarning(): string | null {
+  scopePosture(): { user: boolean; run: boolean; day: boolean; run_alone: boolean; durable: boolean } {
     const user = this.scopeConfigured("user");
     const run = this.scopeConfigured("run");
     const day = this.scopeConfigured("day");
-    if (!user && !run && !day) {
+    return {
+      user,
+      run,
+      day,
+      run_alone: run && !user && !day,
+      durable: user || day,
+    };
+  }
+
+  scopeWarning(): string | null {
+    const posture = this.scopePosture();
+    if (!posture.user && !posture.run && !posture.day) {
       return "no caps configured; the spend path will reject until a user, run, or day cap is set";
     }
-    if ((user || run) && !day) {
+    if (!posture.user && !posture.day) {
+      return "run-only caps are washable by rotating x-burnbrake-run-id. Production requires a user cap and/or a day cap.";
+    }
+    if (!posture.day) {
       return "no day cap; user and run ids are chosen by the authenticated caller and can be rotated — set a day cap";
     }
     return null;
@@ -854,6 +872,20 @@ export class Ledger {
     if (input.userId && userConfigured) wanted.push({ scope: "user", key: input.userId });
     if (input.runId && runConfigured) wanted.push({ scope: "run", key: input.runId });
     if (dayConfigured) wanted.push({ scope: "day", key: dayKey });
+
+    if (this.productionDurableScope && !wanted.some((scope) => scope.scope === "user" || scope.scope === "day")) {
+      return done(denyResult({
+        code: "PRODUCTION_SCOPE_REQUIRED",
+        httpStatus: 503,
+        scope: null,
+        remaining_micros: 0,
+        requested_micros: input.estimateMicros,
+        user_id: input.userId,
+        run_id: input.runId,
+        message:
+          "Production requires a user cap and/or a day cap. A run-only budget is washable by rotating x-burnbrake-run-id. Fail closed: refusing to forward.",
+      }));
+    }
 
     if (wanted.length === 0) {
       return done(denyResult({
