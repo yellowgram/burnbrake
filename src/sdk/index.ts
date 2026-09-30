@@ -24,6 +24,23 @@ export interface CompletionParams {
   [key: string]: unknown;
 }
 
+export interface MessageParams {
+  model: string;
+  messages: unknown[];
+  max_tokens?: number;
+  system?: unknown;
+  tools?: unknown[];
+  [key: string]: unknown;
+}
+
+export interface HeartbeatReceipt {
+  ok: true;
+  sidecar: true;
+  proves: string;
+  does_not_prove: string;
+  stops_all_spend: false;
+}
+
 /** Required on the SDK happy path. Reuse the same key if you retry after a forward. */
 export interface CallOptions {
   idempotencyKey: string;
@@ -134,6 +151,49 @@ export class BurnBrake {
     create: (body: CompletionParams, options: CallOptions): Promise<unknown> =>
       this.post("/v1/completions", body, options),
   };
+
+  readonly messages = {
+    create: (body: MessageParams, options: CallOptions): Promise<unknown> => this.post("/v1/messages", body, options),
+  };
+
+  /**
+   * Proves this call reached the sidecar. It does not prove there is no second client.
+   */
+  async heartbeat(): Promise<HeartbeatReceipt> {
+    const response = await this.fetchImpl(`${this.baseURL}/v1/burnbrake/heartbeat`, {
+      method: "POST",
+      headers: { "x-burnbrake-key": this.apiKey },
+    });
+    const text = await response.text();
+    let parsed: unknown = null;
+    try {
+      parsed = text ? JSON.parse(text) : null;
+    } catch {
+      parsed = text;
+    }
+    if (response.status < 200 || response.status >= 300) {
+      const error = errorObject(parsed);
+      throw new BurnBrakeError({
+        message: typeof error?.message === "string" ? error.message : `BurnBrake heartbeat failed with HTTP ${response.status}`,
+        code: typeof error?.code === "string" ? error.code : "HTTP_ERROR",
+        httpStatus: response.status,
+        halt: error?.halt === true,
+        retryable: error?.retryable === true,
+        body: parsed,
+      });
+    }
+    const body = parsed as Partial<HeartbeatReceipt> | null;
+    return {
+      ok: true,
+      sidecar: true,
+      proves: typeof body?.proves === "string" ? body.proves : "this request reached the BurnBrake sidecar",
+      does_not_prove:
+        typeof body?.does_not_prove === "string"
+          ? body.does_not_prove
+          : "absence of a second client, or that every provider call is gated",
+      stops_all_spend: false,
+    };
+  }
 
   private async post(path: string, body: object, options: CallOptions): Promise<unknown> {
     const idempotencyKey = requireCallerToken(options?.idempotencyKey, "idempotencyKey");

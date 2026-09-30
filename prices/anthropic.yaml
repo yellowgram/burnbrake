@@ -1,0 +1,29 @@
+# BurnBrake static price table for the Anthropic-shaped adapter.
+# Operator-owned. Unpriced models are denied. Same micros units as prices/openai.yaml.
+# Starter figures are public list-style rates for the governor, not a live feed.
+# Vision and tool floors in the estimator still apply when this file is lower.
+
+version: "2026-09-30"
+priced_at: "2026-09-30T00:00:00Z"
+
+models:
+  claude-3-5-haiku-latest:
+    input_micros_per_million: 1000000
+    output_micros_per_million: 5000000
+  claude-3-5-sonnet-latest:
+    input_micros_per_million: 3000000
+    output_micros_per_million: 15000000
+
+surcharges:
+  vision:
+    per_image_input_tokens: 1600
+    per_image_micros: 5000
+  tools:
+    extra_output_tokens: 512
+    flat_micros: 10000
+
+known_content_types:
+  - text
+  - image
+  - tool_use
+  - tool_result

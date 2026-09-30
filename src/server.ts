@@ -16,10 +16,11 @@ import {
 } from "./estimate.js";
 import { decisionsToCsv, Ledger, type BrakePreview, type DecisionInput, type DefaultCaps, type ReserveResult } from "./ledger.js";
 import { loadPriceTable, priceTableFreshness, type PriceTable } from "./prices.js";
+import { deriveReplayKey, openReplayBody, sealReplayBody } from "./replay-body.js";
 import { forwardToUpstream, settleUsage, type MockState } from "./upstream.js";
 import { usdToMicros } from "./money.js";
 
-const GOVERNED = new Set<GovernedRoute>(["/v1/chat/completions", "/v1/completions"]);
+const GOVERNED = new Set<GovernedRoute>(["/v1/chat/completions", "/v1/completions", "/v1/messages"]);
 
 export interface StartOptions {
   env?: NodeJS.ProcessEnv;
@@ -71,6 +72,8 @@ export async function startSidecar(options: StartOptions = {}): Promise<RunningS
   const effectiveCaps = options.caps ?? config.caps;
   assertProductionScopes(effectiveCaps, env);
   const table = loadPriceTable(config.priceTablePath);
+  const anthropicTable = loadPriceTable(config.anthropicPriceTablePath);
+  const replayKey = config.replayKey ? deriveReplayKey(config.replayKey) : null;
   const freshness = priceTableFreshness(table, Date.now(), config.staleWarnDays);
   if (freshness.stale) {
     console.warn(
@@ -83,6 +86,9 @@ export async function startSidecar(options: StartOptions = {}): Promise<RunningS
     defaultCaps: effectiveCaps,
     productionDurableScope: config.production,
     writerLease: config.writerLease ?? undefined,
+    replayBodyTtlMs: config.idempotencyBodyTtlMs,
+    replaySeal: replayKey ? (plain) => sealReplayBody(plain, replayKey) : undefined,
+    replayOpen: replayKey ? (stored) => openReplayBody(stored, replayKey) : undefined,
   });
   console.warn(`BurnBrake deploy invariant: ${DUAL_CLIENT_NOTE}`);
   console.warn(
@@ -98,7 +104,7 @@ export async function startSidecar(options: StartOptions = {}): Promise<RunningS
   const sleep = options.sleep ?? sleepMs;
   const mock: MockState = { forwardCount: 0, lastBody: null, lastRoute: null };
   const server = createServer((req, res) => {
-    void handleRequest(req, res, { config, ledger, table, mock, beforeForward: options.beforeForward, sleep }).catch((err) => {
+    void handleRequest(req, res, { config, ledger, table, anthropicTable, mock, beforeForward: options.beforeForward, sleep }).catch((err) => {
       if (!res.headersSent) {
         sendJson(
           res,
@@ -166,6 +172,7 @@ async function handleRequest(
     config: AppConfig;
     ledger: Ledger;
     table: PriceTable;
+    anthropicTable: PriceTable;
     mock: MockState;
     beforeForward?: () => Promise<void>;
     sleep: (ms: number) => Promise<void>;
@@ -175,6 +182,10 @@ async function handleRequest(
   const path = url.pathname;
   if (req.method === "GET" && path === "/health") {
     sendJson(res, 200, healthBody(ctx));
+    return;
+  }
+  if (req.method === "POST" && path === "/v1/burnbrake/heartbeat") {
+    await handleHeartbeat(req, res, ctx);
     return;
   }
   if (path.startsWith("/v1/operator/")) {
@@ -211,7 +222,7 @@ async function handleRequest(
       errorBody({
         code: "ROUTE_NOT_GOVERNED",
         httpStatus: 404,
-        message: `Route ${path} is not governed. BurnBrake forwards only /v1/chat/completions and /v1/completions. Unknown routes are not proxied.`,
+        message: `Route ${path} is not governed. BurnBrake forwards only /v1/chat/completions, /v1/completions, and /v1/messages. Unknown routes are not proxied.`,
         halt: true,
         retryable: false,
       }),
@@ -221,8 +232,15 @@ async function handleRequest(
   sendJson(res, 404, errorBody({ code: "NOT_FOUND", httpStatus: 404, message: "Not found.", halt: false, retryable: false }));
 }
 
-function healthBody(ctx: { config: AppConfig; ledger: Ledger; table: PriceTable; mock: MockState }): Record<string, unknown> {
+function healthBody(ctx: {
+  config: AppConfig;
+  ledger: Ledger;
+  table: PriceTable;
+  anthropicTable: PriceTable;
+  mock: MockState;
+}): Record<string, unknown> {
   const fresh = priceTableFreshness(ctx.table, ctx.ledger.now(), ctx.config.staleWarnDays);
+  const anthropicFresh = priceTableFreshness(ctx.anthropicTable, ctx.ledger.now(), ctx.config.staleWarnDays);
   const writable = ctx.ledger.isWritable();
   return {
     ok: writable,
@@ -262,7 +280,21 @@ function healthBody(ctx: { config: AppConfig; ledger: Ledger; table: PriceTable;
     mock_upstream: ctx.config.mockUpstream
       ? { enabled: true, forward_count: ctx.mock.forwardCount }
       : { enabled: false },
-    routes: ["/v1/chat/completions", "/v1/completions"],
+    routes: ["/v1/chat/completions", "/v1/completions", "/v1/messages"],
+    anthropic_price_table: {
+      version: ctx.anthropicTable.version,
+      priced_at: ctx.anthropicTable.pricedAt,
+      stale: anthropicFresh.stale,
+    },
+    replay: {
+      body_ttl_seconds: Math.round(ctx.config.idempotencyBodyTtlMs / 1000),
+      encrypted: Boolean(ctx.config.replayKey),
+    },
+    heartbeat: {
+      path: "/v1/burnbrake/heartbeat",
+      proves: "this request reached the sidecar",
+      does_not_prove: "absence of a second client",
+    },
     deploy: deployBody(ctx),
   };
 }
@@ -304,12 +336,14 @@ async function handleGoverned(
     config: AppConfig;
     ledger: Ledger;
     table: PriceTable;
+    anthropicTable: PriceTable;
     mock: MockState;
     beforeForward?: () => Promise<void>;
     sleep: (ms: number) => Promise<void>;
   },
   route: GovernedRoute,
 ): Promise<void> {
+  const table = route === "/v1/messages" ? ctx.anthropicTable : ctx.table;
   const started = Date.now();
   const auth = authenticate(req.headers, ctx.config.apiKeys);
   if (!auth.ok) {
@@ -320,7 +354,7 @@ async function handleGoverned(
       halt: true,
       retryable: false,
     };
-    ctx.ledger.logDecision(decisionBase(ctx, started, {
+    ctx.ledger.logDecision(decisionBase({ table }, started, {
       userId: null,
       runId: null,
       decision: "DENY",
@@ -345,19 +379,25 @@ async function handleGoverned(
     );
     return;
   }
-  if (!ctx.config.mockUpstream && !ctx.config.openaiApiKey) {
-    sendJson(
-      res,
-      503,
-      errorBody({
-        code: "UPSTREAM_NOT_CONFIGURED",
-        httpStatus: 503,
-        message: "OPENAI_API_KEY is not set. Refusing to forward. Set BURNBRAKE_MOCK_UPSTREAM=1 to use the offline mock.",
-        halt: true,
-        retryable: false,
-      }),
-    );
-    return;
+  if (!ctx.config.mockUpstream) {
+    const missingAnthropic = route === "/v1/messages" && !ctx.config.anthropicApiKey;
+    const missingOpenAI = route !== "/v1/messages" && !ctx.config.openaiApiKey;
+    if (missingAnthropic || missingOpenAI) {
+      sendJson(
+        res,
+        503,
+        errorBody({
+          code: "UPSTREAM_NOT_CONFIGURED",
+          httpStatus: 503,
+          message: missingAnthropic
+            ? "ANTHROPIC_API_KEY is not set. Refusing to forward. Set BURNBRAKE_MOCK_UPSTREAM=1 to use the offline mock."
+            : "OPENAI_API_KEY is not set. Refusing to forward. Set BURNBRAKE_MOCK_UPSTREAM=1 to use the offline mock.",
+          halt: true,
+          retryable: false,
+        }),
+      );
+      return;
+    }
   }
 
   const idem = readIdempotency(req);
@@ -434,7 +474,7 @@ async function handleGoverned(
   // `user` per end-user would otherwise mint a fresh cap on every call.
   const userId = userHeader;
   const runId = runHeader;
-  const estimate = estimateRequest(parsed, ctx.table, ctx.config.defaultMaxTokens, route);
+  const estimate = estimateRequest(parsed, table, ctx.config.defaultMaxTokens, route);
   if (!estimate.ok) {
     const status = httpStatusForEstimate(estimate.code);
     const fields: ErrorFields = {
@@ -457,7 +497,7 @@ async function handleGoverned(
         body: raw,
       });
     }
-    ctx.ledger.logDecision(decisionBase(ctx, started, {
+    ctx.ledger.logDecision(decisionBase({ table }, started, {
       userId,
       runId,
       decision: "DENY",
@@ -480,7 +520,7 @@ async function handleGoverned(
     route,
     maxTokens: estimate.maxTokens,
     maxTokensSource: estimate.maxTokensSource,
-    priceTableVersion: ctx.table.version,
+    priceTableVersion: table.version,
   };
   const respondDeny = (denied: Extract<ReserveResult, { kind: "deny" }>, curve: { delay_ms: number } | null): void => {
     const fields: ErrorFields = {
@@ -510,7 +550,7 @@ async function handleGoverned(
         body: raw,
       });
     }
-    ctx.ledger.logDecision(decisionBase(ctx, started, {
+    ctx.ledger.logDecision(decisionBase({ table }, started, {
       userId,
       runId,
       decision: "DENY",
@@ -552,7 +592,7 @@ async function handleGoverned(
   try {
     reserved = ctx.ledger.reserve(reserveInput);
   } catch (err) {
-    ctx.ledger.logDecision(decisionBase(ctx, started, {
+    ctx.ledger.logDecision(decisionBase({ table }, started, {
       userId,
       runId,
       decision: "DENY",
@@ -657,7 +697,7 @@ async function handleGoverned(
       });
       const raw = JSON.stringify(payload);
       if (idem) ctx.ledger.completeIdempotency(idem, 502, raw);
-      ctx.ledger.logDecision(decisionBase(ctx, started, {
+      ctx.ledger.logDecision(decisionBase({ table }, started, {
         userId,
         runId,
         decision: "ALLOW",
@@ -687,6 +727,9 @@ async function handleGoverned(
       mockState: ctx.mock,
       upstreamBaseURL: ctx.config.upstreamBaseURL,
       openaiApiKey: ctx.config.openaiApiKey,
+      anthropicBaseURL: ctx.config.anthropicBaseURL,
+      anthropicApiKey: ctx.config.anthropicApiKey,
+      provider: route === "/v1/messages" ? "anthropic" : "openai",
       route,
       body: estimate.forwardBody,
       completionTokenOverride: ctx.config.mockUpstream ? headerInt(req, "x-burnbrake-mock-completion-tokens") : null,
@@ -707,7 +750,7 @@ async function handleGoverned(
     });
     const raw = JSON.stringify(payload);
     if (idem) ctx.ledger.completeIdempotency(idem, 502, raw);
-    ctx.ledger.logDecision(decisionBase(ctx, started, {
+    ctx.ledger.logDecision(decisionBase({ table }, started, {
       userId,
       runId,
       decision: "ALLOW",
@@ -735,7 +778,7 @@ async function handleGoverned(
   try {
     if (upstream.status >= 200 && upstream.status < 300) {
       if (usage) {
-        const actual = costFromUsage(ctx.table, estimate.model, usage, estimate.flatMicros);
+        const actual = costFromUsage(table, estimate.model, usage, estimate.flatMicros);
         if (actual == null) {
           const debited = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
           terminalReason = debited.terminalReason;
@@ -757,7 +800,7 @@ async function handleGoverned(
       terminalReason = row?.terminal_reason ?? "RELEASE_UPSTREAM_NO_CHARGE";
       settledMicros = row?.actual_micros ?? 0;
     } else if (usage) {
-      const actual = costFromUsage(ctx.table, estimate.model, usage, estimate.flatMicros);
+      const actual = costFromUsage(table, estimate.model, usage, estimate.flatMicros);
       if (actual == null) {
         const debited = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
         terminalReason = debited.terminalReason;
@@ -795,7 +838,7 @@ async function handleGoverned(
     });
     const raw = JSON.stringify(payload);
     if (idem) ctx.ledger.completeIdempotency(idem, 502, raw);
-    ctx.ledger.logDecision(decisionBase(ctx, started, {
+    ctx.ledger.logDecision(decisionBase({ table }, started, {
       userId,
       runId,
       decision: "ALLOW",
@@ -818,7 +861,7 @@ async function handleGoverned(
   }
 
   if (idem) ctx.ledger.completeIdempotency(idem, upstream.status, upstream.bodyText);
-  ctx.ledger.logDecision(decisionBase(ctx, started, {
+  ctx.ledger.logDecision(decisionBase({ table }, started, {
     userId,
     runId,
     decision: "ALLOW",
@@ -871,6 +914,65 @@ async function handleOperator(
   const auth = authenticate(req.headers, ctx.config.operatorKeys);
   if (!auth.ok) {
     sendJson(res, 401, errorBody({ code: "AUTH_REQUIRED", httpStatus: 401, message: auth.message, halt: true, retryable: false }));
+    return;
+  }
+  if (req.method === "GET" && path === "/v1/operator/allowances") {
+    sendJson(res, 200, {
+      allowances: ctx.ledger.listAllowances({
+        scope: url.searchParams.get("scope") ?? undefined,
+        key: url.searchParams.get("key") ?? undefined,
+        limit: numberParam(url, "limit") ?? 50,
+      }),
+      exhaust: EXHAUST_CONTRACT,
+    });
+    return;
+  }
+  if (req.method === "POST" && path === "/v1/operator/allowances") {
+    const body = await readJson(req);
+    const forbidden = ["halt", "retryable", "exhaust", "enabled", "soft_allow", "fail_open", "halt_mode"];
+    if (forbidden.some((key) => key in body)) {
+      sendJson(
+        res,
+        400,
+        errorBody({
+          code: "BAD_REQUEST",
+          httpStatus: 400,
+          message: "An allowance grant cannot change the exhaust contract.",
+          halt: false,
+          retryable: false,
+        }),
+      );
+      return;
+    }
+    const scope = body.scope;
+    if (scope !== "user" && scope !== "run" && scope !== "day") {
+      sendJson(res, 400, errorBody({ code: "BAD_REQUEST", httpStatus: 400, message: "scope must be user, run, or day.", halt: false, retryable: false }));
+      return;
+    }
+    const key = typeof body.key === "string" ? body.key.trim() : "";
+    const resolvedKey = scope === "day" && (key === "" || key === "today") ? ctx.ledger.utcDay() : key;
+    if (!resolvedKey) {
+      sendJson(res, 400, errorBody({ code: "BAD_REQUEST", httpStatus: 400, message: "key is required.", halt: false, retryable: false }));
+      return;
+    }
+    const grant = typeof body.grant_micros === "number" ? body.grant_micros : null;
+    const reason = typeof body.reason === "string" ? body.reason : "";
+    if (grant == null || !Number.isSafeInteger(grant) || grant < 1 || !reason.trim()) {
+      sendJson(
+        res,
+        400,
+        errorBody({
+          code: "BAD_REQUEST",
+          httpStatus: 400,
+          message: "grant_micros (integer >= 1) and reason are required. This does not change exhaust.",
+          halt: false,
+          retryable: false,
+        }),
+      );
+      return;
+    }
+    const row = ctx.ledger.grantAllowance(scope, resolvedKey, grant, reason);
+    sendJson(res, 200, { ok: true, allowance: row, exhaust: EXHAUST_CONTRACT, note: "One reserve may use this grant. Exhaust stays a hard halt." });
     return;
   }
   if (req.method === "GET" && path === "/v1/operator/estimate-error") {
@@ -1177,6 +1279,49 @@ function sendRaw(res: ServerResponse, status: number, contentType: string, body:
   } catch {
     // The client already went away. Settle/debit already happened; do not turn that into a 503.
   }
+}
+
+async function handleHeartbeat(
+  req: IncomingMessage,
+  res: ServerResponse,
+  ctx: { config: AppConfig; ledger: Ledger },
+): Promise<void> {
+  const auth = authenticate(req.headers, ctx.config.apiKeys);
+  if (!auth.ok) {
+    sendJson(res, 401, errorBody({ code: "AUTH_REQUIRED", httpStatus: 401, message: auth.message, halt: true, retryable: false }));
+    return;
+  }
+  const userId = headerValue(req, "x-burnbrake-user-id");
+  const runId = headerValue(req, "x-burnbrake-run-id");
+  ctx.ledger.logDecision({
+    userId,
+    runId,
+    decision: "ALLOW",
+    code: "HEARTBEAT",
+    scope: null,
+    requestedMicros: null,
+    remainingAfterMicros: null,
+    debtDeltaMicros: 0,
+    model: null,
+    route: "/v1/burnbrake/heartbeat",
+    latencyMs: 0,
+    idempotencyKey: null,
+    priceTableVersion: null,
+    upstreamForwarded: false,
+    reservationId: null,
+    estimatedMicros: null,
+    settledMicros: null,
+    terminalReason: null,
+    maxTokensSource: null,
+  });
+  sendJson(res, 200, {
+    ok: true,
+    sidecar: true,
+    proves: "this request reached the BurnBrake sidecar",
+    does_not_prove: "absence of a second client, or that every provider call is gated",
+    stops_all_spend: false,
+    ts: ctx.ledger.now(),
+  });
 }
 
 function listen(server: Server, port: number, host: string): Promise<void> {

@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { brakeFromEnv, type BrakeConfig } from "./brake.js";
-import { DEFAULT_HOST, DEFAULT_MAX_TOKENS, DEFAULT_PORT, RESERVATION_TTL_MS, STALE_PRICE_DAYS } from "./constants.js";
+import {
+  DEFAULT_HOST,
+  DEFAULT_MAX_TOKENS,
+  DEFAULT_PORT,
+  IDEMPOTENCY_BODY_TTL_MS,
+  RESERVATION_TTL_MS,
+  STALE_PRICE_DAYS,
+} from "./constants.js";
 import { productionMode } from "./deploy.js";
 import type { DefaultCaps } from "./ledger.js";
 import { usdToMicros } from "./money.js";
@@ -23,6 +30,12 @@ export interface AppConfig {
   priceTablePath: string;
   upstreamBaseURL: string;
   openaiApiKey: string | null;
+  anthropicBaseURL: string;
+  anthropicApiKey: string | null;
+  anthropicPriceTablePath: string;
+  idempotencyBodyTtlMs: number;
+  /** Secret used only to encrypt replay bodies. Null stores plaintext. */
+  replayKey: string | null;
   mockUpstream: boolean;
   defaultMaxTokens: number;
   reservationTtlMs: number;
@@ -37,6 +50,10 @@ export interface AppConfig {
 
 export function defaultPriceTablePath(): string {
   return fileURLToPath(new URL("../prices/openai.yaml", import.meta.url));
+}
+
+export function defaultAnthropicPriceTablePath(): string {
+  return fileURLToPath(new URL("../prices/anthropic.yaml", import.meta.url));
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env, options: { requireKey?: boolean } = {}): AppConfig {
@@ -96,6 +113,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, options: { requ
     );
   }
   const writerLease = readWriterLease(env);
+  const anthropicKey = (env.ANTHROPIC_API_KEY ?? "").trim();
+  if (anthropicKey && spendKeys.includes(anthropicKey)) {
+    throw new Error("ANTHROPIC_API_KEY must be different from the BurnBrake spend keys.");
+  }
+  if (anthropicKey && operatorKeys.includes(anthropicKey)) {
+    throw new Error("ANTHROPIC_API_KEY must be different from the BurnBrake operator keys.");
+  }
+  const replayKey = (env.BURNBRAKE_REPLAY_KEY ?? "").trim();
+  if (replayKey && replayKey.length < 16) {
+    throw new Error("BURNBRAKE_REPLAY_KEY must be at least 16 characters.");
+  }
+  const idempotencyBodyTtlMs = readBodyTtl(env);
   const port = parsePort(env.BURNBRAKE_PORT ?? String(DEFAULT_PORT));
   const defaultMaxTokens = parsePositiveInt(env.BURNBRAKE_DEFAULT_MAX_TOKENS, DEFAULT_MAX_TOKENS, "BURNBRAKE_DEFAULT_MAX_TOKENS");
   const reservationTtlMs = parsePositiveInt(
@@ -116,6 +145,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, options: { requ
     priceTablePath: env.BURNBRAKE_PRICE_TABLE ?? defaultPriceTablePath(),
     upstreamBaseURL: (env.BURNBRAKE_UPSTREAM_BASE_URL ?? "https://api.openai.com").replace(/\/$/, ""),
     openaiApiKey: openai || null,
+    anthropicBaseURL: (env.BURNBRAKE_ANTHROPIC_BASE_URL ?? "https://api.anthropic.com").replace(/\/$/, ""),
+    anthropicApiKey: anthropicKey || null,
+    anthropicPriceTablePath: env.BURNBRAKE_ANTHROPIC_PRICE_TABLE ?? defaultAnthropicPriceTablePath(),
+    idempotencyBodyTtlMs,
+    replayKey: replayKey || null,
     mockUpstream: flagOn(env.BURNBRAKE_MOCK_UPSTREAM),
     defaultMaxTokens,
     reservationTtlMs,
@@ -173,6 +207,18 @@ export function assertBind(host: string, allowPublicBind: boolean): void {
 export function flagOn(value: string | undefined): boolean {
   if (!value) return false;
   return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+}
+
+function readBodyTtl(env: NodeJS.ProcessEnv): number {
+  const raw = env.BURNBRAKE_IDEMPOTENCY_BODY_TTL_MS;
+  if (raw == null || raw.trim() === "") return IDEMPOTENCY_BODY_TTL_MS;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1000 || n > IDEMPOTENCY_BODY_TTL_MS) {
+    throw new Error(
+      `BURNBRAKE_IDEMPOTENCY_BODY_TTL_MS must be an integer from 1000 through ${IDEMPOTENCY_BODY_TTL_MS}.`,
+    );
+  }
+  return n;
 }
 
 function readOptionalKey(value: string | undefined, label: string): string {

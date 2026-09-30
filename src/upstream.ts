@@ -15,6 +15,9 @@ export async function forwardToUpstream(opts: {
   mockState: MockState;
   upstreamBaseURL: string;
   openaiApiKey: string | null;
+  anthropicBaseURL?: string;
+  anthropicApiKey?: string | null;
+  provider?: "openai" | "anthropic";
   route: string;
   body: Record<string, unknown>;
   completionTokenOverride: number | null;
@@ -22,16 +25,28 @@ export async function forwardToUpstream(opts: {
   inputTokensHint: number;
 }): Promise<ForwardResult> {
   if (opts.mock) return mockForward(opts);
-  if (!opts.openaiApiKey) {
+  const anthropic = opts.provider === "anthropic";
+  if (anthropic && !opts.anthropicApiKey) {
+    throw new Error("ANTHROPIC_API_KEY is not set. Refusing to forward. Use BURNBRAKE_MOCK_UPSTREAM=1 for the offline demo.");
+  }
+  if (!anthropic && !opts.openaiApiKey) {
     throw new Error("OPENAI_API_KEY is not set. Refusing to forward. Use BURNBRAKE_MOCK_UPSTREAM=1 for the offline demo.");
   }
-  const url = new URL(opts.route, opts.upstreamBaseURL.endsWith("/") ? opts.upstreamBaseURL : `${opts.upstreamBaseURL}/`);
+  const base = anthropic ? opts.anthropicBaseURL || "https://api.anthropic.com" : opts.upstreamBaseURL;
+  const url = new URL(opts.route, base.endsWith("/") ? base : `${base}/`);
+  const headers: Record<string, string> = anthropic
+    ? {
+        "content-type": "application/json",
+        "x-api-key": opts.anthropicApiKey as string,
+        "anthropic-version": "2023-06-01",
+      }
+    : {
+        "content-type": "application/json",
+        authorization: `Bearer ${opts.openaiApiKey}`,
+      };
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${opts.openaiApiKey}`,
-    },
+    headers,
     body: JSON.stringify(opts.body),
     redirect: "manual",
   });
@@ -82,6 +97,21 @@ function mockForward(opts: {
       "data: [DONE]\n\n",
     ];
     return { status: 200, contentType: "text/event-stream", bodyText: chunks.join("") };
+  }
+  if (opts.route === "/v1/messages") {
+    return {
+      status: 200,
+      contentType: "application/json",
+      bodyText: JSON.stringify({
+        id: "msg_mock",
+        type: "message",
+        role: "assistant",
+        model: opts.body.model,
+        content: [{ type: "text", text: "ok" }],
+        stop_reason: "end_turn",
+        usage: { input_tokens: prompt, output_tokens: completion },
+      }),
+    };
   }
   const object = opts.route === "/v1/completions" ? "text_completion" : "chat.completion";
   const body =
