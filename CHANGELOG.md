@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Estimate floors (#19): vision and tool reserves cannot fall below 1600 input tokens and 5000 micros per image, or 512 extra output tokens and 10000 micros when tools are present. `GET /v1/operator/estimate-error` and `burnbrake estimate-error` report settle-versus-reserve error. A miss does not open the next call.
+- Auth (#20): key compare hashes both sides so length mismatch does not return early. `BURNBRAKE_KEY_PREVIOUS` and `BURNBRAKE_OPERATOR_KEY_PREVIOUS` are accepted during rotation.
+- Day clock (#21): health states the process clock and that multi-writer needs one shared store. `BURNBRAKE_WRITER_LEASE=1` is an advisory single-writer lease, not a multi-pod ledger. See `docs/SINGLE_STORE.md`.
 - Deploy invariant (#15): health `deploy.stops_all_spend` is false, startup warns, and buyer docs state that a second client bypasses the sidecar. This kit does not claim it governs every provider call.
 - Exhaust freeze (#16): startup refuses soft halt, retryable exhaust, and a non-402 exhaust status. Exhaust bytes stay HTTP 402 `BUDGET_EXHAUSTED`, `halt: true`, `retryable: false`.
 - Production scopes (#17): `NODE_ENV=production` or `BURNBRAKE_PRODUCTION=1` requires a user cap and/or a day cap. Run-alone is refused at start and, if those caps are removed later, on the next reserve (`503` `PRODUCTION_SCOPE_REQUIRED`).

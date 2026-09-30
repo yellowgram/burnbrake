@@ -5,7 +5,15 @@ import { assertProductionScopes, DUAL_CLIENT_NOTE, EXHAUST_CONTRACT, HOSTED_FENC
 import { BrakeConfigError, mergeBrakeConfig, sleepMs, type BrakeConfig } from "./brake.js";
 import { loadConfig, type AppConfig } from "./config.js";
 import { errorBody, httpStatusForEstimate, type ErrorFields } from "./errors.js";
-import { costFromUsage, estimateRequest, type GovernedRoute } from "./estimate.js";
+import {
+  costFromUsage,
+  estimateRequest,
+  TOOLS_EXTRA_OUTPUT_TOKEN_FLOOR,
+  TOOLS_FLAT_MICROS_FLOOR,
+  VISION_FLAT_MICROS_FLOOR,
+  VISION_INPUT_TOKEN_FLOOR,
+  type GovernedRoute,
+} from "./estimate.js";
 import { decisionsToCsv, Ledger, type BrakePreview, type DecisionInput, type DefaultCaps, type ReserveResult } from "./ledger.js";
 import { loadPriceTable, priceTableFreshness, type PriceTable } from "./prices.js";
 import { forwardToUpstream, settleUsage, type MockState } from "./upstream.js";
@@ -74,8 +82,12 @@ export async function startSidecar(options: StartOptions = {}): Promise<RunningS
     now: options.now,
     defaultCaps: effectiveCaps,
     productionDurableScope: config.production,
+    writerLease: config.writerLease ?? undefined,
   });
   console.warn(`BurnBrake deploy invariant: ${DUAL_CLIENT_NOTE}`);
+  console.warn(
+    "BurnBrake day clock: UTC keys use this process clock. More than one writer requires one shared store and one clock. This kit is not a multi-pod ledger.",
+  );
   if (!effectiveCaps.user && !effectiveCaps.day) {
     console.warn(
       "BurnBrake scope warning: run-only or empty caps. Production requires a user cap and/or a day cap. Caller-chosen run ids can be rotated.",
@@ -112,11 +124,23 @@ export async function startSidecar(options: StartOptions = {}): Promise<RunningS
   const timer = setInterval(() => {
     try {
       ledger.sweep();
+      ledger.renewWriterLease();
     } catch (err) {
       console.error("BurnBrake reservation sweep failed", err instanceof Error ? err.message : err);
     }
   }, 30_000);
   timer.unref?.();
+  const leaseTimer =
+    config.writerLease == null
+      ? null
+      : setInterval(() => {
+          try {
+            ledger.renewWriterLease();
+          } catch (err) {
+            console.error("BurnBrake writer lease renew failed", err instanceof Error ? err.message : err);
+          }
+        }, Math.max(1_000, Math.floor(config.writerLease.ttlMs / 3)));
+  leaseTimer?.unref?.();
   return {
     baseURL: `http://${config.host}:${port}`,
     host: config.host,
@@ -126,6 +150,7 @@ export async function startSidecar(options: StartOptions = {}): Promise<RunningS
     mock,
     close: async () => {
       clearInterval(timer);
+      if (leaseTimer) clearInterval(leaseTimer);
       await new Promise<void>((resolve, reject) => {
         server.close((err) => (err ? reject(err) : resolve()));
       });
@@ -204,7 +229,7 @@ function healthBody(ctx: { config: AppConfig; ledger: Ledger; table: PriceTable;
     version: VERSION,
     listen: ctx.config.host,
     port: ctx.config.port,
-    auth: { required: true },
+    auth: { required: true, rotation_overlap: ctx.config.apiKeys.length > 1 },
     ledger: { writable },
     fail_closed: true,
     price_table: {
@@ -214,9 +239,24 @@ function healthBody(ctx: { config: AppConfig; ledger: Ledger; table: PriceTable;
       age_days: Number(fresh.ageDays.toFixed(2)),
       stale_warn_days: fresh.staleWarnDays,
     },
-    estimate: { default_max_tokens: ctx.config.defaultMaxTokens },
+    estimate: {
+      default_max_tokens: ctx.config.defaultMaxTokens,
+      floors: {
+        vision_input_tokens: VISION_INPUT_TOKEN_FLOOR,
+        vision_flat_micros: VISION_FLAT_MICROS_FLOOR,
+        tools_extra_output_tokens: TOOLS_EXTRA_OUTPUT_TOKEN_FLOOR,
+        tools_flat_micros: TOOLS_FLAT_MICROS_FLOOR,
+      },
+    },
     reservation_ttl_seconds: Math.round(ctx.config.reservationTtlMs / 1000),
     day_boundary: "UTC",
+    day_clock: {
+      boundary: "UTC",
+      source: "process",
+      multi_writer: "unsupported without one shared store and one process clock",
+      writer_lease: ctx.config.writerLease ? "required" : "off",
+      writer_lease_held: ctx.ledger.writerLeaseHeld(),
+    },
     scopes_warning: ctx.ledger.scopeWarning(),
     operator_http: Boolean(ctx.config.operatorKey),
     mock_upstream: ctx.config.mockUpstream
@@ -271,7 +311,7 @@ async function handleGoverned(
   route: GovernedRoute,
 ): Promise<void> {
   const started = Date.now();
-  const auth = authenticate(req.headers, ctx.config.apiKey);
+  const auth = authenticate(req.headers, ctx.config.apiKeys);
   if (!auth.ok) {
     const fields: ErrorFields = {
       code: "AUTH_REQUIRED",
@@ -828,9 +868,16 @@ async function handleOperator(
     );
     return;
   }
-  const auth = authenticate(req.headers, ctx.config.operatorKey);
+  const auth = authenticate(req.headers, ctx.config.operatorKeys);
   if (!auth.ok) {
     sendJson(res, 401, errorBody({ code: "AUTH_REQUIRED", httpStatus: 401, message: auth.message, halt: true, retryable: false }));
+    return;
+  }
+  if (req.method === "GET" && path === "/v1/operator/estimate-error") {
+    sendJson(res, 200, {
+      estimate_error: ctx.ledger.estimateErrorSummary(),
+      note: "under_reserve means settled micros exceeded the reserve. The next call stays fail-closed. This is not a soft open.",
+    });
     return;
   }
   if (req.method === "GET" && path === "/v1/operator/balances") {

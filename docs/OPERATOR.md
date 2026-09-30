@@ -2,7 +2,9 @@
 
 Full see/do list: [OPERATOR_NEEDS.md](./OPERATOR_NEEDS.md). This page is the shipped control surface.
 
-The CLI opens the SQLite ledger (`BURNBRAKE_LEDGER_PATH` or `--ledger`) and can run while the sidecar is up. Whoever can read that file can change caps. Protect the file.
+The CLI opens the SQLite ledger (`BURNBRAKE_LEDGER_PATH` or `--ledger`) and can run while the sidecar is up. Whoever can read that file can change caps. Protect the file. The CLI does not take the writer lease. See [SINGLE_STORE.md](./SINGLE_STORE.md).
+
+Auth compare does not return early on secret length. To rotate without a gap, set `BURNBRAKE_KEY_PREVIOUS` to the outgoing spend secret and `BURNBRAKE_OPERATOR_KEY_PREVIOUS` to the outgoing operator secret, restart with the new current keys, then remove the previous keys on a later restart. Do not reuse the provider key.
 
 HTTP routes under `/v1/operator/*` require `BURNBRAKE_OPERATOR_KEY`, a `bb_…` secret that is not `BURNBRAKE_KEY` and not the provider key. Send it as `X-BurnBrake-Key` or `Authorization: Bearer bb_…` on those routes only. The spend key is rejected (401). If the operator key is unset, operator HTTP returns 403 `OPERATOR_KEY_REQUIRED` and does not fall back to the spend key.
 
@@ -24,7 +26,13 @@ burnbrake decisions --deny-only --run run-1
 burnbrake export --run run-1 --format csv
 ```
 
-Columns include requested micros, remaining, debt delta, model, route, idempotency key, `price_table_version`, and `upstream_forwarded`. A deny with `upstream_forwarded=1` is a bug. Prompts and completions are not logged.
+Columns include requested micros, remaining, debt delta, model, route, idempotency key, `price_table_version`, `estimated_micros`, `settled_micros`, and `upstream_forwarded`. A deny with `upstream_forwarded=1` is a bug. Prompts and completions are not logged.
+
+```bash
+burnbrake estimate-error
+```
+
+`GET /v1/operator/estimate-error` (operator key) counts forwarded decisions where settle and reserve both exist. `under_reserve` is settle above reserve. That does not open the next call. Vision and tool reserves use mandatory floors (1600 input tokens and 5000 micros per image; 512 extra output tokens and 10000 micros when tools are present). A lower number in the price table is raised. It is not lowered.
 
 Retention is yours. The ledger file is the log. Delete or archive the SQLite file on your own schedule.
 

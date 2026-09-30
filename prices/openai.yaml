@@ -33,13 +33,15 @@ models:
 
 surcharges:
   vision:
-    # Conservative input-token allowance per image part, plus optional flat micros.
-    per_image_input_tokens: 1100
-    per_image_micros: 0
+    # Per image. The estimator will not reserve below its mandatory floors
+    # (1600 input tokens and 5000 micros) even if this file is edited downward.
+    per_image_input_tokens: 1600
+    per_image_micros: 5000
   tools:
     # Extra output ceiling when tools/functions are present (reserve only; not injected).
-    extra_output_tokens: 256
-    flat_micros: 0
+    # Floors: 512 extra output tokens and 10000 flat micros.
+    extra_output_tokens: 512
+    flat_micros: 10000
 
 # Content part types the estimator knows. Anything else is an unknown surcharge → deny.
 known_content_types:

@@ -33,13 +33,16 @@ const HELP = `BurnBrake — request-path spend governor (cap + kill)
   burnbrake force-release --reservation id --reason "..." --attest-no-charge
   burnbrake top-runs [--window 1h|24h]
   burnbrake reservations [--state FORWARDED] [--run id]
+  burnbrake estimate-error
 
 The CLI reads the SQLite ledger directly (BURNBRAKE_LEDGER_PATH or --ledger).
 Filesystem access to that file is operator control. Protect the file.
 HTTP /v1/operator/* requires BURNBRAKE_OPERATOR_KEY, a bb_ secret distinct from
 BURNBRAKE_KEY and from the provider key. If it is unset, operator HTTP is off.
-Auth rotation: change BURNBRAKE_KEY (agents) and BURNBRAKE_OPERATOR_KEY (operator
-HTTP), then restart. Do not rotate by pasting the provider key.
+Auth rotation: set BURNBRAKE_KEY_PREVIOUS (and BURNBRAKE_OPERATOR_KEY_PREVIOUS)
+to the outgoing secret, put the new secret in BURNBRAKE_KEY, restart, then
+remove the previous key on a later restart. Comparison does not return early
+on length. Do not rotate by pasting the provider key.
 
 brake.enabled defaults to false and is not a halt-off switch. A set applies on
 the next reserve. An in-flight FORWARDED call is not delayed or rewritten.
@@ -68,6 +71,7 @@ export async function execute(argv: string[], io: Io = defaultIo()): Promise<num
     if (command === "force-release") return forceRelease(args, io);
     if (command === "top-runs") return topRuns(args, io);
     if (command === "reservations") return reservations(args, io);
+    if (command === "estimate-error") return estimateError(args, io);
     io.error(`Unknown command: ${command}\n${HELP}`);
     return 1;
   } catch (err) {
@@ -371,6 +375,29 @@ function topRuns(argv: string[], io: Io): number {
   const { ledger } = openLedger(values.ledger, io.env);
   try {
     io.log(JSON.stringify({ window: values.window === "1h" ? "1h" : "24h", runs: ledger.topRuns(windowMs) }, null, 2));
+    return 0;
+  } finally {
+    ledger.close();
+  }
+}
+
+function estimateError(argv: string[], io: Io): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: { ledger: { type: "string" }, json: { type: "boolean", default: false } },
+    strict: true,
+  });
+  const { ledger } = openLedger(values.ledger, io.env);
+  try {
+    const summary = ledger.estimateErrorSummary();
+    if (values.json) {
+      io.log(JSON.stringify(summary));
+      return 0;
+    }
+    io.log(
+      `samples ${summary.samples}  under_reserve ${summary.under_reserve}  over_reserve ${summary.over_reserve}  exact ${summary.exact}  net_error_micros ${summary.net_error_micros}  max_under_reserve_micros ${summary.max_under_reserve_micros}`,
+    );
+    io.log("under_reserve means settle exceeded reserve. The next call stays fail-closed.");
     return 0;
   } finally {
     ledger.close();

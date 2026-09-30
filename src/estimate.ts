@@ -25,6 +25,12 @@ export type EstimateResult = EstimateSuccess | EstimateFailure;
 
 export type GovernedRoute = "/v1/chat/completions" | "/v1/completions";
 
+/** Mandatory floors. A price-table value below these is raised. Fail closed; never lowered. */
+export const VISION_INPUT_TOKEN_FLOOR = 1600;
+export const VISION_FLAT_MICROS_FLOOR = 5_000;
+export const TOOLS_EXTRA_OUTPUT_TOKEN_FLOOR = 512;
+export const TOOLS_FLAT_MICROS_FLOOR = 10_000;
+
 export function estimateRequest(
   body: Record<string, unknown>,
   table: PriceTable,
@@ -88,15 +94,9 @@ function estimateChat(
     textTokens(acc.text) +
     body.messages.length * 4 +
     3 +
-    acc.images * table.surcharges.visionPerImageInputTokens;
-  const outputTokens = scaleOutputTokens(
-    ceiling.maxTokens,
-    toolsPresent ? table.surcharges.toolsExtraOutputTokens : 0,
-    choices,
-  );
-  const flatMicros =
-    acc.images * table.surcharges.visionPerImageMicros +
-    (toolsPresent ? table.surcharges.toolsFlatMicros : 0);
+    acc.images * visionInputTokens(table);
+  const outputTokens = scaleOutputTokens(ceiling.maxTokens, toolsExtraOutput(table, toolsPresent), choices);
+  const flatMicros = acc.images * visionFlatMicros(table) + toolsFlatMicros(table, toolsPresent);
   const micros = atLeastOne(
     tokensToMicros(inputTokens, price.inputMicrosPerMillion) +
       tokensToMicros(outputTokens, price.outputMicrosPerMillion) +
@@ -135,12 +135,8 @@ function estimateCompletion(
   const ceiling = outputCeiling(body, defaultMaxTokens);
   const choices = choiceCount(body);
   const inputTokens = textTokens(acc.text) + 2;
-  const outputTokens = scaleOutputTokens(
-    ceiling.maxTokens,
-    toolsPresent ? table.surcharges.toolsExtraOutputTokens : 0,
-    choices,
-  );
-  const flatMicros = toolsPresent ? table.surcharges.toolsFlatMicros : 0;
+  const outputTokens = scaleOutputTokens(ceiling.maxTokens, toolsExtraOutput(table, toolsPresent), choices);
+  const flatMicros = toolsFlatMicros(table, toolsPresent);
   const micros = atLeastOne(
     tokensToMicros(inputTokens, price.inputMicrosPerMillion) +
       tokensToMicros(outputTokens, price.outputMicrosPerMillion) +
@@ -284,6 +280,24 @@ function requirePrice(table: PriceTable, model: string): { inputMicrosPerMillion
     fail("UNPRICED_MODEL", `model "${model}" has no positive rate. Refusing silent $0.`);
   }
   return price;
+}
+
+function visionInputTokens(table: PriceTable): number {
+  return Math.max(table.surcharges.visionPerImageInputTokens, VISION_INPUT_TOKEN_FLOOR);
+}
+
+function visionFlatMicros(table: PriceTable): number {
+  return Math.max(table.surcharges.visionPerImageMicros, VISION_FLAT_MICROS_FLOOR);
+}
+
+function toolsExtraOutput(table: PriceTable, toolsPresent: boolean): number {
+  if (!toolsPresent) return 0;
+  return Math.max(table.surcharges.toolsExtraOutputTokens, TOOLS_EXTRA_OUTPUT_TOKEN_FLOOR);
+}
+
+function toolsFlatMicros(table: PriceTable, toolsPresent: boolean): number {
+  if (!toolsPresent) return 0;
+  return Math.max(table.surcharges.toolsFlatMicros, TOOLS_FLAT_MICROS_FLOOR);
 }
 
 function textTokens(text: string): number {

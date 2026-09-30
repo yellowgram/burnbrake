@@ -25,6 +25,8 @@ export interface LedgerOptions {
   defaultCaps?: DefaultCaps;
   /** When true, a reserve with neither user nor day scope is refused. */
   productionDurableScope?: boolean;
+  /** Advisory single-writer lease. Does not make multi-pod safe. */
+  writerLease?: { holder: string; ttlMs: number };
 }
 
 export interface ReserveInput {
@@ -245,10 +247,26 @@ CREATE INDEX IF NOT EXISTS idx_dec_run ON decisions(run_id, ts);
 CREATE INDEX IF NOT EXISTS idx_dec_user ON decisions(user_id, ts);
 `;
 
+export interface EstimateErrorSummary {
+  samples: number;
+  under_reserve: number;
+  over_reserve: number;
+  exact: number;
+  net_error_micros: number;
+  max_under_reserve_micros: number;
+}
+
+interface WriterLeaseRow {
+  holder: string;
+  until: number;
+}
+
 export class Ledger {
   private readonly db: DatabaseSync;
   private readonly ttlMs: number;
   private readonly productionDurableScope: boolean;
+  private leaseHolder: string | null = null;
+  private leaseTtlMs = 0;
   private nowFn: () => number;
 
   constructor(path: string, opts: LedgerOptions = {}) {
@@ -273,10 +291,66 @@ export class Ledger {
         if (cap != null) this.setDefaultCap(scope, cap);
       }
     }
+    if (opts.writerLease) {
+      try {
+        this.acquireWriterLease(opts.writerLease.holder, opts.writerLease.ttlMs);
+      } catch (err) {
+        this.db.close();
+        throw err;
+      }
+    }
   }
 
   close(): void {
+    try {
+      this.releaseWriterLease();
+    } catch {
+      /* closing */
+    }
     this.db.close();
+  }
+
+  writerLeaseHeld(): boolean {
+    if (!this.leaseHolder) return false;
+    const row = this.readWriterLease();
+    return Boolean(row && row.holder === this.leaseHolder && row.until > this.now());
+  }
+
+  acquireWriterLease(holder: string, ttlMs: number): void {
+    if (!holder) throw new Error("writer lease holder is required");
+    if (!Number.isInteger(ttlMs) || ttlMs < 1) throw new Error("writer lease ttl must be a positive integer");
+    this.tx(() => {
+      const current = this.readWriterLease();
+      const now = this.now();
+      if (current && current.holder !== holder && current.until > now) {
+        throw new Error(
+          `Another writer holds this ledger until ${new Date(current.until).toISOString()}. One store and one process clock are required before a second writer. This kit does not run multi-pod.`,
+        );
+      }
+      const until = now + ttlMs;
+      this.db
+        .prepare("INSERT INTO meta(k, v) VALUES ('writer_lease', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v")
+        .run(JSON.stringify({ holder, until }));
+    });
+    this.leaseHolder = holder;
+    this.leaseTtlMs = ttlMs;
+  }
+
+  renewWriterLease(): void {
+    if (!this.leaseHolder || this.leaseTtlMs < 1) return;
+    this.acquireWriterLease(this.leaseHolder, this.leaseTtlMs);
+  }
+
+  releaseWriterLease(): void {
+    if (!this.leaseHolder) return;
+    const holder = this.leaseHolder;
+    this.tx(() => {
+      const current = this.readWriterLease();
+      if (current && current.holder === holder) {
+        this.db.prepare("DELETE FROM meta WHERE k = 'writer_lease'").run();
+      }
+    });
+    this.leaseHolder = null;
   }
 
   setNow(fn: () => number): void {
@@ -712,6 +786,32 @@ export class Ledger {
     return this.db.prepare(sql).all(...args) as unknown as DecisionRow[];
   }
 
+  estimateErrorSummary(): EstimateErrorSummary {
+    const row = this.db
+      .prepare(
+        `SELECT
+           COUNT(*) AS samples,
+           COALESCE(SUM(CASE WHEN settled_micros > estimated_micros THEN 1 ELSE 0 END), 0) AS under_reserve,
+           COALESCE(SUM(CASE WHEN settled_micros < estimated_micros THEN 1 ELSE 0 END), 0) AS over_reserve,
+           COALESCE(SUM(CASE WHEN settled_micros = estimated_micros THEN 1 ELSE 0 END), 0) AS exact,
+           COALESCE(SUM(settled_micros - estimated_micros), 0) AS net_error_micros,
+           COALESCE(MAX(CASE WHEN settled_micros > estimated_micros THEN settled_micros - estimated_micros ELSE 0 END), 0) AS max_under_reserve_micros
+         FROM decisions
+         WHERE upstream_forwarded = 1
+           AND estimated_micros IS NOT NULL
+           AND settled_micros IS NOT NULL`,
+      )
+      .get() as unknown as EstimateErrorSummary;
+    return {
+      samples: Number(row.samples),
+      under_reserve: Number(row.under_reserve),
+      over_reserve: Number(row.over_reserve),
+      exact: Number(row.exact),
+      net_error_micros: Number(row.net_error_micros),
+      max_under_reserve_micros: Number(row.max_under_reserve_micros),
+    };
+  }
+
   topRuns(windowMs: number, limit = 10): Array<{ run_id: string; spent_micros: number }> {
     const since = this.now() - windowMs;
     return this.db
@@ -835,6 +935,24 @@ export class Ledger {
     }
 
     this.sweepUnlocked();
+
+    if (this.leaseHolder) {
+      const lease = this.readWriterLease();
+      const now = this.now();
+      if (!lease || lease.holder !== this.leaseHolder || lease.until <= now) {
+        return done(denyResult({
+          code: "WRITER_LEASE_REQUIRED",
+          httpStatus: 503,
+          scope: null,
+          remaining_micros: 0,
+          requested_micros: input.estimateMicros,
+          user_id: input.userId,
+          run_id: input.runId,
+          message:
+            "This process does not hold the writer lease. One shared store and one process clock are required before a second writer. Fail closed: refusing to forward.",
+        }));
+      }
+    }
 
     const dayKey = this.utcDay();
     const wanted: Array<{ scope: ScopeName; key: string }> = [];
@@ -1165,6 +1283,18 @@ export class Ledger {
           }
         | undefined) ?? null
     );
+  }
+
+  private readWriterLease(): WriterLeaseRow | null {
+    const row = this.db.prepare("SELECT v FROM meta WHERE k = 'writer_lease'").get() as { v: string } | undefined;
+    if (!row) return null;
+    try {
+      const parsed = JSON.parse(row.v) as { holder?: unknown; until?: unknown };
+      if (typeof parsed.holder !== "string" || typeof parsed.until !== "number") return null;
+      return { holder: parsed.holder, until: parsed.until };
+    } catch {
+      return null;
+    }
   }
 
   private setControl(kind: string, key: string, paused: boolean): void {
