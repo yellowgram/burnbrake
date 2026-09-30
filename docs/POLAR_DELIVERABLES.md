@@ -7,7 +7,7 @@ Polar product id `b5649684-58ff-498c-a135-0b4b44623c3b` (do not rename). Legal s
 **Status:** purchase honesty. Founder GO via Chief of Staff. No Polar price change. This file does not put a checkout URL in README or zip-shipped stranger docs.  
 **Prices:** unchanged. **$199 once** kit. Hosted **$59/mo**.  
 **Copyright:** source-available commercial. `LICENSE` is the PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`). OSI open source: false. Commercial production use of the self-host kit requires the BurnBrake commercial grant (`docs/COMMERCIAL_GRANT.md`).  
-**Listing ($199 kit):** **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant). CoS/www sell it. coupons, coupons, and cold invoices stay off. No $199 checkout URL in this file (do not invent one here; do not copy any checkout into README or zip-shipped docs).  
+**Listing ($199 kit):** **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant). Polar listing LIVE; www Paid catalog demoted 2026-09-30 — quiet product-page checkout. coupons, coupons, and cold invoices stay off. No $199 checkout URL in this file (do not invent one here; do not copy any checkout into README or zip-shipped docs).  
 **Hosted listing:** **LIVE** (CoS published 2026-09-27). Product `70b1a029-944f-4999-ae39-d39c041ae3e9`. **$59/mo** recurring. No zip, no GitHub benefit, and no self-host production rights on this SKU. Checkout (this file only; do not copy into README or any zip-shipped doc): https://buy.polar.sh/polar_cl_A2dCr3WcvuTv5lLvNlp8AaC9kziCr8apYfunr0f60ci  
 **Hosted admin (CoS):** https://polar.sh/dashboard/suthirth-solutions/products/70b1a029-944f-4999-ae39-d39c041ae3e9  
 **Tag for this fence:** `v0.1.1` — **pushed.** Release [BurnBrake v0.1.1](https://github.com/yellowgram/burnbrake/releases/tag/v0.1.1) exists with `burnbrake-0.1.1.zip`.  
@@ -55,7 +55,7 @@ Price: $199 once. Refund window: 14 days on this kit only. Legal seller: Suthirt
 
 Hosted operation at $59/mo recurring is a separate Polar product and is not this kit. It does not include the zip or GitHub Issues. It does not grant self-host production rights or rights to operate a competing hosted service. It is not a coupon, a cold invoice, or coupons.
 
-The $199 self-host kit Polar listing is **LIVE** under PolyForm Noncommercial 1.0.0 + the BurnBrake commercial grant. CoS/www sell it. coupons, coupons, and cold invoices stay off. This description is not a Polar price change and does not add a checkout URL to README or zip-shipped docs.
+The $199 self-host kit Polar listing is **LIVE** under PolyForm Noncommercial 1.0.0 + the BurnBrake commercial grant. Polar listing LIVE; www Paid catalog demoted 2026-09-30 — quiet product-page checkout. coupons, coupons, and cold invoices stay off. This description is not a Polar price change and does not add a checkout URL to README or zip-shipped docs.
 
 SHA-256 of `burnbrake-0.1.1.zip`: `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`
 
@@ -103,7 +103,7 @@ The digest must match the line above and `checksums/burnbrake-0.1.1.sha256`. Rel
 | Seller | **Suthirth solutions** |
 | Coupons / cold invoices | **none** |
 | Hosted | **$59/mo** recurring. **LIVE.** Product `70b1a029-944f-4999-ae39-d39c041ae3e9`. No zip, no GitHub benefit, no self-host production rights. Not the $199 kit. |
-| $199 listing | **LIVE** (PolyForm + BurnBrake commercial grant). CoS/www sell it. No $199 checkout URL in this file. |
+| $199 listing | **LIVE** (PolyForm + BurnBrake commercial grant). Polar listing LIVE; www Paid catalog demoted 2026-09-30 — quiet product-page checkout. No $199 checkout URL in this file. |
 
 ---
 
@@ -111,7 +111,7 @@ The digest must match the line above and `checksums/burnbrake-0.1.1.sha256`. Rel
 
 Founder GO via Chief of Staff. No Polar price change from this docs PR.
 
-- [x] Self-host one-org kit **$199 once** Polar listing is **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant). CoS/www sell it. coupons, coupons, and cold invoices stay off. No $199 checkout URL in this file. Do not copy any checkout into `README.md` or any file that ships in the zip. The 14-day refund stays on the $199 kit only.
+- [x] Self-host one-org kit **$199 once** Polar listing is **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant). Polar listing LIVE; www Paid catalog demoted 2026-09-30 — quiet product-page checkout. coupons, coupons, and cold invoices stay off. No $199 checkout URL in this file. Do not copy any checkout into `README.md` or any file that ships in the zip. The 14-day refund stays on the $199 kit only.
 - Prices stay **$199 once** and hosted **$59/mo**. This PR does not change them.
 - [x] Hosted **$59/mo** recurring remains **LIVE** (CoS, 2026-09-27). Product `70b1a029-944f-4999-ae39-d39c041ae3e9`. Checkout: https://buy.polar.sh/polar_cl_A2dCr3WcvuTv5lLvNlp8AaC9kziCr8apYfunr0f60ci. Admin: https://polar.sh/dashboard/suthirth-solutions/products/70b1a029-944f-4999-ae39-d39c041ae3e9. No zip and no GitHub benefit. It does not grant self-host production rights. Do not fold it into the $199 SKU. Do not add coupons. Do not send cold invoices. Do not copy the hosted checkout URL into `README.md` or any file that ships in the zip. This repository does not operate Polar.
 - Do not move, rewrite, or reseal git tag `v0.1.0`. Do not replace `checksums/burnbrake-0.1.0.sha256` (`585347975892f29d2e0056fd062eee8520c41d15a152c37e2ce31477ba915cf8`). v0.1.0 stays MIT historically (grandfathered).
@@ -285,7 +285,7 @@ HTTP **402** / `BUDGET_EXHAUSTED` / halt / **not retryable**. Not 429.
 
 One already-forwarded call may still overshoot. There is no claim that BurnBrake will outrun OpenAI forever.
 
-This release is the kit. It is not a Polar checkout. The $199 kit Polar listing is LIVE under the PolyForm fence (CoS/www sell it).
+This release is the kit. It is not a Polar checkout. The $199 kit Polar listing is LIVE under the PolyForm fence (Polar listing LIVE; www Paid catalog demoted 2026-09-30 — quiet product-page checkout).
 EOF
 )"
 ```
@@ -309,7 +309,7 @@ Release `v0.1.1` already exists. Do not upload a replacement zip from a docs-onl
 - [x] No Autumn smuggle. No checkout URL in the README or the zip
 - [x] Copyright is PolyForm Noncommercial 1.0.0 plus the BurnBrake commercial grant. Source-available: true. OSI open source: false.
 - [x] Hosted Polar product **LIVE** — **$59/mo** recurring, product `70b1a029-944f-4999-ae39-d39c041ae3e9`. No zip benefit. Checkout URL stays in this file only.
-- [x] $199 kit Polar listing **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). No Polar price change. No $199 checkout URL in README or zip-shipped docs.
+- [x] $199 kit Polar listing **LIVE** (PolyForm + BurnBrake commercial grant; Polar listing LIVE; www Paid catalog demoted 2026-09-30 — quiet product-page checkout). No Polar price change. No $199 checkout URL in README or zip-shipped docs.
 - [x] Tag `v0.1.1` pushed. Release exists with `burnbrake-0.1.1.zip` SHA-256 `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`.
 
 ---
@@ -319,7 +319,7 @@ Release `v0.1.1` already exists. Do not upload a replacement zip from a docs-onl
 - coupons / coupons / cold invoices **forbidden**
 - Cap + kill only. No credits, entitlements, or invoice-overage on the spend path
 - Kit commerce is not in-path OpenAI metering
-- Do not claim the **$199 kit** Polar listing is archived, on hold, or not live. It is **LIVE** under PolyForm + the BurnBrake commercial grant (CoS/www sell it). The hosted **$59/mo** product remains a separate live SKU. Its checkout URL stays in this file only. Do not put a checkout URL in README or zip-shipped docs. Do not change Polar prices from this PR.
+- Do not claim the **$199 kit** Polar listing is archived, on hold, or not live. It is **LIVE** under PolyForm + the BurnBrake commercial grant (Polar listing LIVE; www Paid catalog demoted 2026-09-30 — quiet product-page checkout). The hosted **$59/mo** product remains a separate live SKU. Its checkout URL stays in this file only. Do not put a checkout URL in README or zip-shipped docs. Do not change Polar prices from this PR.
 - Do not call this OSI open source
 - Do not change the exhaust contract to seal this kit
 - Do not reseal `v0.1.0` or rewrite `checksums/burnbrake-0.1.0.*`

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fleet quiet-sell (2026-09-30)
+
+- www Paid catalog demoted FAIL kits (incl. BurnBrake). Polar listing stays LIVE; Soft-WTP off. Product-page checkout quiet. No price change. No OSS relicense.
+
 - One-shot allowance (#23): operator grant API and `burnbrake allowance grant`. One reserve up to `grant_micros`, then the hard 402 halt. The grant cannot change exhaust.
 - Anthropic-shaped `POST /v1/messages` (#24) uses the same reserve, forward, settle, and 402 halt. Prices live in `prices/anthropic.yaml`.
 - Replay bodies (#25): `BURNBRAKE_IDEMPOTENCY_BODY_TTL_MS` may be shorter than 24h and cannot be longer. `BURNBRAKE_REPLAY_KEY` encrypts new bodies at rest. Idempotency keys stay terminal.
