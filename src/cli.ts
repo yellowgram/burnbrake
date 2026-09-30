@@ -99,7 +99,8 @@ async function serve(argv: string[], io: Io): Promise<number> {
   io.log(`BurnBrake listening on http://${sidecar.host}:${sidecar.port}`);
   io.log("Auth required (X-BurnBrake-Key or Bearer bb_…). Provider key stays on the upstream hop only.");
   io.log("Point OPENAI_BASE_URL at this sidecar. BurnBrake only governs traffic that hits it.");
-  io.log("402 BUDGET_EXHAUSTED means halt. Do not treat it as a rate limit.");
+  io.log("A second client is outside this process. Health deploy.stops_all_spend is false.");
+  io.log("402 BUDGET_EXHAUSTED means halt (retryable false). Do not treat it as a rate limit.");
   if (warning) io.log(`warning: ${warning}`);
   if (sidecar.config.mockUpstream) io.log("mock upstream: on");
   io.log(

@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { brakeFromEnv, type BrakeConfig } from "./brake.js";
 import { DEFAULT_HOST, DEFAULT_MAX_TOKENS, DEFAULT_PORT, RESERVATION_TTL_MS, STALE_PRICE_DAYS } from "./constants.js";
+import { productionMode } from "./deploy.js";
 import type { DefaultCaps } from "./ledger.js";
 import { usdToMicros } from "./money.js";
 
@@ -22,6 +23,8 @@ export interface AppConfig {
   caps: DefaultCaps;
   /** Curve only. `enabled: false` keeps the pre-curve halt path. Not a halt-off switch. */
   brake: BrakeConfig;
+  /** NODE_ENV=production or BURNBRAKE_PRODUCTION=1. Requires a user and/or day cap. */
+  production: boolean;
   failClosed: true;
 }
 
@@ -31,9 +34,7 @@ export function defaultPriceTablePath(): string {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env, options: { requireKey?: boolean } = {}): AppConfig {
   const requireKey = options.requireKey !== false;
-  if (flagOn(env.BURNBRAKE_FAIL_OPEN) || flagOn(env.BURNBRAKE_SOFT_ALLOW) || flagOn(env.BURNBRAKE_SOFT_ALLOW_OVERAGE)) {
-    throw new Error("Refusing to start: fail-open and soft-allow are not supported. BurnBrake fails closed.");
-  }
+  assertExhaustFrozen(env);
   const host = (env.BURNBRAKE_HOST ?? DEFAULT_HOST).trim() || DEFAULT_HOST;
   const allowPublicBind = flagOn(env.BURNBRAKE_ALLOW_PUBLIC_BIND);
   assertBind(host, allowPublicBind);
@@ -93,8 +94,32 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, options: { requ
       day: readCap(env, "DAY"),
     },
     brake: brakeFromEnv(env),
+    production: productionMode(env),
     failClosed: true,
   };
+}
+
+function assertExhaustFrozen(env: NodeJS.ProcessEnv): void {
+  if (flagOn(env.BURNBRAKE_FAIL_OPEN) || flagOn(env.BURNBRAKE_SOFT_ALLOW) || flagOn(env.BURNBRAKE_SOFT_ALLOW_OVERAGE)) {
+    throw new Error("Refusing to start: fail-open and soft-allow are not supported. BurnBrake fails closed.");
+  }
+  if (flagOn(env.BURNBRAKE_SOFT_HALT) || flagOn(env.BURNBRAKE_RETRYABLE_EXHAUST)) {
+    throw new Error(
+      "Refusing to start: exhaust is frozen as HTTP 402 BUDGET_EXHAUSTED with halt true and retryable false.",
+    );
+  }
+  const haltMode = (env.BURNBRAKE_HALT_MODE ?? "").trim().toLowerCase();
+  if (haltMode && haltMode !== "hard") {
+    throw new Error("Refusing to start: rejected config key halt_mode. Exhaust stays a hard halt.");
+  }
+  const exhaustRetry = (env.BURNBRAKE_EXHAUST_RETRYABLE ?? "").trim().toLowerCase();
+  if (exhaustRetry && !["0", "false", "no", "off"].includes(exhaustRetry)) {
+    throw new Error("Refusing to start: rejected config key exhaust.retryable. Exhaust retryable is frozen false.");
+  }
+  const exhaustHttp = (env.BURNBRAKE_EXHAUST_HTTP ?? "").trim();
+  if (exhaustHttp && exhaustHttp !== "402") {
+    throw new Error("Refusing to start: rejected config key exhaust.http. Exhaust HTTP status is frozen at 402.");
+  }
 }
 
 export function isLoopbackHost(host: string): boolean {

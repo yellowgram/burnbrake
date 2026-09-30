@@ -182,13 +182,16 @@ function forbiddenKey(full: string, key: string, path: string): string | null {
 }
 
 function assertNoForbiddenBrakeEnv(env: NodeJS.ProcessEnv): void {
-  if (nonEmpty(env.BURNBRAKE_HALT_MODE)) {
+  const halt = (env.BURNBRAKE_HALT_MODE ?? "").trim().toLowerCase();
+  if (halt && halt !== "hard") {
     throw new BrakeConfigError("rejected config key halt_mode");
   }
-  if (nonEmpty(env.BURNBRAKE_EXHAUST_RETRYABLE)) {
+  const retry = (env.BURNBRAKE_EXHAUST_RETRYABLE ?? "").trim().toLowerCase();
+  if (retry && !["0", "false", "no", "off"].includes(retry)) {
     throw new BrakeConfigError("rejected config key exhaust.retryable");
   }
-  if (nonEmpty(env.BURNBRAKE_EXHAUST_HTTP)) {
+  const http = (env.BURNBRAKE_EXHAUST_HTTP ?? "").trim();
+  if (http && http !== "402") {
     throw new BrakeConfigError("rejected config key exhaust.http");
   }
 }

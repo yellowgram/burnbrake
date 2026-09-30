@@ -81,13 +81,21 @@ The sealed offline smoke is [Quick start](#quick-start).
 
 ## Dual-client bypass
 
-BurnBrake cannot see a process that never calls it. After every agent deploy, check:
+Deploy invariant: BurnBrake governs only calls that reach this sidecar. It does not govern a second client. `GET /health` reports `deploy.stops_all_spend: false` and `deploy.dual_client.detected_here: false`. Startup logs the same limit. A health check is not evidence that every agent uses the sidecar.
+
+After every agent deploy, check:
 
 - `OPENAI_BASE_URL` (or the SDK `baseURL`) points at this sidecar
 - requests carry `X-BurnBrake-Key` or `Bearer bb_…`
 - the tree has no raw `api.openai.com` client left beside the gated one
 
 If spend continues through a client that never hits the sidecar, the caps did not fail. The call never entered the gate.
+
+## Production scopes
+
+`NODE_ENV=production` or `BURNBRAKE_PRODUCTION=1` refuses to start unless a **user** cap and/or a **day** cap is set. Run-alone is washable by rotating `x-burnbrake-run-id` and is not a production fence. Outside production the process still starts, and health `deploy.scopes` plus the CLI warning say when the fence is run-only. A user cap without a day cap still warns: those headers are caller-chosen. The OpenAI `user` field is not a budget id.
+
+If production is already up and the user and day caps are later removed, the next reserve returns **503** `PRODUCTION_SCOPE_REQUIRED` and does not forward.
 
 ## Decision table
 
@@ -105,6 +113,7 @@ HTTP **402** is the halt family. Budget, pause, and unpriced share that status a
 | Bad request or body too large | **400** / **413** | `BAD_REQUEST` / `BODY_TOO_LARGE` | No | Includes disagreeing `Idempotency-Key` and `x-burnbrake-request-id`. No forward. |
 | Ledger unavailable before forward | **503** | `LEDGER_UNAVAILABLE` | No | Halt. Fix the ledger file. There is no fail-open mode. No upstream call. |
 | No caps configured | **503** | `NO_BUDGET_CONFIGURED` | No | Halt. Set a user, run, or day cap. |
+| Production without user or day | **503** | `PRODUCTION_SCOPE_REQUIRED` | No | Halt. Set a user and/or day cap. Run-alone is refused. No forward. |
 | Upstream not configured | **503** | `UPSTREAM_NOT_CONFIGURED` | No | Set `OPENAI_API_KEY`, or `BURNBRAKE_MOCK_UPSTREAM=1`. No forward. |
 | Operator HTTP with no operator key | **403** | `OPERATOR_KEY_REQUIRED` | No | Set `BURNBRAKE_OPERATOR_KEY`. This is not a spend-path code. |
 | In-flight duplicate | **409** | `REQUEST_IN_FLIGHT` | Do not start a second forward | Wait. Reuse the same idempotency key. |
@@ -221,7 +230,7 @@ try {
 - npm package: `npm ci` / `npm run build` / `node dist/cli.js serve` (Node 22.13+). The zip already includes `dist/`.
 - optional Docker: the image listens on `127.0.0.1` unless you opt in. `docker compose up --build` publishes **only** `127.0.0.1:8787` and sets `BURNBRAKE_HOST=0.0.0.0` plus `BURNBRAKE_ALLOW_PUBLIC_BIND=1` inside the container so Docker can reach that process. Compose loads `config.example.env` as its env file. Edit that file. A copied `.env` is not read. The placeholder keys in the example are public and are only appropriate on that localhost publish. Do not `docker run -p 8787:8787` and do not publish `0.0.0.0` without an ACL.
 
-Hosted multi-tenant ledger service is a separate optional SKU (**$59/mo**). It is not in this kit, and it does not grant self-host production rights or rights to run a competing hosted service. The buyer of the $199 kit keeps the zip. See [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md) and [docs/COMMERCIAL_GRANT.md](docs/COMMERCIAL_GRANT.md). coupons, coupons, and cold invoices are not part of this kit. Refund on the **$199** one-org kit is **14 days**. Support is **60-day Issues**, no SLA: hello@yellowgram.dev. Legal seller: Suthirth Solutions, operating as yellowgram.
+Hosted monthly service is a **separate product**, not this kit. This repository is a single-tenant SQLite process. It has no multi-tenant hosted runtime. Buying or running the kit does not grant self-host production rights beyond the commercial grant, and it does not grant rights to run a competing hosted service. The hosted SKU price stays on the commercial lock; this file does not change it and has no checkout URL. Tenancy notes: [docs/HOSTED_VS_KIT.md](docs/HOSTED_VS_KIT.md). See [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md) and [docs/COMMERCIAL_GRANT.md](docs/COMMERCIAL_GRANT.md). Coupons and cold invoices are not part of this kit. Refund on the **$199** one-org kit is **14 days**. Support is **60-day Issues**, no SLA: hello@yellowgram.dev. Legal seller: Suthirth Solutions, operating as yellowgram.
 
 ## Tests
 
@@ -238,8 +247,8 @@ Pull requests and pushes to `main` run `npm ci`, `npm run typecheck`, `npm test`
 - The idempotency table stores upstream response bodies so a short retry can replay them. Bodies are removed after **24 hours**; the key stays terminal and is not reserved again. The SQLite file is mode `0600` and is still a secret. Decision rows do not store prompts.
 - A day cap set only on one UTC date (`--key` / `key` for that date) does not roll to the next day. Set the default day cap (omit the key) if you want the fence to continue.
 - Skewed clocks across writers that do not share this ledger can split the UTC day bucket.
-- A client that ignores the sidecar is not stopped.
-- Per-run caps alone, or a user cap without a day cap, can be washed by rotating `x-burnbrake-run-id` / `x-burnbrake-user-id`. The OpenAI `user` field does not do that; it is not a budget id.
+- A client that ignores the sidecar is outside this process. Health reports that directly (`deploy.stops_all_spend` is false). There is no claim that every provider call is gated.
+- Per-run caps alone, or a user cap without a day cap, can be washed by rotating `x-burnbrake-run-id` / `x-burnbrake-user-id`. Production (`NODE_ENV=production` or `BURNBRAKE_PRODUCTION=1`) refuses to start on run-alone. The OpenAI `user` field does not do that; it is not a budget id.
 - Filesystem access to the ledger is full operator control. The CLI has no key of its own.
 - `X-BurnBrake-Key` comparison returns early when the lengths differ, so a local observer can learn the secret's length. It does not reveal the secret. Process logs print error messages only. They do not print the BurnBrake key, the operator key, or the provider key. Do not put a secret in an idempotency key; that key is stored in the ledger.
 - A TTL or crash debit records `debt_delta_micros` as 0 on the decision row. Balances still show debt when spent plus held exceeds the cap, and the next reserve still denies. Force-release is the only path that drops a hold after `FORWARDED`, and it requires the operator key plus `attest_no_charge`. A false attestation is operator misuse.
