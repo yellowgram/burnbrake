@@ -34,6 +34,8 @@ const HELP = `BurnBrake — request-path spend governor (cap + kill)
   burnbrake top-runs [--window 1h|24h]
   burnbrake reservations [--state FORWARDED] [--run id]
   burnbrake estimate-error
+  burnbrake allowance grant --scope user|run|day --key id --micros N --reason "..."
+  burnbrake allowance list [--scope user|run|day] [--key id]
 
 The CLI reads the SQLite ledger directly (BURNBRAKE_LEDGER_PATH or --ledger).
 Filesystem access to that file is operator control. Protect the file.
@@ -47,6 +49,7 @@ on length. Do not rotate by pasting the provider key.
 brake.enabled defaults to false and is not a halt-off switch. A set applies on
 the next reserve. An in-flight FORWARDED call is not delayed or rewritten.
 At the cap the response is still HTTP 402 halt, not 429.
+allowance grant is one extra reserve up to grant_micros. It does not change exhaust.
 `;
 
 export async function execute(argv: string[], io: Io = defaultIo()): Promise<number> {
@@ -72,6 +75,7 @@ export async function execute(argv: string[], io: Io = defaultIo()): Promise<num
     if (command === "top-runs") return topRuns(args, io);
     if (command === "reservations") return reservations(args, io);
     if (command === "estimate-error") return estimateError(args, io);
+    if (command === "allowance") return allowance(args, io);
     io.error(`Unknown command: ${command}\n${HELP}`);
     return 1;
   } catch (err) {
@@ -375,6 +379,57 @@ function topRuns(argv: string[], io: Io): number {
   const { ledger } = openLedger(values.ledger, io.env);
   try {
     io.log(JSON.stringify({ window: values.window === "1h" ? "1h" : "24h", runs: ledger.topRuns(windowMs) }, null, 2));
+    return 0;
+  } finally {
+    ledger.close();
+  }
+}
+
+function allowance(argv: string[], io: Io): number {
+  const sub = argv[0];
+  const rest = argv.slice(1);
+  if (sub === "list") {
+    const { values } = parseArgs({
+      args: rest,
+      options: {
+        scope: { type: "string" },
+        key: { type: "string" },
+        ledger: { type: "string" },
+      },
+      strict: true,
+    });
+    const { ledger } = openLedger(values.ledger, io.env);
+    try {
+      io.log(JSON.stringify({ allowances: ledger.listAllowances({ scope: values.scope, key: values.key }) }, null, 2));
+      return 0;
+    } finally {
+      ledger.close();
+    }
+  }
+  if (sub !== "grant") throw new Error("allowance requires grant or list");
+  const { values } = parseArgs({
+    args: rest,
+    options: {
+      scope: { type: "string" },
+      key: { type: "string" },
+      micros: { type: "string" },
+      reason: { type: "string" },
+      ledger: { type: "string" },
+    },
+    strict: true,
+  });
+  if (values.scope !== "user" && values.scope !== "run" && values.scope !== "day") {
+    throw new Error("--scope must be user, run, or day");
+  }
+  if (!values.micros || !values.reason) throw new Error("--micros and --reason are required");
+  const grant = Number(values.micros);
+  if (!Number.isSafeInteger(grant) || grant < 1) throw new Error("--micros must be an integer >= 1");
+  const { ledger } = openLedger(values.ledger, io.env);
+  try {
+    const key = values.scope === "day" && !values.key ? ledger.utcDay() : values.key;
+    if (!key) throw new Error("--key is required");
+    const row = ledger.grantAllowance(values.scope, key, grant, values.reason);
+    io.log(JSON.stringify({ ok: true, allowance: row, exhaust_unchanged: true }));
     return 0;
   } finally {
     ledger.close();

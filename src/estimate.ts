@@ -23,7 +23,7 @@ export interface EstimateFailure {
 
 export type EstimateResult = EstimateSuccess | EstimateFailure;
 
-export type GovernedRoute = "/v1/chat/completions" | "/v1/completions";
+export type GovernedRoute = "/v1/chat/completions" | "/v1/completions" | "/v1/messages";
 
 /** Mandatory floors. A price-table value below these is raised. Fail closed; never lowered. */
 export const VISION_INPUT_TOKEN_FLOOR = 1600;
@@ -40,6 +40,9 @@ export function estimateRequest(
   try {
     if (route === "/v1/chat/completions") {
       return estimateChat(body, table, defaultMaxTokens);
+    }
+    if (route === "/v1/messages") {
+      return estimateMessages(body, table, defaultMaxTokens);
     }
     return estimateCompletion(body, table, defaultMaxTokens);
   } catch (err) {
@@ -154,6 +157,89 @@ function estimateCompletion(
     model,
     forwardBody: ceiling.forwardBody,
   };
+}
+
+function estimateMessages(
+  body: Record<string, unknown>,
+  table: PriceTable,
+  defaultMaxTokens: number,
+): EstimateSuccess {
+  const model = requireModel(body);
+  const price = requirePrice(table, model);
+  if (!Array.isArray(body.messages) || body.messages.length === 0) {
+    fail("BAD_REQUEST", "messages require a non-empty messages array.");
+  }
+  const acc = { text: "", images: 0, tools: hasTools(body) };
+  collectSystem(body.system, acc, table);
+  for (const message of body.messages) {
+    if (!message || typeof message !== "object" || Array.isArray(message)) {
+      fail("BAD_REQUEST", "each message must be an object.");
+    }
+    walkAnthropicContent((message as Record<string, unknown>).content, acc, table);
+  }
+  const ceiling = outputCeiling(body, defaultMaxTokens);
+  const choices = choiceCount(body);
+  const inputTokens = textTokens(acc.text) + body.messages.length * 4 + acc.images * visionInputTokens(table);
+  const outputTokens = scaleOutputTokens(ceiling.maxTokens, toolsExtraOutput(table, acc.tools), choices);
+  const flatMicros = acc.images * visionFlatMicros(table) + toolsFlatMicros(table, acc.tools);
+  const micros = atLeastOne(
+    tokensToMicros(inputTokens, price.inputMicrosPerMillion) +
+      tokensToMicros(outputTokens, price.outputMicrosPerMillion) +
+      flatMicros,
+    price,
+  );
+  return {
+    ok: true,
+    micros,
+    maxTokens: ceiling.maxTokens,
+    maxTokensSource: ceiling.source,
+    inputTokens,
+    outputTokens,
+    flatMicros,
+    model,
+    forwardBody: ceiling.forwardBody,
+  };
+}
+
+function collectSystem(
+  system: unknown,
+  acc: { text: string; images: number; tools: boolean },
+  table: PriceTable,
+): void {
+  if (system == null) return;
+  if (typeof system === "string") {
+    acc.text += system;
+    return;
+  }
+  walkAnthropicContent(system, acc, table);
+}
+
+function walkAnthropicContent(
+  content: unknown,
+  acc: { text: string; images: number; tools: boolean },
+  table: PriceTable,
+): void {
+  if (content == null) return;
+  if (typeof content === "string") {
+    acc.text += content;
+    return;
+  }
+  if (!Array.isArray(content)) {
+    fail("UNKNOWN_SURCHARGE", "message content shape is not priced.");
+  }
+  for (const part of content) {
+    if (!part || typeof part !== "object" || Array.isArray(part)) {
+      fail("UNKNOWN_SURCHARGE", "message content part is not priced.");
+    }
+    const row = part as Record<string, unknown>;
+    const type = typeof row.type === "string" ? row.type : "";
+    if (!type || !table.surcharges.knownContentTypes.has(type)) {
+      fail("UNKNOWN_SURCHARGE", `content type "${type || "unknown"}" is not in the price table; refusing the request.`);
+    }
+    if (type === "text" && typeof row.text === "string") acc.text += row.text;
+    if (type === "image") acc.images += 1;
+    if (type === "tool_use" || type === "tool_result") acc.tools = true;
+  }
 }
 
 function collectPrompt(prompt: unknown, acc: { text: string; images: number }): void {

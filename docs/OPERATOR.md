@@ -34,6 +34,15 @@ burnbrake estimate-error
 
 `GET /v1/operator/estimate-error` (operator key) counts forwarded decisions where settle and reserve both exist. `under_reserve` is settle above reserve. That does not open the next call. Vision and tool reserves use mandatory floors (1600 input tokens and 5000 micros per image; 512 extra output tokens and 10000 micros when tools are present). A lower number in the price table is raised. It is not lowered.
 
+## One-shot allowance
+
+```bash
+burnbrake allowance grant --scope run --key run-1 --micros 100000 --reason "ticket 9"
+burnbrake allowance list --scope run --key run-1
+```
+
+One reserve that would have halted on that scope can proceed if the estimate is within `grant_micros`. The grant is consumed. The next reserve is HTTP 402 `BUDGET_EXHAUSTED` with `halt: true` and `retryable: false` unless another grant is open. This is not a halt-off switch. HTTP `POST /v1/operator/allowances` is the same grant and rejects a body that tries to set `retryable` or `halt`.
+
 Retention is yours. The ledger file is the log. Delete or archive the SQLite file on your own schedule.
 
 ## Kill and caps

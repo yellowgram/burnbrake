@@ -142,8 +142,17 @@ Governed (estimated, reserved, then forwarded or rejected):
 
 - `POST /v1/chat/completions`
 - `POST /v1/completions`
+- `POST /v1/messages` (Anthropic-shaped). Same reserve, forward, settle, and 402 halt. Priced from `prices/anthropic.yaml`. Live forwarding uses `ANTHROPIC_API_KEY` and `BURNBRAKE_ANTHROPIC_BASE_URL` (default `https://api.anthropic.com`). The mock upstream answers this route offline.
 
-Any other `/v1/*` route returns `ROUTE_NOT_GOVERNED` and is **not** proxied.
+Any other `/v1/*` route returns `ROUTE_NOT_GOVERNED` and is **not** proxied. `POST /v1/burnbrake/heartbeat` is not a spend route.
+
+## One-shot allowance
+
+Operator only: `POST /v1/operator/allowances` or `burnbrake allowance grant`. Body is `scope`, `key`, `grant_micros`, and `reason`. The next reserve that would have been `BUDGET_EXHAUSTED` on that scope may proceed once if the estimate is within the grant. The grant is then consumed. Spend still counts, so the following call is the hard 402 halt again. The grant cannot set `retryable`, change the HTTP status, or turn the halt off.
+
+## Heartbeat
+
+`POST /v1/burnbrake/heartbeat` with the spend key returns `stops_all_spend: false`. A success proves that this call reached the sidecar. It does not prove there is no second client. The SDK method is `heartbeat()`. It does not call the provider.
 
 ## Configure caps
 
@@ -245,7 +254,7 @@ Pull requests and pushes to `main` run `npm ci`, `npm run typecheck`, `npm test`
 ## Known limits
 
 - One in-flight call can settle above the reserve, or a crash can debit the estimate. The next call is gated. Tool and vision ceilings are flat allowances, so that one call can still overshoot. Debt gates the next call. This is not a promise of zero overspend. There is no claim that BurnBrake will outrun OpenAI forever.
-- The idempotency table stores upstream response bodies so a short retry can replay them. Bodies are removed after **24 hours**; the key stays terminal and is not reserved again. The SQLite file is mode `0600` and is still a secret. Decision rows do not store prompts.
+- The idempotency table stores upstream response bodies so a short retry can replay them. Bodies are removed after **24 hours** by default (`BURNBRAKE_IDEMPOTENCY_BODY_TTL_MS`, minimum 1 second, never longer than 24 hours). The key stays terminal and is not reserved again. `BURNBRAKE_REPLAY_KEY` encrypts new bodies at rest (AES-256-GCM). Without that key, bodies stay plaintext in the SQLite file. The file is mode `0600` and is still a secret. Decision rows do not store prompts.
 - A day cap set only on one UTC date (`--key` / `key` for that date) does not roll to the next day. Set the default day cap (omit the key) if you want the fence to continue.
 - Skewed clocks across writers that do not share this ledger can split the UTC day bucket. More than one writer requires one shared store and one process clock. `BURNBRAKE_WRITER_LEASE=1` is an advisory single-writer lease on that file. It is not a multi-pod ledger. The CLI on the file remains operator control and does not take the lease.
 - A client that ignores the sidecar is outside this process. Health reports that directly (`deploy.stops_all_spend` is false). There is no claim that every provider call is gated.

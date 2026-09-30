@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- One-shot allowance (#23): operator grant API and `burnbrake allowance grant`. One reserve up to `grant_micros`, then the hard 402 halt. The grant cannot change exhaust.
+- Anthropic-shaped `POST /v1/messages` (#24) uses the same reserve, forward, settle, and 402 halt. Prices live in `prices/anthropic.yaml`.
+- Replay bodies (#25): `BURNBRAKE_IDEMPOTENCY_BODY_TTL_MS` may be shorter than 24h and cannot be longer. `BURNBRAKE_REPLAY_KEY` encrypts new bodies at rest. Idempotency keys stay terminal.
+- Heartbeat (#26): `POST /v1/burnbrake/heartbeat` and SDK `heartbeat()` prove only that this call reached the sidecar. `stops_all_spend` is false.
 - Estimate floors (#19): vision and tool reserves cannot fall below 1600 input tokens and 5000 micros per image, or 512 extra output tokens and 10000 micros when tools are present. `GET /v1/operator/estimate-error` and `burnbrake estimate-error` report settle-versus-reserve error. A miss does not open the next call.
 - Auth (#20): key compare hashes both sides so length mismatch does not return early. `BURNBRAKE_KEY_PREVIOUS` and `BURNBRAKE_OPERATOR_KEY_PREVIOUS` are accepted during rotation.
 - Day clock (#21): health states the process clock and that multi-writer needs one shared store. `BURNBRAKE_WRITER_LEASE=1` is an advisory single-writer lease, not a multi-pod ledger. See `docs/SINGLE_STORE.md`.

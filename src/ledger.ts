@@ -27,6 +27,10 @@ export interface LedgerOptions {
   productionDurableScope?: boolean;
   /** Advisory single-writer lease. Does not make multi-pod safe. */
   writerLease?: { holder: string; ttlMs: number };
+  /** Replay body retention. Default is 24h. Shorter is allowed; longer is not. */
+  replayBodyTtlMs?: number;
+  replaySeal?: (plain: string) => string;
+  replayOpen?: (stored: string) => string | null;
 }
 
 export interface ReserveInput {
@@ -82,7 +86,19 @@ export type BrakePreview =
 
 type PreparedReserve =
   | { outcome: "done"; result: ReserveResult }
-  | { outcome: "ready"; dayKey: string; accounts: AccountRow[] };
+  | { outcome: "ready"; dayKey: string; accounts: AccountRow[]; allowanceIds: string[] };
+
+export interface AllowanceRow {
+  id: string;
+  scope: ScopeName;
+  scope_key: string;
+  grant_micros: number;
+  reason: string;
+  state: string;
+  reservation_id: string | null;
+  created_at: number;
+  consumed_at: number | null;
+}
 
 export interface DecisionInput {
   userId: string | null;
@@ -235,6 +251,17 @@ CREATE TABLE IF NOT EXISTS controls (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (kind, ctrl_key)
 );
+CREATE TABLE IF NOT EXISTS allowances (
+  id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL,
+  scope_key TEXT NOT NULL,
+  grant_micros INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  state TEXT NOT NULL,
+  reservation_id TEXT,
+  created_at INTEGER NOT NULL,
+  consumed_at INTEGER
+);
 CREATE TABLE IF NOT EXISTS force_release_audit (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   reservation_id TEXT NOT NULL,
@@ -267,6 +294,9 @@ export class Ledger {
   private readonly productionDurableScope: boolean;
   private leaseHolder: string | null = null;
   private leaseTtlMs = 0;
+  private readonly replayBodyTtlMs: number;
+  private readonly replaySeal: ((plain: string) => string) | null;
+  private readonly replayOpen: ((stored: string) => string | null) | null;
   private nowFn: () => number;
 
   constructor(path: string, opts: LedgerOptions = {}) {
@@ -279,6 +309,10 @@ export class Ledger {
     this.db.exec("PRAGMA foreign_keys = ON");
     this.db.exec(SCHEMA);
     this.ttlMs = opts.reservationTtlMs ?? RESERVATION_TTL_MS;
+    const requestedTtl = opts.replayBodyTtlMs ?? IDEMPOTENCY_BODY_TTL_MS;
+    this.replayBodyTtlMs = Math.min(requestedTtl, IDEMPOTENCY_BODY_TTL_MS);
+    this.replaySeal = opts.replaySeal ?? null;
+    this.replayOpen = opts.replayOpen ?? null;
     this.productionDurableScope = opts.productionDurableScope === true;
     this.nowFn = opts.now ?? (() => Date.now());
     if (!this.isWritable()) {
@@ -416,6 +450,39 @@ export class Ledger {
     this.db
       .prepare("INSERT INTO meta(k, v) VALUES ('brake_json', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v")
       .run(JSON.stringify(validated));
+  }
+
+  grantAllowance(scope: ScopeName, scopeKey: string, grantMicros: number, reason: string): AllowanceRow {
+    assertMicros(grantMicros, "grant");
+    if (grantMicros < 1) throw new Error("grant must cover at least 1 micro");
+    if (!scopeKey.trim()) throw new Error("allowance scope key is required");
+    const cleanReason = reason.trim();
+    if (!cleanReason) throw new Error("allowance reason is required");
+    const id = randomUUID();
+    const now = this.now();
+    this.db
+      .prepare(
+        `INSERT INTO allowances(id, scope, scope_key, grant_micros, reason, state, reservation_id, created_at, consumed_at)
+         VALUES (?, ?, ?, ?, ?, 'open', NULL, ?, NULL)`,
+      )
+      .run(id, scope, scopeKey, grantMicros, cleanReason, now);
+    return this.mustAllowance(id);
+  }
+
+  listAllowances(filter: { scope?: string; key?: string; limit?: number } = {}): AllowanceRow[] {
+    const where: string[] = [];
+    const args: Array<string | number> = [];
+    if (filter.scope) {
+      where.push("scope = ?");
+      args.push(filter.scope);
+    }
+    if (filter.key) {
+      where.push("scope_key = ?");
+      args.push(filter.key);
+    }
+    const sql = `SELECT * FROM allowances ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY created_at DESC LIMIT ?`;
+    args.push(filter.limit ?? 50);
+    return this.db.prepare(sql).all(...args) as unknown as AllowanceRow[];
   }
 
   setCap(scope: ScopeName, scopeKey: string, micros: number): void {
@@ -829,7 +896,7 @@ export class Ledger {
   }
 
   completeIdempotency(key: string, httpStatus: number, body: string): void {
-    const stored = body.length > 1_500_000 ? "" : body;
+    const stored = body.length > 1_500_000 ? "" : this.sealStored(body);
     const status = body.length > 1_500_000 ? 0 : httpStatus;
     this.db
       .prepare(
@@ -848,7 +915,7 @@ export class Ledger {
     httpStatus: number;
     body: string;
   }): void {
-    const body = input.body.length > 1_500_000 ? null : input.body;
+    const body = input.body.length > 1_500_000 ? null : this.sealStored(input.body);
     this.tx(() => {
       const existing = this.idempotencyRow(input.key);
       if (!existing) {
@@ -886,7 +953,7 @@ export class Ledger {
   private reserveUnlocked(input: ReserveInput): ReserveResult {
     const prepared = this.prepareReserve(input);
     if (prepared.outcome === "done") return prepared.result;
-    return this.commitReserve(input, prepared.dayKey, prepared.accounts);
+    return this.commitReserve(input, prepared.dayKey, prepared.accounts, prepared.allowanceIds);
   }
 
   private prepareReserve(input: ReserveInput): PreparedReserve {
@@ -907,7 +974,12 @@ export class Ledger {
           }));
         }
         if (existing.http_status && existing.response_body) {
-          return done({ kind: "replay", httpStatus: existing.http_status, body: existing.response_body });
+          if (existing.updated_at <= this.now() - this.replayBodyTtlMs) {
+            return done(this.sealTerminalReplay(existing.idem_key, input));
+          }
+          const opened = this.openStored(existing.response_body);
+          if (opened == null) return done(this.sealTerminalReplay(existing.idem_key, input));
+          return done({ kind: "replay", httpStatus: existing.http_status, body: opened });
         }
         const reservation = existing.reservation_id ? this.getReservation(existing.reservation_id) : undefined;
         const open = reservation?.state === "RESERVED" || reservation?.state === "FORWARDED";
@@ -1036,9 +1108,13 @@ export class Ledger {
       accounts.push(row);
     }
 
+    const allowanceIds: string[] = [];
+    const reservedAllowances = new Set<string>();
     for (const row of accounts) {
       const remaining = row.cap_micros - row.spent_micros - row.held_micros;
-      if (remaining < input.estimateMicros) {
+      if (remaining >= input.estimateMicros) continue;
+      const allowanceId = this.openAllowanceId(row.scope, row.scope_key, input.estimateMicros, reservedAllowances);
+      if (!allowanceId) {
         return done(denyResult({
           code: "BUDGET_EXHAUSTED",
           httpStatus: 402,
@@ -1050,12 +1126,19 @@ export class Ledger {
           message: `Budget exhausted for scope ${row.scope}. Halt this spend loop. This is not a rate limit.`,
         }));
       }
+      reservedAllowances.add(allowanceId);
+      allowanceIds.push(allowanceId);
     }
 
-    return { outcome: "ready", dayKey, accounts };
+    return { outcome: "ready", dayKey, accounts, allowanceIds };
   }
 
-  private commitReserve(input: ReserveInput, dayKey: string, accounts: AccountRow[]): ReserveResult {
+  private commitReserve(
+    input: ReserveInput,
+    dayKey: string,
+    accounts: AccountRow[],
+    allowanceIds: string[],
+  ): ReserveResult {
     const id = randomUUID();
     const now = this.now();
     const scopeNames = accounts.map((a) => a.scope).join(",");
@@ -1086,6 +1169,18 @@ export class Ledger {
       this.db
         .prepare("UPDATE scope_accounts SET held_micros = held_micros + ? WHERE scope = ? AND scope_key = ?")
         .run(input.estimateMicros, row.scope, row.scope_key);
+    }
+    for (const allowanceId of allowanceIds) {
+      const updated = this.db
+        .prepare(
+          `UPDATE allowances
+           SET state = 'consumed', reservation_id = ?, consumed_at = ?
+           WHERE id = ? AND state = 'open'`,
+        )
+        .run(id, now, allowanceId);
+      if (updated.changes !== 1) {
+        throw new Error("allowance was already consumed");
+      }
     }
     if (input.idempotencyKey) {
       this.db
@@ -1154,7 +1249,7 @@ export class Ledger {
         debited += 1;
       }
     }
-    const bodyCutoff = this.now() - IDEMPOTENCY_BODY_TTL_MS;
+    const bodyCutoff = this.now() - this.replayBodyTtlMs;
     this.db
       .prepare(
         `UPDATE idempotency
@@ -1269,6 +1364,7 @@ export class Ledger {
     state: string;
     http_status: number | null;
     response_body: string | null;
+    updated_at: number;
   } | null {
     return (
       (this.db.prepare("SELECT * FROM idempotency WHERE idem_key = ?").get(key) as
@@ -1280,9 +1376,41 @@ export class Ledger {
             state: string;
             http_status: number | null;
             response_body: string | null;
+            updated_at: number;
           }
         | undefined) ?? null
     );
+  }
+
+  private openAllowanceId(scope: string, scopeKey: string, estimateMicros: number, skip: Set<string>): string | null {
+    const rows = this.db
+      .prepare(
+        `SELECT id FROM allowances
+         WHERE state = 'open' AND scope = ? AND scope_key = ? AND grant_micros >= ?
+         ORDER BY created_at`,
+      )
+      .all(scope, scopeKey, estimateMicros) as unknown as Array<{ id: string }>;
+    for (const row of rows) {
+      if (!skip.has(row.id)) return row.id;
+    }
+    return null;
+  }
+
+  private mustAllowance(id: string): AllowanceRow {
+    const row = this.db.prepare("SELECT * FROM allowances WHERE id = ?").get(id) as unknown as AllowanceRow | undefined;
+    if (!row) throw new Error(`unknown allowance ${id}`);
+    return row;
+  }
+
+  private sealStored(plain: string): string {
+    if (!plain) return plain;
+    if (!this.replaySeal) return plain;
+    return this.replaySeal(plain);
+  }
+
+  private openStored(stored: string): string | null {
+    if (!this.replayOpen) return stored;
+    return this.replayOpen(stored);
   }
 
   private readWriterLease(): WriterLeaseRow | null {
