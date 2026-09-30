@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fleet quiet-sell (2026-09-30)
+
+- www Paid catalog demoted FAIL kits (incl. BurnBrake). Polar listing stays LIVE. Product-page checkout quiet. No price change. No OSS relicense.
+
 - One-shot allowance (#23): operator grant API and `burnbrake allowance grant`. One reserve up to `grant_micros`, then the hard 402 halt. The grant cannot change exhaust.
 - Anthropic-shaped `POST /v1/messages` (#24) uses the same reserve, forward, settle, and 402 halt. Prices live in `prices/anthropic.yaml`.
 - Replay bodies (#25): `BURNBRAKE_IDEMPOTENCY_BODY_TTL_MS` may be shorter than 24h and cannot be longer. `BURNBRAKE_REPLAY_KEY` encrypts new bodies at rest. Idempotency keys stay terminal.
@@ -23,7 +27,7 @@ License fence only. Not a feature release. Exhaust stays HTTP 402 `BUDGET_EXHAUS
 
 - Copyright is source-available commercial. `LICENSE` is the PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`) plus the BurnBrake commercial grant (`docs/COMMERCIAL_GRANT.md`). OSI open source: false.
 - The $199 once kit is that grant, the kit zip, and 60-day Issues (no SLA), for one organization and the named tag, perpetual for that tag. Legal seller: Suthirth Solutions, operating as yellowgram. Contact: hello@yellowgram.dev. Refund: 14 days on the $199 kit only.
-- Hosted $59/mo stays a separate live optional SKU. It does not grant self-host production rights. The $199 self-host kit Polar listing is **LIVE** under this fence (PolyForm + BurnBrake commercial grant; CoS/www sell it). Soft-WTP, coupons, and cold invoices stay off.
+- Hosted $59/mo stays a separate live optional SKU. It does not grant self-host production rights. The $199 self-host kit Polar listing is **LIVE** under this fence (PolyForm + BurnBrake commercial grant; CoS/www sell it). Coupons and cold invoices stay off.
 - Kit archive for this fence: `burnbrake-0.1.1.zip`. SHA-256 is `checksums/burnbrake-0.1.1.sha256` in git. The digest is not copied into this file. Release `v0.1.1` is on GitHub with that zip (SHA-256 `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`).
 - Tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay as the historical kit. They are not resealed. Health `version` for this kit is `0.1.1`.
 
@@ -32,7 +36,7 @@ License fence only. Not a feature release. Exhaust stays HTTP 402 `BUDGET_EXHAUS
 Self-host MVP sidecar. Cap + kill on the request path.
 
 - Brake curve (BB_BRAKE_CURVE_1): optional pre-cap delay in the sidecar. Exhaust stays HTTP 402 `BUDGET_EXHAUSTED`, halt, not retryable, never 429. `brake.enabled` defaults to false. One-shot allowance is not in this change.
-- Self-host kit archive `burnbrake-0.1.0.zip` (tag `v0.1.0`): built `dist/`, price table, demo script, operator and support docs. SHA-256 is `checksums/burnbrake-0.1.0.sha256` in git and on the GitHub Release. The digest is not copied into this file. That tag is grandfathered MIT and is not resealed. Soft-WTP is off.
+- Self-host kit archive `burnbrake-0.1.0.zip` (tag `v0.1.0`): built `dist/`, price table, demo script, operator and support docs. SHA-256 is `checksums/burnbrake-0.1.0.sha256` in git and on the GitHub Release. The digest is not copied into this file. That tag is grandfathered MIT and is not resealed.
 - OpenAI-shaped routes: `POST /v1/chat/completions`, `POST /v1/completions`
 - SQLite ledger: estimate → reserve → forward or reject → settle
 - HTTP 402 `BUDGET_EXHAUSTED` (halt). Never 429 for budget exhaust
@@ -48,4 +52,4 @@ Self-host MVP sidecar. Cap + kill on the request path.
 - Decision table lists the non-402 codes, including 400 `IDENTITY_REQUIRED` and 502 `LEDGER_UNAVAILABLE` after forward. Compose reads `config.example.env`. The 60s demo ignores ambient fail-open, price-table, and TTL settings
 - Offline mock-upstream demo
 
-Legal seller: Suthirth Solutions, operating as yellowgram. Primary SKU: $199 once (one organization). Refund: 14 days. Support: 60-day Issues, no SLA. Hosted $59/mo is optional and not in the zip. Soft-WTP is off.
+Legal seller: Suthirth Solutions, operating as yellowgram. Primary SKU: $199 once (one organization). Refund: 14 days. Support: 60-day Issues, no SLA. Hosted $59/mo is optional and not in the zip.

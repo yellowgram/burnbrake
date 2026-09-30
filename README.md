@@ -4,7 +4,7 @@ Request-path spend governor for agent loops. The sidecar estimates a completion,
 
 One already-forwarded call may still overshoot. Debt gates the next call. This is not a promise of zero spend on a call that already left the process.
 
-Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. First cash SKU: self-host **one-org kit $199 once** (seller **Suthirth solutions**). The software is source-available commercial. [LICENSE](LICENSE) is the PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`). OSI open source: false. Commercial production use of the self-host kit requires the [BurnBrake commercial grant](docs/COMMERCIAL_GRANT.md): one organization, the named tag, perpetual for that tag. The $199 purchase is that grant, this packaged kit, and 60-day Issues (no SLA). Hosted **$59/mo** is a separate optional SKU. It does not grant self-host production rights. Current kit archive: `burnbrake-0.1.1.zip`. Release **v0.1.1** is on GitHub (`burnbrake-0.1.1.zip`, SHA-256 `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`, matches `checksums/burnbrake-0.1.1.sha256`). Tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay as the historical kit and are not resealed. The $199 self-host kit Polar listing is **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant; CoS/www sell it). Hosted **$59/mo** remains a separate live optional SKU and does not grant self-host production rights. This file has no checkout URL. Pricing lock: [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md).
+Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. First cash SKU: self-host **one-org kit $199 once** (seller **Suthirth solutions**). The software is source-available commercial. [LICENSE](LICENSE) is the PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`). OSI open source: false. Commercial production use of the self-host kit requires the [BurnBrake commercial grant](docs/COMMERCIAL_GRANT.md): one organization, the named tag, perpetual for that tag. The $199 purchase is that grant, this packaged kit, and 60-day Issues (no SLA). Hosted **$59/mo** is a separate optional SKU. It does not grant self-host production rights. Current kit archive: `burnbrake-0.1.1.zip`. Release **v0.1.1** is on GitHub (`burnbrake-0.1.1.zip`, SHA-256 `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`, matches `checksums/burnbrake-0.1.1.sha256`). Tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay as the historical kit and are not resealed. The $199 self-host kit Polar listing is **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant; Polar listing LIVE; www Paid catalog demoted 2026-09-30 — quiet checkout on product page). Hosted **$59/mo** remains a separate live optional SKU and does not grant self-host production rights. This file has no checkout URL. Pricing lock: [docs/COMMERCIAL_LOCK.md](docs/COMMERCIAL_LOCK.md).
 
 Contact: hello@yellowgram.dev
 
@@ -33,41 +33,41 @@ BurnBrake only governs traffic that hits the sidecar. A second client pointed at
 
 1. Install and start on localhost (auth required):
 
-   ```bash
-   npm ci
-   npm run build
-   export BURNBRAKE_KEY=bb_replace_me
-   export BURNBRAKE_CAP_USER_USD=10
-   export BURNBRAKE_CAP_RUN_USD=1
-   export BURNBRAKE_CAP_DAY_USD=5
-   export BURNBRAKE_MOCK_UPSTREAM=1
-   node --disable-warning=ExperimentalWarning dist/cli.js serve
-   ```
+ ```bash
+ npm ci
+ npm run build
+ export BURNBRAKE_KEY=bb_replace_me
+ export BURNBRAKE_CAP_USER_USD=10
+ export BURNBRAKE_CAP_RUN_USD=1
+ export BURNBRAKE_CAP_DAY_USD=5
+ export BURNBRAKE_MOCK_UPSTREAM=1
+ node --disable-warning=ExperimentalWarning dist/cli.js serve
+ ```
 
-   Default listen is `127.0.0.1:8787`. `burnbrake serve` reads the process environment. It does not load `.env`. Docker Compose reads `config.example.env` directly; a copied `.env` does not override that file. Set **user and/or day** as well as run. A per-run cap alone is washable by minting new run ids. Operator HTTP (`/v1/operator/*`) needs a different `BURNBRAKE_OPERATOR_KEY`. The spend key cannot change caps.
+ Default listen is `127.0.0.1:8787`. `burnbrake serve` reads the process environment. It does not load `.env`. Docker Compose reads `config.example.env` directly; a copied `.env` does not override that file. Set **user and/or day** as well as run. A per-run cap alone is washable by minting new run ids. Operator HTTP (`/v1/operator/*`) needs a different `BURNBRAKE_OPERATOR_KEY`. The spend key cannot change caps.
 
-   A git checkout has no `dist/`, so `npm run build` is required. The v0.1.1 zip already contains `dist/`. `npm ci` is still required: the `yaml` dependency is not in the archive. `npm run demo` needs the TypeScript runner from devDependencies, so do not pass `--omit=dev`. From the zip: `unzip burnbrake-0.1.1.zip && cd burnbrake-0.1.1` and then the same commands. The archive root directory is `burnbrake-0.1.1/`.
+ A git checkout has no `dist/`, so `npm run build` is required. The v0.1.1 zip already contains `dist/`. `npm ci` is still required: the `yaml` dependency is not in the archive. `npm run demo` needs the TypeScript runner from devDependencies, so do not pass `--omit=dev`. From the zip: `unzip burnbrake-0.1.1.zip && cd burnbrake-0.1.1` and then the same commands. The archive root directory is `burnbrake-0.1.1/`.
 
-   The exports above turn on user, run, and day. A completion must send both identity headers or the sidecar returns **400** `IDENTITY_REQUIRED` and does not forward. The OpenAI `user` field is not a budget id.
+ The exports above turn on user, run, and day. A completion must send both identity headers or the sidecar returns **400** `IDENTITY_REQUIRED` and does not forward. The OpenAI `user` field is not a budget id.
 
-   ```bash
-   curl -sS http://127.0.0.1:8787/v1/chat/completions \
-     -H "content-type: application/json" \
-     -H "X-BurnBrake-Key: $BURNBRAKE_KEY" \
-     -H "x-burnbrake-user-id: alice" \
-     -H "x-burnbrake-run-id: run-1" \
-     -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}],"max_tokens":16}'
-   ```
+ ```bash
+ curl -sS http://127.0.0.1:8787/v1/chat/completions \
+ -H "content-type: application/json" \
+ -H "X-BurnBrake-Key: $BURNBRAKE_KEY" \
+ -H "x-burnbrake-user-id: alice" \
+ -H "x-burnbrake-run-id: run-1" \
+ -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}],"max_tokens":16}'
+ ```
 
 2. Send `X-BurnBrake-Key` (or `Authorization: Bearer bb_…`). Never put the provider API key in that header, and never send the BurnBrake key upstream. `OPENAI_API_KEY` is used only on the sidecar → provider hop.
 
 3. Point the OpenAI client at the sidecar:
 
-   ```bash
-   export OPENAI_BASE_URL=http://127.0.0.1:8787/v1
-   ```
+ ```bash
+ export OPENAI_BASE_URL=http://127.0.0.1:8787/v1
+ ```
 
-   SDK users set `baseURL` to `http://127.0.0.1:8787` (no `/v1`; the client appends the route).
+ SDK users set `baseURL` to `http://127.0.0.1:8787` (no `/v1`; the client appends the route).
 
 4. Confirm the app has no second, ungated provider client.
 
@@ -214,21 +214,21 @@ Runbook: [docs/OPERATOR.md](docs/OPERATOR.md). Design pack: [docs/](docs/).
 import { BurnBrake, BudgetExhausted } from "burnbrake";
 
 const bb = new BurnBrake({
-  baseURL: "http://127.0.0.1:8787",
-  apiKey: process.env.BURNBRAKE_KEY!,
+ baseURL: "http://127.0.0.1:8787",
+ apiKey: process.env.BURNBRAKE_KEY!,
 });
 
 try {
-  await bb.chat.completions.create(
-    { model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }], max_tokens: 256 },
-    { idempotencyKey: "step-1", userId: "alice", runId: "run-1" },
-  );
+ await bb.chat.completions.create(
+ { model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }], max_tokens: 256 },
+ { idempotencyKey: "step-1", userId: "alice", runId: "run-1" },
+ );
 } catch (err) {
-  if (err instanceof BudgetExhausted) {
-    // Halt. Do not retry. Do not open a second base URL.
-    throw err;
-  }
-  throw err;
+ if (err instanceof BudgetExhausted) {
+ // Halt. Do not retry. Do not open a second base URL.
+ throw err;
+ }
+ throw err;
 }
 ```
 
@@ -262,7 +262,7 @@ Pull requests and pushes to `main` run `npm ci`, `npm run typecheck`, `npm test`
 - Filesystem access to the ledger is full operator control. The CLI has no key of its own.
 - `X-BurnBrake-Key` is compared without an early return on length. During rotation, set `BURNBRAKE_KEY_PREVIOUS` (and `BURNBRAKE_OPERATOR_KEY_PREVIOUS` for operator HTTP) to the outgoing secret, restart with the new `BURNBRAKE_KEY`, then drop the previous key on a later restart. Process logs print error messages only. They do not print the BurnBrake key, the operator key, or the provider key. Do not put a secret in an idempotency key; that key is stored in the ledger.
 - A TTL or crash debit records `debt_delta_micros` as 0 on the decision row. Balances still show debt when spent plus held exceeds the cap, and the next reserve still denies. Force-release is the only path that drops a hold after `FORWARDED`, and it requires the operator key plus `attest_no_charge`. A false attestation is operator misuse.
-- The $199 self-host kit Polar listing is **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). There is no checkout URL in this file. Hosted **$59/mo** stays a separate live optional SKU and is not this kit.
+- The $199 self-host kit Polar listing is **LIVE** (PolyForm + BurnBrake commercial grant; Polar listing LIVE; www Paid catalog demoted 2026-09-30 — quiet checkout on product page). There is no checkout URL in this file. Hosted **$59/mo** stays a separate live optional SKU and is not this kit.
 
 Design record and LaunchGate freezes stay in the git repository (not in the buyer zip): [docs/LAUNCHGATE_DR4_VERDICT.md](docs/LAUNCHGATE_DR4_VERDICT.md). CR*/DR* attack logs stay in git as well.
 
@@ -272,7 +272,7 @@ Design record and LaunchGate freezes stay in the git repository (not in the buye
 
 **Paid delta:** PolyForm Noncommercial 1.0.0 alone does not grant commercial production use. A paid purchase is the [BurnBrake commercial grant](docs/COMMERCIAL_GRANT.md) for one organization and the named tag. Legal seller: Suthirth Solutions, operating as yellowgram.
 
-Buy: [www.yellowgram.dev/burnbrake](https://www.yellowgram.dev/burnbrake) or hello@yellowgram.dev. This page is not a Checkout link. Security reports: [SECURITY.md](SECURITY.md).
+Product page (Paid catalog demoted 2026-09-30; Polar kit+hosted checkouts stay quiet): [www.yellowgram.dev/burnbrake](https://www.yellowgram.dev/burnbrake) or hello@yellowgram.dev. This page is not a Checkout link. Security reports: [SECURITY.md](SECURITY.md).
 
 
 Status: [docs/STATUS.md](docs/STATUS.md).
