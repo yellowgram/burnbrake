@@ -33,41 +33,41 @@ BurnBrake only governs traffic that hits the sidecar. A second client pointed at
 
 1. Install and start on localhost (auth required):
 
-   ```bash
-   npm ci
-   npm run build
-   export BURNBRAKE_KEY=bb_replace_me
-   export BURNBRAKE_CAP_USER_USD=10
-   export BURNBRAKE_CAP_RUN_USD=1
-   export BURNBRAKE_CAP_DAY_USD=5
-   export BURNBRAKE_MOCK_UPSTREAM=1
-   node --disable-warning=ExperimentalWarning dist/cli.js serve
-   ```
+ ```bash
+ npm ci
+ npm run build
+ export BURNBRAKE_KEY=bb_replace_me
+ export BURNBRAKE_CAP_USER_USD=10
+ export BURNBRAKE_CAP_RUN_USD=1
+ export BURNBRAKE_CAP_DAY_USD=5
+ export BURNBRAKE_MOCK_UPSTREAM=1
+ node --disable-warning=ExperimentalWarning dist/cli.js serve
+ ```
 
-   Default listen is `127.0.0.1:8787`. `burnbrake serve` reads the process environment. It does not load `.env`. Docker Compose reads `config.example.env` directly; a copied `.env` does not override that file. Set **user and/or day** as well as run. A per-run cap alone is washable by minting new run ids. Operator HTTP (`/v1/operator/*`) needs a different `BURNBRAKE_OPERATOR_KEY`. The spend key cannot change caps.
+ Default listen is `127.0.0.1:8787`. `burnbrake serve` reads the process environment. It does not load `.env`. Docker Compose reads `config.example.env` directly; a copied `.env` does not override that file. Set **user and/or day** as well as run. A per-run cap alone is washable by minting new run ids. Operator HTTP (`/v1/operator/*`) needs a different `BURNBRAKE_OPERATOR_KEY`. The spend key cannot change caps.
 
-   A git checkout has no `dist/`, so `npm run build` is required. The v0.1.1 zip already contains `dist/`. `npm ci` is still required: the `yaml` dependency is not in the archive. `npm run demo` needs the TypeScript runner from devDependencies, so do not pass `--omit=dev`. From the zip: `unzip burnbrake-0.1.1.zip && cd burnbrake-0.1.1` and then the same commands. The archive root directory is `burnbrake-0.1.1/`.
+ A git checkout has no `dist/`, so `npm run build` is required. The v0.1.1 zip already contains `dist/`. `npm ci` is still required: the `yaml` dependency is not in the archive. `npm run demo` needs the TypeScript runner from devDependencies, so do not pass `--omit=dev`. From the zip: `unzip burnbrake-0.1.1.zip && cd burnbrake-0.1.1` and then the same commands. The archive root directory is `burnbrake-0.1.1/`.
 
-   The exports above turn on user, run, and day. A completion must send both identity headers or the sidecar returns **400** `IDENTITY_REQUIRED` and does not forward. The OpenAI `user` field is not a budget id.
+ The exports above turn on user, run, and day. A completion must send both identity headers or the sidecar returns **400** `IDENTITY_REQUIRED` and does not forward. The OpenAI `user` field is not a budget id.
 
-   ```bash
-   curl -sS http://127.0.0.1:8787/v1/chat/completions \
-     -H "content-type: application/json" \
-     -H "X-BurnBrake-Key: $BURNBRAKE_KEY" \
-     -H "x-burnbrake-user-id: alice" \
-     -H "x-burnbrake-run-id: run-1" \
-     -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}],"max_tokens":16}'
-   ```
+ ```bash
+ curl -sS http://127.0.0.1:8787/v1/chat/completions \
+ -H "content-type: application/json" \
+ -H "X-BurnBrake-Key: $BURNBRAKE_KEY" \
+ -H "x-burnbrake-user-id: alice" \
+ -H "x-burnbrake-run-id: run-1" \
+ -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}],"max_tokens":16}'
+ ```
 
 2. Send `X-BurnBrake-Key` (or `Authorization: Bearer bb_…`). Never put the provider API key in that header, and never send the BurnBrake key upstream. `OPENAI_API_KEY` is used only on the sidecar → provider hop.
 
 3. Point the OpenAI client at the sidecar:
 
-   ```bash
-   export OPENAI_BASE_URL=http://127.0.0.1:8787/v1
-   ```
+ ```bash
+ export OPENAI_BASE_URL=http://127.0.0.1:8787/v1
+ ```
 
-   SDK users set `baseURL` to `http://127.0.0.1:8787` (no `/v1`; the client appends the route).
+ SDK users set `baseURL` to `http://127.0.0.1:8787` (no `/v1`; the client appends the route).
 
 4. Confirm the app has no second, ungated provider client.
 
@@ -214,21 +214,21 @@ Runbook: [docs/OPERATOR.md](docs/OPERATOR.md). Design pack: [docs/](docs/).
 import { BurnBrake, BudgetExhausted } from "burnbrake";
 
 const bb = new BurnBrake({
-  baseURL: "http://127.0.0.1:8787",
-  apiKey: process.env.BURNBRAKE_KEY!,
+ baseURL: "http://127.0.0.1:8787",
+ apiKey: process.env.BURNBRAKE_KEY!,
 });
 
 try {
-  await bb.chat.completions.create(
-    { model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }], max_tokens: 256 },
-    { idempotencyKey: "step-1", userId: "alice", runId: "run-1" },
-  );
+ await bb.chat.completions.create(
+ { model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }], max_tokens: 256 },
+ { idempotencyKey: "step-1", userId: "alice", runId: "run-1" },
+ );
 } catch (err) {
-  if (err instanceof BudgetExhausted) {
-    // Halt. Do not retry. Do not open a second base URL.
-    throw err;
-  }
-  throw err;
+ if (err instanceof BudgetExhausted) {
+ // Halt. Do not retry. Do not open a second base URL.
+ throw err;
+ }
+ throw err;
 }
 ```
 
@@ -272,7 +272,7 @@ Design record and LaunchGate freezes stay in the git repository (not in the buye
 
 **Paid delta:** PolyForm Noncommercial 1.0.0 alone does not grant commercial production use. A paid purchase is the [BurnBrake commercial grant](docs/COMMERCIAL_GRANT.md) for one organization and the named tag. Legal seller: Suthirth Solutions, operating as yellowgram.
 
-Product page (Paid catalog demoted 2026-09-30; Polar kit+hosted checkouts stay quiet): [www.yellowgram.dev/burnbrake](https://www.yellowgram.dev/burnbrake) or hello@yellowgram.dev. This page is not a Checkout link. Soft-WTP off. Security reports: [SECURITY.md](SECURITY.md).
+Product page (Paid catalog demoted 2026-09-30; Polar kit+hosted checkouts stay quiet): [www.yellowgram.dev/burnbrake](https://www.yellowgram.dev/burnbrake) or hello@yellowgram.dev. This page is not a Checkout link. Security reports: [SECURITY.md](SECURITY.md).
 
 
 Status: [docs/STATUS.md](docs/STATUS.md).
