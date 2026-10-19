@@ -1,10 +1,10 @@
 # BurnBrake — Design amendment: brake curve (BB_BRAKE_CURVE_1)
 
 **Packet:** CoS design amendment · `schema_version: 1` · `packet_type: design_amendment`  
-**Depends on:** [`MVP_SCOPE.md`](./MVP_SCOPE.md), [`LAUNCHGATE_DR4_VERDICT.md`](./LAUNCHGATE_DR4_VERDICT.md)  
+**Depends on:** the MVP scope and 4th DR verdict (in git history)  
 **Date:** 2026-09-27 ET  
 **Status:** Implemented on this PR (curve only). Exhaust contract bytes are unchanged. Founder PQ1–PQ3 stay locked (2026-09-26 ET): `brake.enabled` default `false`, `black_delay_ms` default `0`, one-shot allowance later.  
-**Soft-WTP:** OFF · **Polar:** this curve ships inside the current kit (`burnbrake-0.1.1.zip`). The $199 self-host kit Polar listing is **LIVE** (PolyForm + Suthirth Commercial Grant; CoS/www sell it). This file has no checkout URL. Soft-WTP stays off. The curve first shipped in the historical v0.1.0 kit, which stays MIT and is not resealed.
+**Shipped:** the curve first shipped in v0.1.0 and is included in later releases.
 
 This is **approach policy only**. It does **not** reopen exhaust.
 
@@ -21,8 +21,7 @@ This is **approach policy only**. It does **not** reopen exhaust.
 | Retry-After on exhaust | **forbidden** |
 | 429 on exhaust | **forbidden** |
 | In-flight `FORWARDED` | never rewritten by a policy change |
-| Dual client | buyer-owned |
-| Soft-WTP | off |
+| Dual client | operator-owned |
 
 There is **no** `exhaust.retryable` flag. If a change request shrinks this amendment into “make halt configurable,” **REJECT** it. `brake.enabled` is **not** a halt-off switch.
 
@@ -169,11 +168,10 @@ Extra **allowed**:
 ## Do not
 
 - Treat `brake.enabled` as a halt-off switch
-- Ship founding hosted with `enabled: true` unless PQ1 is an **explicit** yes
+- Ship a hosted default with `enabled: true` unless PQ1 is an **explicit** yes
 - Add `Retry-After` on 402
 - Delay above `max_delay_ms`
 - Reopen exhaust from this packet. The curve PR implements the delay only; halt bytes stay as specified above
-- Light the Polar listing from this amendment. The current kit zip includes the curve. The historical v0.1.0 zip is not resealed. This file does not publish Polar.
 
 ---
 
@@ -183,6 +181,6 @@ Extra **allowed**:
 | --- | --- |
 | `approve_design_direction` (packet) | `true` — freeze still holds |
 | `approve_implement_now` | **this PR** — curve only; exhaust bytes unchanged |
-| Next | Curve is in the v0.1.1 kit. Founder PQ1–PQ3 stay locked. Soft-WTP off. The $199 kit Polar listing is LIVE. |
+| Next | Curve is shipped. Founder PQ1–PQ3 stay locked. |
 
-*Amendment id: `BB_BRAKE_CURVE_1`. First shipped in v0.1.0. Included in the v0.1.1 kit. Exhaust contract bytes unchanged.*
+*Amendment id: `BB_BRAKE_CURVE_1`. First shipped in v0.1.0. Exhaust contract bytes unchanged.*

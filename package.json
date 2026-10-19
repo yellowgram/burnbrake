@@ -1,9 +1,21 @@
 {
   "name": "burnbrake",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Request-path spend governor for agent loops. Cap + kill only.",
   "type": "module",
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "MIT",
+  "author": {
+    "name": "yellowgram",
+    "url": "https://www.yellowgram.dev"
+  },
+  "homepage": "https://www.yellowgram.dev/oss",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yellowgram/burnbrake.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yellowgram/burnbrake/issues"
+  },
   "engines": {
     "node": ">=22.13"
   },
@@ -33,7 +45,6 @@
     "dev": "node --disable-warning=ExperimentalWarning --import tsx src/cli.ts serve",
     "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/*.test.ts",
     "demo": "node --disable-warning=ExperimentalWarning --import tsx scripts/demo-60s.ts",
-    "pack": "bash scripts/pack-release.sh",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

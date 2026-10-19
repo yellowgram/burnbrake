@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-10-19)
+
+- Relicensed to MIT; no longer sold. `LICENSE` is the MIT License (Copyright (c) 2026 yellowgram). The commercial grant, Polar listing docs, pricing, refund and support-window docs, the release pack script, and internal review logs were removed from the tree (they remain in git history). Releases before 0.2.0 were published under the previous license.
+- package.json: `license` MIT, adds `repository`, `homepage`, `bugs`, `author` for npm.
+
+## Earlier unreleased notes
 
 ### Fleet quiet-sell (2026-09-30)
 

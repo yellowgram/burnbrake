@@ -1,9 +1,8 @@
 # BurnBrake — Operator Needs (pre-call spend gate, safely)
 
 **Product:** BurnBrake — request-path spend governor  
-**Audience:** founding-customer operator (founder-CTO or the eng who owns the provider key)  
-**Date:** 2026-09-26 ET — Design Pass 3 absorbed ([`DR3_ATTACKS.md`](./DR3_ATTACKS.md); DR×3 complete)  
-**Polar:** the $199 self-host kit listing is **LIVE** (PolyForm + BurnBrake commercial grant; CoS/www sell it). No checkout URL here. Soft-WTP is off. Hosted **$59/mo** remains a separate live optional SKU and does not grant self-host production rights. ([`POLAR_DELIVERABLES.md`](./POLAR_DELIVERABLES.md) is in the git repository, not the buyer zip.)  
+**Audience:** operator (founder-CTO or the eng who owns the provider key)  
+**Date:** 2026-09-26 ET — Design Pass 3 absorbed (review logs in git history)  
 
 Operators must answer four questions without pinging yellowgram: **What’s left? What was denied? Can I stop a runaway run now? Did we accidentally call the provider after a reject?**
 
@@ -40,7 +39,7 @@ Any scope at zero **or** outstanding debt that blocks cover → next reserve **f
 
 ### Must do
 - Export a window for one `run_id` / `user_id` (JSON/CSV) for postmortems.  
-- Retention policy documented (buyer-owned self-host).
+- Retention policy documented (operator-owned self-host).
 
 ### Must not
 - Turn the log into a full product-analytics suite.  
@@ -126,9 +125,8 @@ Operator surface: `burnbrake brake show|set` and `/v1/operator/brake` (operator 
 - Building Autumn-style plans or Stigg packaging / credit portals.  
 - Customer entitlement portals.  
 - Replacing OpenAI’s org billing dashboard.  
-- Soft-WTP collection workflows.  
 - “Please fail open so my demo doesn’t break.” → refuse; fix ledger or raise caps.  
 - “Guarantee zero overspend including in-flight calls.” → refuse; explain next-call gate + debt.  
 - “Stop the other client that never hits the sidecar.” → refuse; dual-client checklist.
 
-*Last updated: 2026-09-27 ET — operator surface is in the v0.1.1 kit. Copyright is source-available commercial (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant). OSI open source: false. The $199 kit Polar listing is LIVE. Soft-WTP off. Exhaust unchanged.*
+*Last updated: 2026-10-19 ET — MIT licensed. Exhaust unchanged.*

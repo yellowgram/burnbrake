@@ -151,7 +151,6 @@ function buyerFiles(): string[] {
     "docs/START_HERE.md",
     "docs/OPERATOR.md",
     "docs/SUPPORT.md",
-    "docs/MINIMUM_SUPPORT.md",
     "docs/DEPLOY_INVARIANTS.md",
     "docs/EXHAUST_CONTRACT.md",
     "docs/HOSTED_VS_KIT.md",
