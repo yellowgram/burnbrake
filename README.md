@@ -6,7 +6,7 @@ Request-path spend governor for agent loops. The sidecar estimates a completion,
 
 One already-forwarded call may still overshoot. Debt gates the next call. This is not a promise of zero spend on a call that already left the process.
 
-Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. MIT licensed ([LICENSE](LICENSE)). Releases before 0.2.0 (tags `v0.1.0`, `v0.1.1` and their zips) were published under the previous license; 0.2.0 and later are MIT. BurnBrake is no longer sold.
+Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. MIT licensed ([LICENSE](LICENSE)). Releases before 0.2.0 (tag `v0.1.1` and its zip) were published under the previous license; 0.2.0 and later are MIT. BurnBrake is no longer sold.
 
 Contact: hello@yellowgram.dev
 
@@ -244,7 +244,7 @@ try {
 
 This repository is a single-tenant SQLite process. It has no multi-tenant hosted runtime. Tenancy notes: [docs/HOSTED_VS_KIT.md](docs/HOSTED_VS_KIT.md).
 
-Older releases: tags `v0.1.0` and `v0.1.1` (with `checksums/`) are kept as historical artifacts and were published under the previous license.
+Older releases: tag `v0.1.1` and the `checksums/` manifests for 0.1.0 and 0.1.1 are kept as historical artifacts and were published under the previous license.
 
 ## Tests
 
