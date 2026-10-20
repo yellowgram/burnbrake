@@ -41,6 +41,18 @@ const B36 = DIGITS + LOWER;
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 const K8S = "bcdfghjklmnpqrstvwxz2456789";
 const PUNCT = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+/** The 100 commonest letter pairs inside cl100k/o200k vocabulary words (as in src/estimate.ts). */
+const COMMON_PAIRS = "erinenreonteestianatntstarlealorngraeddericoseliitiometaisroneeliclachvendastrmatoetgensdiienacesipecauracprecllunilheadloamrsolemomounipaeactsshaosrtmiiancuspoiddautthimtsbeciaiviigsairmohoulagabsofi".match(/../g)!;
+/** A pseudo-word that only steps along common letter pairs (looks word-like to the pair rule). */
+const pairWalk = (r: Rng, n: number) => {
+  let s = pick(r, COMMON_PAIRS);
+  while (s.length < n) {
+    const next = COMMON_PAIRS.filter((b) => b[0] === s[s.length - 1]);
+    if (!next.length) break;
+    s += pick(r, next)[1];
+  }
+  return s;
+};
 
 export const WORDS = (
   "the of and to in is it for on with as was at by an be this that from or have not are but " +
@@ -189,4 +201,15 @@ export const LETTER_SHAPES: Record<string, (r: Rng) => string> = {
     while (s.length < n) s += flip && r() < 0.5 ? unit.toUpperCase() === unit ? unit.toLowerCase() : unit.toUpperCase() : unit;
     return s.slice(0, n);
   }, pick(r, ["", " ", "\n"])),
+  // A unit of 7-16 letters (random, or a walk over common letter pairs) repeated 2-40 times.
+  letters_repeated_long: (r) => {
+    const unit = r() < 0.5 ? chars(r, pick(r, [LOWER, UPPER, LOWER + UPPER]), int(r, 7, 16)) : pairWalk(r, int(r, 7, 16));
+    return list(r, 1, 2, () => unit.repeat(int(r, 2, 40)), pick(r, ["", " ", "\n"]));
+  },
+  // Short runs of one letter (4-5) broken by another letter ("lllllx" repeated).
+  letters_short_runs: (r) => {
+    const unit = chars(r, pick(r, [LOWER, UPPER]), 1).repeat(int(r, 4, 5)) + chars(r, LOWER, 1);
+    return list(r, 1, 3, () => unit.repeat(int(r, 2, 60)), pick(r, ["", " ", "\n"]));
+  },
 };
+

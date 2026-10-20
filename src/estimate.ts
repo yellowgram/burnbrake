@@ -547,18 +547,19 @@ const BIGRAMS_RANKED = "erinenreonteestianatntstarlealorngraeddericoseliitiometa
 const RANK = new Map(BIGRAMS_RANKED.match(/../g)!.map((b, i) => [b, i] as const));
 
 /**
- * Marks the letters of `s` that sit in a run repeating a unit of 1-6 letters, ignoring case
- * ("llll", "abab", "ssnSSN"), at least 6 letters and two whole units long. Greedy, linear.
+ * Marks the letters of `s` that sit in a run repeating a unit of 1-16 letters, ignoring case
+ * ("llll", "abab", "ssnSSN", "emrmirpemrmirp"): at least two whole units long, and at least 6
+ * letters (4 for a single repeated letter). Greedy; linear in the length.
  */
 function repeatedRuns(s: string): Uint8Array {
   const t = s.toLowerCase();
   const mark = new Uint8Array(t.length);
   for (let i = 0; i < t.length; ) {
     let end = i;
-    for (let n = 1; n <= 6 && i + 2 * n <= t.length; n++) {
+    for (let n = 1; n <= 16 && i + 2 * n <= t.length; n++) {
       let j = i + n;
       while (j < t.length && t[j] === t[j - n]) j++;
-      if (j - i >= Math.max(6, 3 * n) && j > end) end = j;
+      if (j - i >= (n === 1 ? 4 : Math.max(6, 2 * n)) && j > end) end = j;
     }
     if (end > i) {
       mark.fill(1, i, end);
@@ -578,7 +579,7 @@ function repeatedRuns(s: string): Uint8Array {
  * boundary. A piece of 6+ letters gets one more token, and
  * a piece is never below a third of its bytes (two fifths from 8 letters: run-together words
  * split badly). Words keep about bytes/3; random ids and abbreviations count close to one token
- * per letter. Letters in a run that repeats a unit of 1-6 letters count one each (see
+ * per letter. Letters in a run that repeats a unit of 1-16 letters count one each (see
  * repeatedRuns). This is a heuristic, measured against the floor by the seeded fuzz test.
  */
 function letterPieceTokens(p: string): number {

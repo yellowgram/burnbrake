@@ -128,6 +128,16 @@ describe("input estimate vs real GPT tokenizer counts", () => {
       "LIliLIliLILIlili".repeat(6), // repetitions in flipped case
       "MEMEmeMEmemememeMEmeMEmeMEMEmeMEmemem",
       "lllllllll", // a short repeated run (9 letters)
+      "emrmirp".repeat(100), // a 7-letter unit repeated
+      "ssnssns".repeat(100),
+      ("DITDITDI" + "x").repeat(30), // a repeated run broken by another letter
+      ("lllll" + "x").repeat(50), // five of one letter, then another
+      Array.from({ length: 50 }, (_, i) => "lllll" + "abcdefghijkmnopqrstuvwxyz"[(i * 7) % 25]).join(""), // five of one letter, then a different letter each time
+      Array.from({ length: 50 }, (_, i) => "llll" + "abcdefghijkmnopqrstuvwxyz"[(i * 7) % 25]).join(""), // four of one letter, then a different letter each time
+      Array.from({ length: 100 }, (_, i) => "ssss" + "abcdefghijkmnopqrstuvwxyz"[(i * 3) % 25]).join(" "), // the same, as separate words
+      " evevevyevevevpevevevfeveveveevevevyevevevhevevevbevevevsevevevmevevevgevevevh", // 6-7 letter runs of a 2-letter unit
+      "grtveligrtveli\n".repeat(10).trimEnd(), // a 7-letter unit doubled, as separate lines
+      "aNAnaNANAnaNananANAnANaNanAnan", // a repeated unit with random case flips
       "odnf".repeat(20) + "OCZKRT".repeat(10), // two repeated runs run together
     ];
     for (const e of [getEncoding("cl100k_base"), getEncoding("o200k_base")]) {
