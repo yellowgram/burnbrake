@@ -16,6 +16,7 @@ Streaming is now real pass-through, and Anthropic streams are charged correctly.
 - OpenAI streams always get `stream_options.include_usage: true`, even when the client sent `false`.
 - A client that hangs up before the provider answers cancels the provider call; the provider has 10 minutes to send response headers.
 - `npm pack` builds `dist` first, so a fresh clone packs a working package.
+- The installed `burnbrake` command did nothing: npm installs bins as symlinks and the CLI did not resolve them, so `burnbrake --help` printed nothing and `burnbrake serve` exited at once with code 0. It now resolves the real path. The pack check asserts that the installed bin prints usage and that `serve` keeps running.
 - The offline mock now streams the real Anthropic event sequence.
 - Non-streamed bodies may be up to 8 MB (was 2 MB).
 - `GET /health`: `deploy.hosted.hosted_monthly_sku` is removed; `deploy.hosted.note` is reworded.

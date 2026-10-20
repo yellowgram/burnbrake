@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdirSync } from "node:fs";
+import { mkdirSync, realpathSync } from "node:fs";
 import { dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
@@ -501,7 +501,18 @@ function defaultIo(): Io {
   };
 }
 
-const invokedDirectly = Boolean(process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href);
+// npm installs the bin as a symlink (node_modules/.bin/burnbrake -> ../burnbrake/dist/cli.js),
+// so compare against the resolved path, not argv[1] itself.
+export function isEntryPoint(entry: string | undefined, moduleUrl: string = import.meta.url): boolean {
+  if (!entry) return false;
+  try {
+    return moduleUrl === pathToFileURL(realpathSync(entry)).href;
+  } catch {
+    return false;
+  }
+}
+
+const invokedDirectly = isEntryPoint(process.argv[1]);
 if (invokedDirectly) {
   execute(process.argv.slice(2)).then((code) => {
     if (code !== 0) process.exit(code);

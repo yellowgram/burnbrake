@@ -44,4 +44,4 @@ jobs:
         with:
           node-version: "22"
       - name: Pack from a fresh clone, install the tarball, import it
-        run: scripts/pack-smoke.sh 'npx --no-install burnbrake --help'
+        run: scripts/pack-smoke.sh '"$SRC/scripts/installed-bin-check.sh"'
