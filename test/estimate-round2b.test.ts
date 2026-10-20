@@ -26,14 +26,18 @@ describe("BB-R2: input tokens are at least the pre-tokenizer piece count", () =>
     assert.equal(pieceCount("1234567"), 3); // 123 456 7
     assert.equal(pieceCount("a,b,c"), 5);
   });
-  it("ordinary English keeps the bytes/3 estimate (it is already the larger one)", () => {
+  it("ordinary English: at or above the real count, under 2.5x it, and at least bytes/3", () => {
     const text = "The quick brown fox jumps over the lazy dog. ".repeat(200);
     const r = chat(text);
     assert.equal(r.ok, true);
     if (!r.ok) return;
     const bytes = Buffer.byteLength(text, "utf8");
     assert.ok(pieceCount(text) < Math.ceil(bytes / 3));
-    assert.equal(r.inputTokens, Math.ceil(bytes / 3) + 4 + 3);
+    // Real: 2,001 tokens on cl100k and o200k, + 7 framing. The pangram is rich in uncommon letter
+    // pairs (qu, ck, wn, fox, mps, zy), so the letter-pair rule holds 4,476 (2.2x); common prose is ~1.9x.
+    assert.equal(r.inputTokens, 4_476);
+    assert.ok(r.inputTokens >= 2_001 + 7 && r.inputTokens <= 2.5 * (2_001 + 7));
+    assert.ok(r.inputTokens >= Math.ceil(bytes / 3) + 4 + 3);
   });
 });
 

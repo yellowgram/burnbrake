@@ -193,7 +193,7 @@ describe("mid-stream kill: OpenAI-style chunks", () => {
     assert.ok(generatedTextTokens(WORDY) >= 3, "the meter must over-count WORDY for the next tests to mean anything");
   });
 
-  it("a stream inside its own reservation is never cut, however high the meter counts its output (R4-1)", async () => {
+  it("a stream inside its own reservation is never cut, however high the meter counts its output", async () => {
     // 40 chunks of one real token each, counted as 5 each: 200 counted against max_tokens 40.
     const stream = [...Array.from({ length: MAX }, () => oa({ content: WORDY })), oaUsage(est.inputTokens, MAX), DONE];
     const up = await fakeUpstream(stream);
@@ -225,7 +225,7 @@ describe("mid-stream kill: OpenAI-style chunks", () => {
     assert.equal(err.retryable, false);
     assert.equal(err.stream_cut, true);
     assert.equal(err.scope, "run");
-    // R4-2: the real input, plus all of max_tokens (output billed but not yet streamed is covered).
+    // The real input, plus all of max_tokens (output billed but not yet streamed is covered).
     const charged = prompt + MAX;
     assert.equal(err.charged_micros, charged);
     await assertProviderClosed(up, stream.length, MAX - S);
@@ -312,7 +312,7 @@ describe("mid-stream kill: OpenAI-style chunks", () => {
 describe("mid-stream kill: Anthropic Messages", () => {
   const est = estimateOf(MESSAGES, msgBody());
 
-  it("a stream inside its own reservation is never cut, however high the meter counts its output (R4-1)", async () => {
+  it("a stream inside its own reservation is never cut, however high the meter counts its output", async () => {
     const stream = [anStart(est.inputTokens), anBlock(), ...Array.from({ length: MAX }, () => anText(WORDY)), ...anEnd(MAX)];
     const up = await fakeUpstream(stream);
     const sc = track(await boot(up, est.micros), up);
@@ -428,7 +428,7 @@ describe("mid-stream kill: Anthropic Messages", () => {
     assert.equal(cutError(r.events).code, "BUDGET_EXHAUSTED");
   });
 
-  it("server-tool uses are counted up to the reserved max_uses: a use past it streams through, uncut (R4b-1)", async () => {
+  it("server-tool uses are counted up to the reserved max_uses: a use past it streams through, uncut", async () => {
     const body = msgBody({ tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }] });
     const e = estimateOf(MESSAGES, body);
     assert.deepEqual(e.serverToolMaxUses, { web_search: 1 });
@@ -441,7 +441,7 @@ describe("mid-stream kill: Anthropic Messages", () => {
     assert.ok(r.events.some((x) => x.includes("message_stop")));
   });
 
-  it("LaunchGate R4b-1 probe: Anthropic refuses the search past max_uses (max_uses_exceeded) and bills one; no cut, spend = the bill", async () => {
+  it("Anthropic refuses the search past max_uses (max_uses_exceeded) and bills one; no cut, spend = the bill", async () => {
     const body = msgBody({ tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }] });
     const e = estimateOf(MESSAGES, body);
     const st = (i: number) => anBlock(i, { type: "server_tool_use", id: `srvtoolu_${i}`, name: "web_search", input: { query: "q" } });
@@ -818,7 +818,7 @@ describe("stream meter units", () => {
     assert.deepEqual(m.usage(99), { prompt_tokens: 25, completion_tokens: 3, server_tool_requests: { web_search: 2 } });
   });
 
-  it("server-tool blocks seen are capped per name at the reserved max_uses (an undeclared tool stays uncapped); the provider's reported count is not (R4b-1)", () => {
+  it("server-tool blocks seen are capped per name at the reserved max_uses (an undeclared tool stays uncapped); the provider's reported count is not", () => {
     const m = new StreamMeter("anthropic", { web_search: 2 });
     m.observe(anStart(10));
     for (let i = 0; i < 5; i++) m.observe(anBlock(i, { type: "server_tool_use", id: `s${i}`, name: "web_search", input: {} }));

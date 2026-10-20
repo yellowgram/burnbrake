@@ -245,7 +245,7 @@ function estimateMessages(
 interface Acc {
   /** UTF-8 bytes of every billed input part (text, tool schemas, tool calls and results). */
   bytes: number;
-  /** Pre-tokenizer pieces in the same parts (see pieceCount): a floor for the token count. */
+  /** floorTokens() of the same parts: a floor for the token count on GPT-style tokenizers. */
   pieces: number;
   images: number;
   tools?: boolean;
@@ -254,7 +254,7 @@ interface Acc {
 function addText(acc: Acc, value: unknown): void {
   if (typeof value === "string" && value) {
     acc.bytes += Buffer.byteLength(value, "utf8");
-    acc.pieces += pieceCount(value);
+    acc.pieces += floorTokens(value);
   }
 }
 
@@ -262,7 +262,7 @@ function addJson(acc: Acc, value: unknown): void {
   if (value == null) return;
   const text = typeof value === "string" ? value : JSON.stringify(value);
   acc.bytes += Buffer.byteLength(text, "utf8");
-  acc.pieces += pieceCount(text);
+  acc.pieces += floorTokens(text);
 }
 
 function collectSystem(system: unknown, acc: Acc, table: PriceTable): void {
@@ -530,6 +530,121 @@ function byteTokens(bytes: number): number {
  * ("a b c …", digits, punctuation) is where bytes/3 under-counts.
  */
 const PIECE = /'(?:[sdmt]|ll|ve|re)| ?[\p{L}\p{M}]+|\p{N}{1,3}| ?[^\s\p{L}\p{M}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+/giu;
+/**
+ * Runs whose token count the pieces and bytes/3 can't bound. A BPE token is at
+ * least one byte, so UTF-8 bytes is a guaranteed upper bound on tokens; these runs are counted
+ * at their byte length:
+ * - any non-ASCII run (CJK, Hangul, Arabic, Devanagari, emoji, symbols, accented Latin, …);
+ * - a base64-like run: 8+ chars of [A-Za-z0-9+/=_-] containing a lowercase letter, an uppercase
+ *   letter and a digit (base64, base64url, JWTs, API keys, data URLs);
+ * - an alphanumeric run of 2+ chars with a letter and a digit, in any case (hashes, UUID groups,
+ *   0x…, AWS key IDs, ULIDs, base32/base36 ids, k8s pod hashes, "v2", "utf8").
+ */
+const BYTE_COUNTED = /[^\x00-\x7f]+|(?<![A-Za-z0-9+\/=_-])(?=[A-Za-z0-9+\/=_-]*[a-z])(?=[A-Za-z0-9+\/=_-]*[A-Z])(?=[A-Za-z0-9+\/=_-]*[0-9])[A-Za-z0-9+\/=_-]{8,}|(?<![A-Za-z0-9])(?=[A-Za-z0-9]*[A-Za-z])(?=[A-Za-z0-9]*[0-9])[A-Za-z0-9]{2,}(?![A-Za-z0-9])/g;
+
+/** The 200 letter pairs most often inside cl100k/o200k vocabulary words, commonest first. */
+const BIGRAMS_RANKED = "erinenreonteestianatntstarlealorngraeddericoseliitiometaisroneeliclachvendastrmatoetgensdiienacesipecauracprecllunilheadloamrsolemomounipaeactsshaosrtmiiancuspoiddautthimtsbeciaiviigsairmohoulagabsofiapkempdoscnoothipltubablshsuivspeeopexvaodttlygaueeiocooumegboquckcrgrrdpifoaubilutywafeeprrcugiwecluirmryruevipownnbrfaakrnltavifaybuptppkaovuaucogduefwivoibkilsmbizuprczergguobmmhtffgonuldphdsmupuub";
+const RANK = new Map(BIGRAMS_RANKED.match(/../g)!.map((b, i) => [b, i] as const));
+
+/**
+ * Marks the letters of `s` that sit in a run repeating a unit of 1-6 letters, ignoring case
+ * ("llll", "abab", "ssnSSN"), at least 6 letters and two whole units long. Greedy, linear.
+ */
+function repeatedRuns(s: string): Uint8Array {
+  const t = s.toLowerCase();
+  const mark = new Uint8Array(t.length);
+  for (let i = 0; i < t.length; ) {
+    let end = i;
+    for (let n = 1; n <= 6 && i + 2 * n <= t.length; n++) {
+      let j = i + n;
+      while (j < t.length && t[j] === t[j - n]) j++;
+      if (j - i >= Math.max(6, 3 * n) && j > end) end = j;
+    }
+    if (end > i) {
+      mark.fill(1, i, end);
+      i = end;
+    } else i++;
+  }
+  return mark;
+}
+
+/**
+ * Tokens for one ASCII letter piece (optional leading space). BPE merges letters only along pairs
+ * it has learned, so each letter pair that is not a common one is counted as a token boundary:
+ * pairs ranked 100-199 (by how many cl100k/o200k vocabulary words contain them) as half a
+ * boundary, rarer ones and every lower-to-upper step (camelCase) as a whole one; in a pair with
+ * a capital, and in a piece with three or more capitals, only the 100 commonest pairs are free
+ * (the 50 commonest for two capitals), and a capital followed by a single lowercase letter is a
+ * boundary. A piece of 6+ letters gets one more token, and
+ * a piece is never below a third of its bytes (two fifths from 8 letters: run-together words
+ * split badly). Words keep about bytes/3; random ids and abbreviations count close to one token
+ * per letter. Letters in a run that repeats a unit of 1-6 letters count one each (see
+ * repeatedRuns). This is a heuristic, measured against the floor by the seeded fuzz test.
+ */
+function letterPieceTokens(p: string): number {
+  const core = p.charCodeAt(0) === 32 ? p.slice(1) : p;
+  // Three or more capitals in a piece that isn't all capitals (random mixed case, long
+  // camelCase): every pair uses the strict list.
+  const mixed = /[a-z]/.test(core) && (core.match(/[A-Z]/g)?.length ?? 0) >= 3;
+  // Repeated runs count at bytes: their pairs look common, but BPE has no long tokens for
+  // them (cl100k splits "llll", "abab", "ssnssn" every 1.5-2 letters).
+  const rep = repeatedRuns(core);
+  let repeated = 0;
+  for (const m of rep) repeated += m;
+  let boundaries = 0;
+  for (let i = 1; i < core.length; i++) {
+    if (rep[i - 1] && rep[i]) continue; // inside a repeated run: already counted at bytes
+    const aLower = core[i - 1] >= "a";
+    const bLower = core[i] >= "a";
+    const rank = RANK.get((core[i - 1] + core[i]).toLowerCase()) ?? Infinity;
+    if (aLower && !bLower) boundaries += 1;
+    else if (!aLower && bLower && !(core[i + 1] >= "a")) boundaries += 1; // "Rt" in "RtP": no word follows
+    else if (!aLower && !bLower) boundaries += rank < 50 ? 0 : 1; // two capitals: few merges in the vocabularies
+    else if (mixed || !aLower || !bLower) boundaries += rank < 100 ? 0 : 1;
+    else boundaries += rank < 100 ? 0 : rank < 200 ? 0.5 : 1;
+  }
+  return Math.max(core.length >= 8 ? p.length / 2.5 : p.length / 3, 1 + boundaries + repeated + (core.length >= 6 ? 1 : 0));
+}
+
+/**
+ * A floor for the token count of `text` on GPT-style tokenizers: byte-counted runs (above) at
+ * their UTF-8 length; for the ASCII rest, each letter piece by letterPieceTokens, a digit run (1-3)
+ * at 1, a punctuation run at its length (many ASCII punctuation pairs are two tokens), whitespace
+ * at 1 + a third of each run of one repeated space, tab or newline (other whitespace per
+ * character), plus one token of margin. Checked against cl100k and o200k by the fixture and fuzz
+ * tests (test/estimate-floor.test.ts, test/estimate-fuzz.test.ts).
+ */
+export function floorTokens(text: string): number {
+  let total = 0;
+  let last = 0;
+  const rest = (part: string) => {
+    if (!part) return;
+    let letters = 0;
+    for (const m of part.matchAll(PIECE)) {
+      const p = m[0];
+      const core = p.replace(/^ /, "");
+      if (/^[A-Za-z]+$/.test(core)) letters += letterPieceTokens(p);
+      else if (/^\s+$/.test(p)) {
+        // Each run of one repeated character at most 1 + a third of its length (a mix of tabs,
+        // spaces and newlines tokenizes far worse than a run of one of them).
+        for (const r of p.match(/(\s)\1*/g)!) total += /[ \t\n]/.test(r[0]) ? 1 + Math.floor(r.length / 3) : r.length;
+      }
+      else if (/^[^\sA-Za-z0-9]+[\r\n]*$/.test(core)) total += p.length;
+      else total += 1;
+    }
+    total += Math.ceil(letters);
+  };
+  for (const m of text.matchAll(BYTE_COUNTED)) {
+    rest(text.slice(last, m.index));
+    total += Buffer.byteLength(m[0], "utf8");
+    last = m.index! + m[0].length;
+  }
+  rest(text.slice(last));
+  // One token of margin per text part: the heuristic letter and whitespace counts can be one
+  // token short on a short string (fuzz sweeps found single-token misses only).
+  return total ? total + 1 : 0;
+}
+
 export function pieceCount(text: string): number {
   let n = 0;
   for (const _ of text.matchAll(PIECE)) n += 1;
@@ -545,7 +660,7 @@ export function generatedTextTokens(text: string): number {
   return Math.max(1, byteTokens(Buffer.byteLength(text, "utf8")), pieceCount(text));
 }
 
-/** Input text tokens: the larger of bytes/3 and the piece count, so neither shape under-counts. */
+/** Input text tokens: the larger of bytes/3 and floorTokens(), so neither shape under-counts. */
 function textTokens(acc: Acc): number {
   return Math.max(byteTokens(acc.bytes), acc.pieces);
 }

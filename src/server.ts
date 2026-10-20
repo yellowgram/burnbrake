@@ -912,7 +912,7 @@ async function handleGoverned(
       const step = meter.observe(event);
       // Nothing new was consumed, or generation is already over (nothing left to stop).
       if (!step.grew || step.final) return true;
-      // Output counted from deltas is capped at the reserved output (R4-1): a stream inside its
+      // Output counted from deltas is capped at the reserved output: a stream inside its
       // own reservation is never cut; only input, cache and server-tool surprises can cross.
       const projected = costFromUsage(table, estimate.model, meter.usage(estimate.inputTokens, estimate.outputTokens), estimate.flatMicros);
       if (projected == null) {
@@ -968,7 +968,7 @@ async function handleGoverned(
      * The provider stream is already closed. Settle at the metered input and server tools
      * (including the event that crossed) plus the whole output allowance: output the provider
      * billed but never streamed (hidden thinking or reasoning, tokens generated after the close)
-     * can't be seen, and it is all within max_tokens (R4-2). Then end the client stream with one
+     * can't be seen, and it is all within max_tokens. Then end the client stream with one
      * terminal error event. A cut stream is never stored for replay.
      */
     const finishCutStream = async (c: StreamCut): Promise<void> => {

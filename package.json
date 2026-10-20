@@ -53,6 +53,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
+    "js-tiktoken": "1.0.21",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   }
