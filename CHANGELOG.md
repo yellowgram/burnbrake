@@ -1,47 +1,38 @@
 # Changelog
 
+## 0.3.0 (2026-10-19)
+
+Streaming is now real pass-through, and Anthropic streams are charged correctly.
+
+- **Fixed: streams were buffered.** A streamed reply used to be read in full (up to 2 MB) before the first byte reached the client, and anything larger failed. BurnBrake now passes bytes through as they arrive, reads usage on the way past, and settles when the stream ends. There is no size limit on a stream.
+- **Fixed: Anthropic streams were always charged the full estimate.** End-of-stream detection only knew OpenAI's `data: [DONE]`. BurnBrake now recognises Anthropic's `message_stop` and reads usage from `message_start` and `message_delta`.
+- **Fixed: `stream_options` was sent to Anthropic.** It is now added only on OpenAI routes.
+- Anthropic prompt-cache tokens are now charged: reads at 0.1x the input price (a few newer models charge less; BurnBrake uses the higher rate), 5-minute writes at 1.25x, 1-hour writes at 2x (2x when the breakdown is missing).
+- If the client disconnects mid-stream, BurnBrake closes the provider connection and charges the estimate. Decision rows use `CLIENT_CLOSED` or `UPSTREAM_STREAM_BROKEN` for these cases.
+- A stream that finished cleanly and is under 1.5 MB is stored for idempotent replay; others get 409 `ALREADY_TERMINAL` on retry rather than a second provider call.
+- The offline mock now streams the real Anthropic event sequence.
+- Non-streamed bodies may be up to 8 MB (was 2 MB).
+- `GET /health`: `deploy.hosted.hosted_monthly_sku` is removed; `deploy.hosted.note` is reworded.
+- Docs rewritten in plain language with a quickstart and a limits section. Internal planning docs and old release checksums are removed.
+
 ## 0.2.0 (2026-10-19)
 
-- Relicensed to MIT; no longer sold. `LICENSE` is the MIT License (Copyright (c) 2026 yellowgram). The commercial grant, Polar listing docs, pricing, refund and support-window docs, the release pack script, and internal review logs were removed from the tree (they remain in git history). Releases before 0.2.0 were published under the previous license.
+- Relicensed to MIT; no longer sold. `LICENSE` is the MIT License (Copyright (c) 2026 yellowgram). The commercial grant and the sales, pricing, refund and support-window docs, the release pack script, and internal review logs were removed from the tree (they remain in git history). Releases before 0.2.0 were published under the previous license.
 - package.json: `license` MIT, adds `repository`, `homepage`, `bugs`, `author` for npm.
 
-## Earlier unreleased notes
+## Before 0.2.0
 
-### Fleet quiet-sell (2026-09-30)
-
-- www Paid catalog demoted FAIL kits (incl. BurnBrake). Polar listing stays LIVE. Product-page checkout quiet. No price change. No OSS relicense.
-
-- One-shot allowance (#23): operator grant API and `burnbrake allowance grant`. One reserve up to `grant_micros`, then the hard 402 halt. The grant cannot change exhaust.
-- Anthropic-shaped `POST /v1/messages` (#24) uses the same reserve, forward, settle, and 402 halt. Prices live in `prices/anthropic.yaml`.
-- Replay bodies (#25): `BURNBRAKE_IDEMPOTENCY_BODY_TTL_MS` may be shorter than 24h and cannot be longer. `BURNBRAKE_REPLAY_KEY` encrypts new bodies at rest. Idempotency keys stay terminal.
-- Heartbeat (#26): `POST /v1/burnbrake/heartbeat` and SDK `heartbeat()` prove only that this call reached the sidecar. `stops_all_spend` is false.
-- Estimate floors (#19): vision and tool reserves cannot fall below 1600 input tokens and 5000 micros per image, or 512 extra output tokens and 10000 micros when tools are present. `GET /v1/operator/estimate-error` and `burnbrake estimate-error` report settle-versus-reserve error. A miss does not open the next call.
-- Auth (#20): key compare hashes both sides so length mismatch does not return early. `BURNBRAKE_KEY_PREVIOUS` and `BURNBRAKE_OPERATOR_KEY_PREVIOUS` are accepted during rotation.
-- Day clock (#21): health states the process clock and that multi-writer needs one shared store. `BURNBRAKE_WRITER_LEASE=1` is an advisory single-writer lease, not a multi-pod ledger. See `docs/SINGLE_STORE.md`.
-- Deploy invariant (#15): health `deploy.stops_all_spend` is false, startup warns, and buyer docs state that a second client bypasses the sidecar. This kit does not claim it governs every provider call.
-- Exhaust freeze (#16): startup refuses soft halt, retryable exhaust, and a non-402 exhaust status. Exhaust bytes stay HTTP 402 `BUDGET_EXHAUSTED`, `halt: true`, `retryable: false`.
-- Production scopes (#17): `NODE_ENV=production` or `BURNBRAKE_PRODUCTION=1` requires a user cap and/or a day cap. Run-alone is refused at start and, if those caps are removed later, on the next reserve (`503` `PRODUCTION_SCOPE_REQUIRED`).
-- Hosted versus kit (#18): buyer copy and `docs/HOSTED_VS_KIT.md` keep the hosted SKU as a separate product. This repo stays single-tenant SQLite. No price change. No checkout URL in the README.
-- Process (#22): founder exception in `docs/STATUS.md` — merged implement path has no on-file 4th CR verdict. DR4 stays the verdict on file. No invented CR4 verdict.
-- Docs honesty: the $199 self-host kit Polar listing is **LIVE** (PolyForm Noncommercial 1.0.0 + BurnBrake commercial grant; CoS/www sell it). Coupons and cold invoices stay off. No Polar price change. No checkout URL added to README or zip-shipped stranger docs. Hosted $59/mo remains a separate live optional SKU and does not grant self-host production rights.
-- Docs honesty: Release **v0.1.1** exists on GitHub with `burnbrake-0.1.1.zip` (SHA-256 `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`, matches `checksums/burnbrake-0.1.1.sha256`). This change does not reseal the kit zip.
+Changes made between 0.1.1 and 0.2.0, in short: a one-time operator allowance; the Anthropic `/v1/messages` route; a shorter replay-body TTL and optional encryption at rest; a heartbeat route; minimum reserves for vision and tool calls; constant-time key comparison with key rotation; an advisory single-writer lease; startup refusal of soft-halt or fail-open settings; and production mode requiring a user or day cap.
 
 ## 0.1.1
 
-License fence only. Not a feature release. Exhaust stays HTTP 402 `BUDGET_EXHAUSTED`, halt, not retryable.
-
-- Copyright is source-available commercial. `LICENSE` is the PolyForm Noncommercial License 1.0.0 (`PolyForm-Noncommercial-1.0.0`) plus the BurnBrake commercial grant (`docs/COMMERCIAL_GRANT.md`). OSI open source: false.
-- The $199 once kit is that grant, the kit zip, and 60-day Issues (no SLA), for one organization and the named tag, perpetual for that tag. Legal seller: Suthirth Solutions, operating as yellowgram. Contact: hello@yellowgram.dev. Refund: 14 days on the $199 kit only.
-- Hosted $59/mo stays a separate live optional SKU. It does not grant self-host production rights. The $199 self-host kit Polar listing is **LIVE** under this fence (PolyForm + BurnBrake commercial grant; CoS/www sell it). Coupons and cold invoices stay off.
-- Kit archive for this fence: `burnbrake-0.1.1.zip`. SHA-256 is `checksums/burnbrake-0.1.1.sha256` in git. The digest is not copied into this file. Release `v0.1.1` is on GitHub with that zip (SHA-256 `6406dd2d4c0e783273ebc98b028ac4c53dcd972de550d9995c3f26b4901a1f6c`).
-- Tag `v0.1.0` and `checksums/burnbrake-0.1.0.*` stay as the historical kit. They are not resealed. Health `version` for this kit is `0.1.1`.
+License change only, to a source-available license. Superseded by the MIT relicense in 0.2.0. No code changes.
 
 ## 0.1.0
 
-Self-host MVP sidecar. Cap + kill on the request path.
+First release: the sidecar, ledger, caps and SDK.
 
-- Brake curve (BB_BRAKE_CURVE_1): optional pre-cap delay in the sidecar. Exhaust stays HTTP 402 `BUDGET_EXHAUSTED`, halt, not retryable, never 429. `brake.enabled` defaults to false. One-shot allowance is not in this change.
-- Self-host kit archive `burnbrake-0.1.0.zip` (tag `v0.1.0`): built `dist/`, price table, demo script, operator and support docs. SHA-256 is `checksums/burnbrake-0.1.0.sha256` in git and on the GitHub Release. The digest is not copied into this file. That tag is grandfathered MIT and is not resealed.
+- Brake curve: optional pre-cap delay in the sidecar. Exhaust stays HTTP 402 `BUDGET_EXHAUSTED`, halt, not retryable, never 429. `brake.enabled` defaults to false. One-shot allowance is not in this change.
 - OpenAI-shaped routes: `POST /v1/chat/completions`, `POST /v1/completions`
 - SQLite ledger: estimate → reserve → forward or reject → settle
 - HTTP 402 `BUDGET_EXHAUSTED` (halt). Never 429 for budget exhaust
@@ -56,5 +47,3 @@ Self-host MVP sidecar. Cap + kill on the request path.
 - Budget identity is the BurnBrake header, not the OpenAI `user` field. An unfinished event stream is debited, not settled from a partial usage
 - Decision table lists the non-402 codes, including 400 `IDENTITY_REQUIRED` and 502 `LEDGER_UNAVAILABLE` after forward. Compose reads `config.example.env`. The 60s demo ignores ambient fail-open, price-table, and TTL settings
 - Offline mock-upstream demo
-
-Legal seller: Suthirth Solutions, operating as yellowgram. Primary SKU: $199 once (one organization). Refund: 14 days. Support: 60-day Issues, no SLA. Hosted $59/mo is optional and not in the zip.

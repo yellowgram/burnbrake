@@ -1,7 +1,7 @@
 {
   "name": "burnbrake",
-  "version": "0.2.0",
-  "description": "Request-path spend governor for agent loops. Cap + kill only.",
+  "version": "0.3.0",
+  "description": "A small proxy that puts hard dollar caps on agent LLM calls (OpenAI and Anthropic, streaming included).",
   "type": "module",
   "license": "MIT",
   "author": {
