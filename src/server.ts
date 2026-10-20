@@ -903,7 +903,7 @@ async function handleGoverned(
     // Mid-stream kill (on unless BURNBRAKE_STREAM_KILL=0). Only a successful stream is metered.
     const metering = ctx.config.streamKill && stream.status >= 200 && stream.status < 300;
     const dialect = route === "/v1/messages" ? "anthropic" : "openai";
-    const meter = new StreamMeter(dialect);
+    const meter = new StreamMeter(dialect, estimate.serverToolMaxUses);
     const framer = new SseEventFramer();
     let hold = estimate.micros;
     let cut: StreamCut | null = null;

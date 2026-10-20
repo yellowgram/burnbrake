@@ -75,7 +75,15 @@ export class StreamMeter {
   private serverToolsSeen: Record<string, number> = {};
   private serverToolsReported: Record<string, number> = {};
 
-  constructor(readonly dialect: "anthropic" | "openai") {}
+  /**
+   * `serverToolCaps`: the uses reserved per server tool (`max_uses`). Anthropic answers a use past
+   * `max_uses` with a `max_uses_exceeded` error result and doesn't bill it, so `server_tool_use`
+   * blocks seen are capped there; the provider's own reported count is never capped.
+   */
+  constructor(
+    readonly dialect: "anthropic" | "openai",
+    private readonly serverToolCaps: Record<string, number> = {},
+  ) {}
 
   /**
    * The consumption so far, as a usage object `costFromUsage` can price.
@@ -93,7 +101,10 @@ export class StreamMeter {
     };
     if (names.size) {
       usage.server_tool_requests = {};
-      for (const n of names) usage.server_tool_requests[n] = Math.max(this.serverToolsSeen[n] ?? 0, this.serverToolsReported[n] ?? 0);
+      for (const n of names) {
+        const seen = Math.min(this.serverToolsSeen[n] ?? 0, this.serverToolCaps[n] ?? Infinity);
+        usage.server_tool_requests[n] = Math.max(seen, this.serverToolsReported[n] ?? 0);
+      }
     }
     return usage;
   }

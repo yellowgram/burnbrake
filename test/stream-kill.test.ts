@@ -428,19 +428,37 @@ describe("mid-stream kill: Anthropic Messages", () => {
     assert.equal(cutError(r.events).code, "BUDGET_EXHAUSTED");
   });
 
-  it("server-tool blocks count as billed requests: a second search past the reserved one is cut", async () => {
+  it("server-tool uses are counted up to the reserved max_uses: a use past it streams through, uncut (R4b-1)", async () => {
     const body = msgBody({ tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }] });
     const e = estimateOf(MESSAGES, body);
+    assert.deepEqual(e.serverToolMaxUses, { web_search: 1 });
     const st = (i: number) => anBlock(i, { type: "server_tool_use", id: `s${i}`, name: "web_search", input: {} });
     const up = await fakeUpstream([anStart(e.inputTokens), st(0), anText("a"), st(1), anText("b"), ...anEnd(2)]);
     const sc = track(await boot(up, e.micros), up);
     const r = await call(sc.baseURL, MESSAGES, body);
-    assert.equal(r.events.filter((x) => x.includes("server_tool_use")).length, 1);
-    const err = cutError(r.events);
-    assert.equal(err.code, "BUDGET_EXHAUSTED");
-    const expected = costFromUsage(anthropicTable, "claude-meter", { prompt_tokens: e.inputTokens, completion_tokens: e.outputTokens, server_tool_requests: { web_search: 2 } }, e.flatMicros);
-    assert.equal(err.charged_micros, expected);
-    assert.ok(expected! > e.micros);
+    assert.equal(r.events.filter((x) => x.includes("server_tool_use")).length, 2);
+    assert.equal(r.events.filter((x) => x.startsWith("event: error")).length, 0);
+    assert.ok(r.events.some((x) => x.includes("message_stop")));
+  });
+
+  it("LaunchGate R4b-1 probe: Anthropic refuses the search past max_uses (max_uses_exceeded) and bills one; no cut, spend = the bill", async () => {
+    const body = msgBody({ tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }] });
+    const e = estimateOf(MESSAGES, body);
+    const st = (i: number) => anBlock(i, { type: "server_tool_use", id: `srvtoolu_${i}`, name: "web_search", input: { query: "q" } });
+    const res = (i: number, err: boolean) =>
+      anBlock(i, { type: "web_search_tool_result", tool_use_id: `srvtoolu_${i}`, content: err ? { type: "web_search_tool_result_error", error_code: "max_uses_exceeded" } : [] });
+    const stream = [anStart(e.inputTokens), st(0), res(1, false), anBlock(2), anText("ok", 2), st(3), res(4, true), anBlock(5), anText("done", 5),
+      an("message_delta", { delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 10, server_tool_use: { web_search_requests: 1 } } }), an("message_stop", {})];
+    const bill = costFromUsage(anthropicTable, e.model, { prompt_tokens: e.inputTokens, completion_tokens: 10, server_tool_requests: { web_search: 1 } }, e.flatMicros)!;
+    // Before the fix both blocks were counted: the cut charged input + max_tokens + 2 searches, over the cap.
+    const oldCharge = costFromUsage(anthropicTable, e.model, { prompt_tokens: e.inputTokens, completion_tokens: e.outputTokens, server_tool_requests: { web_search: 2 } }, e.flatMicros)!;
+    assert.ok(oldCharge > e.micros && bill <= e.micros);
+    const up = await fakeUpstream(stream);
+    const sc = track(await boot(up, e.micros), up);
+    const r = await call(sc.baseURL, MESSAGES, body);
+    assert.equal(r.events.filter((x) => x.startsWith("event: error")).length, 0);
+    assert.equal(r.events.length, stream.length);
+    assert.equal(run(sc).spent_micros, bill);
   });
 });
 
@@ -798,6 +816,20 @@ describe("stream meter units", () => {
     m.observe(anStart(10));
     m.observe(an("message_delta", { delta: { stop_reason: null }, usage: { input_tokens: 25, output_tokens: 3, server_tool_use: { web_search_requests: 2 } } }));
     assert.deepEqual(m.usage(99), { prompt_tokens: 25, completion_tokens: 3, server_tool_requests: { web_search: 2 } });
+  });
+
+  it("server-tool blocks seen are capped per name at the reserved max_uses (an undeclared tool stays uncapped); the provider's reported count is not (R4b-1)", () => {
+    const m = new StreamMeter("anthropic", { web_search: 2 });
+    m.observe(anStart(10));
+    for (let i = 0; i < 5; i++) m.observe(anBlock(i, { type: "server_tool_use", id: `s${i}`, name: "web_search", input: {} }));
+    m.observe(anBlock(5, { type: "server_tool_use", id: "f", name: "web_fetch", input: {} }));
+    assert.deepEqual(m.usage(99).server_tool_requests, { web_search: 2, web_fetch: 1 });
+    assert.deepEqual(m.cutUsage(99, 40).server_tool_requests, { web_search: 2, web_fetch: 1 });
+    m.observe(an("message_delta", { delta: { stop_reason: null }, usage: { output_tokens: 3, server_tool_use: { web_search_requests: 4 } } }));
+    assert.equal(m.usage(99).server_tool_requests!.web_search, 4);
+    const one = new StreamMeter("anthropic", { web_search: 1 });
+    one.observe(anBlock(0, { type: "server_tool_use", id: "s", name: "web_search", input: {} }));
+    assert.equal(one.usage(99).server_tool_requests!.web_search, 1);
   });
 
   it("OpenAI: refusal and reasoning_content count as output", () => {

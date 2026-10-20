@@ -11,6 +11,11 @@ export interface EstimateSuccess {
   inputTokens: number;
   outputTokens: number;
   flatMicros: number;
+  /**
+   * Server tools reserved per use (Anthropic `max_uses`, summed per tool name). The provider
+   * refuses and doesn't bill a use past `max_uses`, so this is also the most it can bill.
+   */
+  serverToolMaxUses?: Record<string, number>;
   model: string;
   forwardBody: Record<string, unknown>;
 }
@@ -201,7 +206,8 @@ function estimateMessages(
   if (body.container != null) fail("UNKNOWN_SURCHARGE", "container (code execution) is billed by the provider and is not in the price table; refusing the request.");
   const acc: Acc = { bytes: 0, pieces: 0, images: 0, tools: hasTools(body) };
   collectSystem(body.system, acc, table);
-  const serverToolMicros = anthropicTools(body, acc, table);
+  const serverTools = anthropicTools(body, acc, table);
+  const serverToolMicros = serverTools.micros;
   for (const message of body.messages) {
     if (!message || typeof message !== "object" || Array.isArray(message)) {
       fail("BAD_REQUEST", "each message must be an object.");
@@ -230,6 +236,7 @@ function estimateMessages(
     inputTokens,
     outputTokens,
     flatMicros,
+    ...(Object.keys(serverTools.maxUses).length ? { serverToolMaxUses: serverTools.maxUses } : {}),
     model,
     forwardBody: ceiling.forwardBody,
   };
@@ -313,8 +320,9 @@ function walkAnthropicContent(content: unknown, acc: Acc, table: PriceTable, dep
 const ANTHROPIC_DEFINED_CLIENT_TOOLS = new Set(["bash", "text_editor", "computer"]);
 
 /** Anthropic client tools have no type or type "custom"; anything else runs on Anthropic's side. */
-function anthropicTools(body: Record<string, unknown>, acc: Acc, table: PriceTable): number {
-  if (body.tools == null) return 0;
+function anthropicTools(body: Record<string, unknown>, acc: Acc, table: PriceTable): { micros: number; maxUses: Record<string, number> } {
+  const reserved: Record<string, number> = {};
+  if (body.tools == null) return { micros: 0, maxUses: reserved };
   if (!Array.isArray(body.tools)) fail("BAD_REQUEST", "tools must be an array.");
   let micros = 0;
   for (const tool of body.tools) {
@@ -335,9 +343,10 @@ function anthropicTools(body: Record<string, unknown>, acc: Acc, table: PriceTab
       fail("UNKNOWN_SURCHARGE", `tool "${String(t.type)}" needs max_uses so its cost can be reserved; refusing the request.`);
     }
     micros += maxUses * perUse;
+    reserved[name] = (reserved[name] ?? 0) + maxUses;
   }
   addJson(acc, body.tool_choice);
-  return micros;
+  return { micros, maxUses: reserved };
 }
 
 /** "web_search_20250305" -> "web_search". */
@@ -515,11 +524,12 @@ function byteTokens(bytes: number): number {
 
 /**
  * The pre-tokenizer split used by GPT-style byte-pair tokenizers (cl100k/o200k): an optional space
- * plus a run of letters, up to three digits, a run of punctuation, or whitespace. BPE never merges
+ * plus a run of letters, up to three digits (never with a leading space: GPT tokenizers split
+ * " 7" into a space token and a digit token), an optional space plus a run of punctuation, or whitespace. BPE never merges
  * across these pieces, so each one costs at least one token. Text made of very short pieces
  * ("a b c …", digits, punctuation) is where bytes/3 under-counts.
  */
-const PIECE = /'(?:[sdmt]|ll|ve|re)| ?[\p{L}\p{M}]+| ?\p{N}{1,3}| ?[^\s\p{L}\p{M}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+/giu;
+const PIECE = /'(?:[sdmt]|ll|ve|re)| ?[\p{L}\p{M}]+|\p{N}{1,3}| ?[^\s\p{L}\p{M}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+/giu;
 export function pieceCount(text: string): number {
   let n = 0;
   for (const _ of text.matchAll(PIECE)) n += 1;
