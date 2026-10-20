@@ -213,3 +213,27 @@ export const LETTER_SHAPES: Record<string, (r: Rng) => string> = {
   },
 };
 
+/**
+ * Synthetic shapes the estimate is NOT guaranteed to be a floor for (documented limits): one
+ * pseudo-word repeated as separate words (a per-word miss adds up), repeated units with every
+ * k-th letter changed, and UPPERCASE nonsense built from common letter pairs (the vocabularies
+ * have few uppercase merges), and units of more than 16 letters repeated. The fuzz test checks
+ * them against the documented worst ratio instead.
+ */
+export const LIMIT_SHAPES: Record<string, (r: Rng) => string> = {
+  limit_words_repeated: (r) => {
+    const w = r() < 0.5 ? chars(r, LOWER, int(r, 3, 16)) : pairWalk(r, int(r, 3, 16));
+    const sep = pick(r, [" ", "\n", "_", ".", ",", "\t", "'"]);
+    return Array.from({ length: int(r, 20, 400) }, () => w).join(sep);
+  },
+  // A repeated unit of 1-6 letters with every k-th letter changed ("mimiamimig...").
+  limit_near_repeats: (r) => {
+    const unit = chars(r, pick(r, [LOWER, UPPER, LOWER + UPPER]), int(r, 1, 6));
+    const n = int(r, 6, 300);
+    const k = int(r, 4, 12);
+    return unit.repeat(Math.ceil(n / unit.length)).slice(0, n).split("").map((c, j) => (j % k === k - 1 ? chars(r, LOWER, 1) : c)).join("");
+  },
+  limit_upper_pair_words: (r) => r() < 0.5 ? pairWalk(r, int(r, 4, 40)).toUpperCase() : list(r, 10, 50, () => pairWalk(r, int(r, 3, 12)).toUpperCase(), pick(r, [" ", "_"])),
+  // A unit of 17-32 letters (longer than the repeated-run rule looks for) repeated 3-30 times.
+  limit_long_units: (r) => chars(r, LOWER, int(r, 17, 32)).repeat(int(r, 3, 30)),
+};
