@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npm run build
+RUN npm run build && npm prune --omit=dev
 # Image default matches the freeze: listen on 127.0.0.1. Compose opts into
 # 0.0.0.0 inside the container and publishes 127.0.0.1 on the host.
 ENV BURNBRAKE_PORT=8787

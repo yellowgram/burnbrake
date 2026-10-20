@@ -4,3 +4,5 @@ data
 .git
 *.sqlite
 .env
+test
+scripts
