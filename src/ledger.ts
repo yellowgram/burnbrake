@@ -358,7 +358,7 @@ export class Ledger {
       const now = this.now();
       if (current && current.holder !== holder && current.until > now) {
         throw new Error(
-          `Another writer holds this ledger until ${new Date(current.until).toISOString()}. One store and one process clock are required before a second writer. This kit does not run multi-pod.`,
+          `Another writer holds this ledger until ${new Date(current.until).toISOString()}. One store and one process clock are required before a second writer. BurnBrake does not support several processes on one ledger.`,
         );
       }
       const until = now + ttlMs;

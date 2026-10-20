@@ -10,6 +10,12 @@ Streaming is now real pass-through, and Anthropic streams are charged correctly.
 - Anthropic prompt-cache tokens are now charged: reads at 0.1x the input price (a few newer models charge less; BurnBrake uses the higher rate), 5-minute writes at 1.25x, 1-hour writes at 2x (2x when the breakdown is missing).
 - If the client disconnects mid-stream, BurnBrake closes the provider connection and charges the estimate. Decision rows use `CLIENT_CLOSED` or `UPSTREAM_STREAM_BROKEN` for these cases.
 - A stream that finished cleanly and is under 1.5 MB is stored for idempotent replay; others get 409 `ALREADY_TERMINAL` on retry rather than a second provider call.
+- **Fixed: input in tool loops was under-estimated.** Tool definitions, earlier tool calls and their arguments, tool results and thinking blocks are now counted, as UTF-8 bytes / 3 (was characters / 4 of text only).
+- **Fixed: provider-billed tools passed with only the tool floor.** Anthropic web search is priced per search (reserved at `max_uses`, charged at the reported count); other server tools, OpenAI `web_search_options` and non-function OpenAI tools are refused with `UNKNOWN_SURCHARGE`.
+- **Fixed: an Anthropic stream with no final `message_delta` usage was charged one output token.** It is now charged the estimate.
+- OpenAI streams always get `stream_options.include_usage: true`, even when the client sent `false`.
+- A client that hangs up before the provider answers cancels the provider call; the provider has 10 minutes to send response headers.
+- `npm pack` builds `dist` first, so a fresh clone packs a working package.
 - The offline mock now streams the real Anthropic event sequence.
 - Non-streamed bodies may be up to 8 MB (was 2 MB).
 - `GET /health`: `deploy.hosted.hosted_monthly_sku` is removed; `deploy.hosted.note` is reworded.

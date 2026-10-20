@@ -719,9 +719,16 @@ async function handleGoverned(
     }
   }
 
+  // A client that leaves before the provider answers cancels the provider call.
+  const earlyAbort = new AbortController();
+  const onEarlyClose = () => {
+    if (!res.writableEnded) earlyAbort.abort();
+  };
+  res.on("close", onEarlyClose);
   let upstream;
   try {
     upstream = await forwardToUpstream({
+      signal: earlyAbort.signal,
       mock: ctx.config.mockUpstream,
       mockState: ctx.mock,
       upstreamBaseURL: ctx.config.upstreamBaseURL,
@@ -735,7 +742,9 @@ async function handleGoverned(
       statusOverride: ctx.config.mockUpstream ? headerInt(req, "x-burnbrake-mock-status") : null,
       inputTokensHint: estimate.inputTokens,
     });
+    res.off("close", onEarlyClose);
   } catch (err) {
+    res.off("close", onEarlyClose);
     const settled = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
     const payload = errorBody({
       code: "UPSTREAM_ERROR",

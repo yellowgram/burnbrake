@@ -22,6 +22,8 @@ export interface PriceTable {
   pricedAtMs: number;
   models: Record<string, ModelPrice>;
   surcharges: SurchargePolicy;
+  /** Per-use price (micros) of provider-run tools, by name (e.g. web_search). */
+  serverTools: Record<string, number>;
   sourcePath: string;
 }
 
@@ -76,9 +78,18 @@ export function loadPriceTable(path: string): PriceTable {
   if (!Array.isArray(known) || known.length === 0 || known.some((k) => typeof k !== "string")) {
     throw new Error("known_content_types must be a non-empty string list.");
   }
+  const serverTools: Record<string, number> = {};
+  if (root.server_tools != null) {
+    const st = requireMapping(root.server_tools, "server_tools");
+    for (const [name, value] of Object.entries(st)) {
+      const row = requireMapping(value, `server_tools.${name}`);
+      serverTools[name] = requireNonNegInt(row.per_use_micros, `server_tools.${name}.per_use_micros`);
+    }
+  }
   return {
     version,
     pricedAt,
+    serverTools,
     pricedAtMs,
     models,
     surcharges: {

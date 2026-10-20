@@ -54,7 +54,7 @@ export function estimateRequest(
 export function costFromUsage(
   table: PriceTable,
   model: string,
-  usage: { prompt_tokens: number; completion_tokens: number },
+  usage: { prompt_tokens: number; completion_tokens: number; server_tool_requests?: Record<string, number> },
   flatMicros: number,
 ): number | null {
   const price = table.models[model];
@@ -64,7 +64,15 @@ export function costFromUsage(
   }
   const input = tokensToMicros(usage.prompt_tokens, price.inputMicrosPerMillion);
   const output = tokensToMicros(usage.completion_tokens, price.outputMicrosPerMillion);
-  const total = input + output + flatMicros;
+  let serverTools = 0;
+  for (const [name, count] of Object.entries(usage.server_tool_requests ?? {})) {
+    if (count === 0) continue;
+    if (!Number.isFinite(count)) return null;
+    const perUse = table.serverTools[name];
+    if (perUse == null) return null; // a billed tool BurnBrake can't price: charge the estimate
+    serverTools += count * perUse;
+  }
+  const total = input + output + flatMicros + serverTools;
   return total <= 0 ? 0 : total;
 }
 
@@ -78,23 +86,40 @@ function estimateChat(
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     fail("BAD_REQUEST", "chat completions require a non-empty messages array.");
   }
-  const acc = { text: "", images: 0 };
+  const acc: Acc = { bytes: 0, images: 0 };
   for (const message of body.messages) {
     if (!message || typeof message !== "object" || Array.isArray(message)) {
       fail("BAD_REQUEST", "each message must be an object.");
     }
     const msg = message as Record<string, unknown>;
     walkContent(msg.content, acc, table);
-    if (typeof msg.refusal === "string") acc.text += msg.refusal;
+    addText(acc, msg.refusal);
+    addText(acc, msg.name);
+    addText(acc, msg.tool_call_id);
+    // Tool calls the assistant made earlier are input on this turn.
+    if (Array.isArray(msg.tool_calls)) {
+      for (const call of msg.tool_calls) addJson(acc, call);
+    } else if (msg.tool_calls != null) {
+      fail("BAD_REQUEST", "tool_calls must be an array.");
+    }
+    if (msg.function_call != null) addJson(acc, msg.function_call);
   }
   if (body.modalities != null || body.audio != null) {
     fail("UNKNOWN_SURCHARGE", "audio/modalities are not in the price table; refusing the request.");
   }
+  if (body.web_search_options != null) {
+    fail("UNKNOWN_SURCHARGE", "web_search_options is billed per search and is not in the price table; refusing the request.");
+  }
+  checkOpenAiTools(body);
+  addJson(acc, body.tools);
+  addJson(acc, body.functions);
+  addJson(acc, body.tool_choice);
+  addJson(acc, body.response_format);
   const toolsPresent = hasTools(body);
   const ceiling = outputCeiling(body, defaultMaxTokens);
   const choices = choiceCount(body);
   const inputTokens =
-    textTokens(acc.text) +
+    byteTokens(acc.bytes) +
     body.messages.length * 4 +
     3 +
     acc.images * visionInputTokens(table);
@@ -129,7 +154,7 @@ function estimateCompletion(
   if (body.prompt == null) {
     fail("BAD_REQUEST", "completions require a prompt.");
   }
-  const acc = { text: "", images: 0 };
+  const acc: Acc = { bytes: 0, images: 0 };
   collectPrompt(body.prompt, acc);
   if (acc.images > 0) {
     fail("UNKNOWN_SURCHARGE", "image prompts are not priced on /v1/completions.");
@@ -137,7 +162,7 @@ function estimateCompletion(
   const toolsPresent = hasTools(body);
   const ceiling = outputCeiling(body, defaultMaxTokens);
   const choices = choiceCount(body);
-  const inputTokens = textTokens(acc.text) + 2;
+  const inputTokens = byteTokens(acc.bytes) + 2;
   const outputTokens = scaleOutputTokens(ceiling.maxTokens, toolsExtraOutput(table, toolsPresent), choices);
   const flatMicros = toolsFlatMicros(table, toolsPresent);
   const micros = atLeastOne(
@@ -169,8 +194,9 @@ function estimateMessages(
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     fail("BAD_REQUEST", "messages require a non-empty messages array.");
   }
-  const acc = { text: "", images: 0, tools: hasTools(body) };
+  const acc: Acc = { bytes: 0, images: 0, tools: hasTools(body) };
   collectSystem(body.system, acc, table);
+  const serverToolMicros = anthropicTools(body, acc, table);
   for (const message of body.messages) {
     if (!message || typeof message !== "object" || Array.isArray(message)) {
       fail("BAD_REQUEST", "each message must be an object.");
@@ -179,13 +205,16 @@ function estimateMessages(
   }
   const ceiling = outputCeiling(body, defaultMaxTokens, false);
   const choices = choiceCount(body);
-  const inputTokens = textTokens(acc.text) + body.messages.length * 4 + acc.images * visionInputTokens(table);
-  const outputTokens = scaleOutputTokens(ceiling.maxTokens, toolsExtraOutput(table, acc.tools), choices);
-  const flatMicros = acc.images * visionFlatMicros(table) + toolsFlatMicros(table, acc.tools);
+  const inputTokens = byteTokens(acc.bytes) + body.messages.length * 4 + acc.images * visionInputTokens(table);
+  const outputTokens = scaleOutputTokens(ceiling.maxTokens, toolsExtraOutput(table, Boolean(acc.tools)), choices);
+  const flatMicros = acc.images * visionFlatMicros(table) + toolsFlatMicros(table, Boolean(acc.tools));
+  // Server tools (web search) are reserved at max_uses x the per-use price; at settle the
+  // reported request counts are charged instead (see costFromUsage).
   const micros = atLeastOne(
     tokensToMicros(inputTokens, price.inputMicrosPerMillion) +
       tokensToMicros(outputTokens, price.outputMicrosPerMillion) +
-      flatMicros,
+      flatMicros +
+      serverToolMicros,
     price,
   );
   return {
@@ -201,30 +230,44 @@ function estimateMessages(
   };
 }
 
-function collectSystem(
-  system: unknown,
-  acc: { text: string; images: number; tools: boolean },
-  table: PriceTable,
-): void {
+interface Acc {
+  /** UTF-8 bytes of every billed input part (text, tool schemas, tool calls and results). */
+  bytes: number;
+  images: number;
+  tools?: boolean;
+}
+
+function addText(acc: Acc, value: unknown): void {
+  if (typeof value === "string" && value) acc.bytes += Buffer.byteLength(value, "utf8");
+}
+
+function addJson(acc: Acc, value: unknown): void {
+  if (value == null) return;
+  acc.bytes += Buffer.byteLength(typeof value === "string" ? value : JSON.stringify(value), "utf8");
+}
+
+function collectSystem(system: unknown, acc: Acc, table: PriceTable): void {
   if (system == null) return;
   if (typeof system === "string") {
-    acc.text += system;
+    addText(acc, system);
     return;
   }
   walkAnthropicContent(system, acc, table);
 }
 
-function walkAnthropicContent(
-  content: unknown,
-  acc: { text: string; images: number; tools: boolean },
-  table: PriceTable,
-): void {
+/**
+ * Anthropic content blocks. Text is counted as text; images at the vision rate; a
+ * tool_result's content is walked the same way (its images stay images). Every other
+ * known block (tool_use, thinking, server tool calls and their results) is counted by
+ * its JSON size, which is never less than what the model reads.
+ */
+function walkAnthropicContent(content: unknown, acc: Acc, table: PriceTable, depth = 0): void {
   if (content == null) return;
   if (typeof content === "string") {
-    acc.text += content;
+    addText(acc, content);
     return;
   }
-  if (!Array.isArray(content)) {
+  if (!Array.isArray(content) || depth > 4) {
     fail("UNKNOWN_SURCHARGE", "message content shape is not priced.");
   }
   for (const part of content) {
@@ -236,32 +279,79 @@ function walkAnthropicContent(
     if (!type || !table.surcharges.knownContentTypes.has(type)) {
       fail("UNKNOWN_SURCHARGE", `content type "${type || "unknown"}" is not in the price table; refusing the request.`);
     }
-    if (type === "text" && typeof row.text === "string") acc.text += row.text;
-    if (type === "image") acc.images += 1;
-    if (type === "tool_use" || type === "tool_result") acc.tools = true;
+    if (type === "text") {
+      addText(acc, row.text);
+    } else if (type === "image") {
+      acc.images += 1;
+    } else if (type === "tool_result") {
+      acc.tools = true;
+      addText(acc, row.tool_use_id);
+      walkAnthropicContent(row.content, acc, table, depth + 1);
+    } else {
+      if (type === "tool_use") acc.tools = true;
+      addJson(acc, row);
+    }
   }
 }
 
-function collectPrompt(prompt: unknown, acc: { text: string; images: number }): void {
+/** Anthropic client tools have no type or type "custom"; anything else runs on Anthropic's side. */
+function anthropicTools(body: Record<string, unknown>, acc: Acc, table: PriceTable): number {
+  if (body.tools == null) return 0;
+  if (!Array.isArray(body.tools)) fail("BAD_REQUEST", "tools must be an array.");
+  let micros = 0;
+  for (const tool of body.tools) {
+    if (!tool || typeof tool !== "object" || Array.isArray(tool)) fail("BAD_REQUEST", "each tool must be an object.");
+    const t = tool as Record<string, unknown>;
+    addJson(acc, t);
+    if (t.type == null || t.type === "custom") continue;
+    const name = serverToolName(String(t.type));
+    const perUse = table.serverTools[name];
+    if (perUse == null) {
+      fail("UNKNOWN_SURCHARGE", `tool type "${String(t.type)}" is billed by the provider and is not in the price table (server_tools.${name}); refusing the request.`);
+    }
+    const maxUses = t.max_uses;
+    if (typeof maxUses !== "number" || !Number.isInteger(maxUses) || maxUses < 1) {
+      fail("UNKNOWN_SURCHARGE", `tool "${String(t.type)}" needs max_uses so its cost can be reserved; refusing the request.`);
+    }
+    micros += maxUses * perUse;
+  }
+  addJson(acc, body.tool_choice);
+  return micros;
+}
+
+/** "web_search_20250305" -> "web_search". */
+export function serverToolName(type: string): string {
+  return type.replace(/_\d{8}$/, "");
+}
+
+/** OpenAI chat tools must be client tools; anything else is billed per use and unpriced. */
+function checkOpenAiTools(body: Record<string, unknown>): void {
+  if (body.tools == null) return;
+  if (!Array.isArray(body.tools)) fail("BAD_REQUEST", "tools must be an array.");
+  for (const tool of body.tools) {
+    const type = tool && typeof tool === "object" ? (tool as Record<string, unknown>).type : undefined;
+    if (type !== "function" && type !== "custom") {
+      fail("UNKNOWN_SURCHARGE", `tool type "${String(type)}" is not a client tool and is not priced; refusing the request.`);
+    }
+  }
+}
+
+function collectPrompt(prompt: unknown, acc: Acc): void {
   if (typeof prompt === "string") {
-    acc.text += prompt;
+    addText(acc, prompt);
     return;
   }
   if (Array.isArray(prompt) && prompt.every((p) => typeof p === "string")) {
-    acc.text += prompt.join("\n");
+    addText(acc, prompt.join("\n"));
     return;
   }
   fail("UNKNOWN_SURCHARGE", "unsupported prompt shape on /v1/completions.");
 }
 
-function walkContent(
-  content: unknown,
-  acc: { text: string; images: number },
-  table: PriceTable,
-): void {
+function walkContent(content: unknown, acc: Acc, table: PriceTable): void {
   if (content == null) return;
   if (typeof content === "string") {
-    acc.text += content;
+    addText(acc, content);
     return;
   }
   if (!Array.isArray(content)) {
@@ -277,7 +367,7 @@ function walkContent(
       fail("UNKNOWN_SURCHARGE", `content type "${type}" is not in the price table; refusing the request.`);
     }
     if (type === "text" || type === "input_text") {
-      if (typeof row.text === "string") acc.text += row.text;
+      addText(acc, row.text);
     } else if (type === "image_url" || type === "image") {
       acc.images += 1;
     }
@@ -310,7 +400,7 @@ function outputCeiling(
         forwardBody.stream_options && typeof forwardBody.stream_options === "object" && !Array.isArray(forwardBody.stream_options)
           ? { ...(forwardBody.stream_options as Record<string, unknown>) }
           : {};
-      if (existing.include_usage === undefined) existing.include_usage = true;
+      existing.include_usage = true;
       forwardBody.stream_options = existing;
     }
     return { maxTokens: defaultMaxTokens, source: "injected", forwardBody };
@@ -321,7 +411,7 @@ function outputCeiling(
       forwardBody.stream_options && typeof forwardBody.stream_options === "object" && !Array.isArray(forwardBody.stream_options)
         ? { ...(forwardBody.stream_options as Record<string, unknown>) }
         : {};
-    if (existing.include_usage === undefined) existing.include_usage = true;
+    existing.include_usage = true;
     forwardBody.stream_options = existing;
   }
   return { maxTokens, source: "request", forwardBody };
@@ -392,9 +482,14 @@ function toolsFlatMicros(table: PriceTable, toolsPresent: boolean): number {
   return Math.max(table.surcharges.toolsFlatMicros, TOOLS_FLAT_MICROS_FLOOR);
 }
 
-function textTokens(text: string): number {
-  if (!text) return 0;
-  return Math.ceil(text.length / 4);
+/**
+ * Tokens from UTF-8 bytes, rounded up. Tokenizers average about 4 bytes per token on
+ * English and fewer on JSON, code and non-Latin text; 3 bytes per token over-reserves
+ * rather than under-reserves.
+ */
+function byteTokens(bytes: number): number {
+  if (!bytes) return 0;
+  return Math.ceil(bytes / 3);
 }
 
 function atLeastOne(

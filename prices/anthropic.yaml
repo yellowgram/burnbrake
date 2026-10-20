@@ -22,8 +22,21 @@ surcharges:
     extra_output_tokens: 512
     flat_micros: 10000
 
+# Tools that run on Anthropic's side, billed per use on top of tokens. A request using a
+# server tool that isn't listed here is refused. Requests must set max_uses; BurnBrake
+# reserves max_uses x per_use_micros and charges the reported count at settle.
+server_tools:
+  web_search:
+    per_use_micros: 10000 # $10 per 1,000 searches
+
+# Blocks other than text and image are counted by their JSON size.
+# `document` (PDF) is not listed: its token count can't be estimated from the request.
 known_content_types:
   - text
   - image
   - tool_use
   - tool_result
+  - thinking
+  - redacted_thinking
+  - server_tool_use
+  - web_search_tool_result

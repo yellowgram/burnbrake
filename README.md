@@ -54,12 +54,14 @@ The provider key (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) lives only in the BurnB
 
 ## How a call is handled
 
-1. **Estimate.** Input tokens from the request, plus the output ceiling (`max_tokens`, times `n` or `best_of`), priced from `prices/openai.yaml` or `prices/anthropic.yaml`. If you leave out `max_tokens`, BurnBrake sets it to 4096 and tells the provider; a higher value you set is never lowered. Models missing from the price table are refused, never priced at $0.
+1. **Estimate.** Input tokens from everything the provider bills as input (messages, tool definitions, earlier tool calls and their arguments, tool results, thinking blocks), counted as UTF-8 bytes / 3 so code, JSON and non-Latin text aren't under-counted. Plus the output ceiling (`max_tokens`, times `n` or `best_of`), priced from `prices/openai.yaml` or `prices/anthropic.yaml`. If you leave out `max_tokens`, BurnBrake sets it to 4096 and tells the provider; a higher value you set is never lowered. Models missing from the price table are refused, never priced at $0.
 2. **Reserve.** The estimate is held against every configured scope (user, run, day). If any scope can't cover it, including debt from earlier overshoots, the answer is 402 `BUDGET_EXHAUSTED` and nothing is sent upstream.
 3. **Forward.** The request goes to the provider. For streams, bytes go back to your agent as they arrive.
 4. **Settle.** BurnBrake reads the provider's usage (OpenAI `usage`, or Anthropic `message_start` and `message_delta` usage, including prompt-cache tokens) and charges the real cost. If the provider never reported usage, or the stream was cut off, the full estimate is charged.
 
-For OpenAI streams BurnBrake adds `stream_options.include_usage: true` so the provider reports usage at the end. Anthropic streams always report usage, so nothing is added.
+For OpenAI streams BurnBrake sets `stream_options.include_usage: true` (even if the client sent `false`) so the provider reports usage at the end; the client gets one extra chunk with empty `choices`. Anthropic streams always report usage, so nothing is added.
+
+**Server tools.** Tools that run on the provider's side and are billed per use are refused unless the price table prices them. `prices/anthropic.yaml` prices Anthropic web search (`server_tools.web_search`); such a request must set `max_uses`, BurnBrake reserves `max_uses` searches, and at settle it charges the searches the provider reports. OpenAI `web_search_options` and any OpenAI tool that isn't `function` or `custom` are refused. Anthropic `document` (PDF) blocks are refused because their size in tokens can't be estimated from the request.
 
 ## When a call is refused
 
@@ -151,7 +153,8 @@ What BurnBrake protects against: an agent (buggy, looping, or prompt-injected) t
 What it does not protect against:
 
 - **Calls that don't go through it.** A second client pointed straight at `api.openai.com` bypasses every cap, and so does anyone holding the provider key. `GET /health` says so (`deploy.stops_all_spend: false`). After each deploy, check that no other provider client is left in the code.
-- **Overshoot on the call in flight.** The cap is checked before a call. Once forwarded, a call is never cut off. Its real cost can exceed the estimate (tool and vision costs are estimated with flat floors), and the difference becomes debt that blocks the next call. Expect to overshoot a cap by at most one call.
+- **Overshoot on the call in flight.** The cap is checked before a call. Once forwarded, a call is never cut off. Its real cost can exceed the estimate (the token count is an estimate, and images are priced with flat floors), and the difference becomes debt that blocks the next call. The overshoot is bounded by the estimate's error on each call in flight, not by a whole call: with several calls in flight at once, each can exceed its own estimate.
+- **Slow providers.** BurnBrake waits up to 10 minutes for a provider's response headers (and the whole body of a non-streamed reply), then gives up and charges the estimate. A client that hangs up before the provider answers cancels the provider call.
 - **Client disconnects.** If your agent hangs up mid-stream, BurnBrake closes the provider connection and charges the full estimate, because providers bill for tokens already generated and don't report them on a cancelled stream.
 - **Stale prices.** Prices are a static table you maintain. Health warns when `priced_at` is more than 30 days old; enforcement continues with the old prices.
 - **Caller-chosen identity.** User and run ids are headers the caller sets. A day cap is the only fence that survives header games.

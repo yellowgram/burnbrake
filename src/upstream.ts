@@ -18,6 +18,12 @@ export type ForwardResult =
 
 /** Non-streamed upstream bodies above this size are refused (the provider has billed; we debit the estimate). */
 const BUFFERED_BODY_LIMIT = 8_000_000;
+/**
+ * How long to wait for the provider's response headers (and, for a non-streamed reply,
+ * its whole body). Non-streamed replies send headers only when generation ends, so this
+ * is long; it stays under the 15-minute reservation TTL.
+ */
+export const UPSTREAM_RESPONSE_TIMEOUT_MS = 10 * 60 * 1000;
 
 export async function forwardToUpstream(opts: {
   mock: boolean;
@@ -32,6 +38,9 @@ export async function forwardToUpstream(opts: {
   completionTokenOverride: number | null;
   statusOverride: number | null;
   inputTokensHint: number;
+  /** Aborts the upstream call (the client went away). */
+  signal?: AbortSignal;
+  responseTimeoutMs?: number;
 }): Promise<ForwardResult> {
   if (opts.mock) return mockForward(opts);
   const anthropic = opts.provider === "anthropic";
@@ -54,15 +63,29 @@ export async function forwardToUpstream(opts: {
         authorization: `Bearer ${opts.openaiApiKey}`,
       };
   const controller = new AbortController();
-  const response = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(opts.body),
-    redirect: "manual",
-    signal: controller.signal,
-  });
+  const onAbort = () => controller.abort();
+  if (opts.signal?.aborted) controller.abort();
+  opts.signal?.addEventListener("abort", onAbort, { once: true });
+  const timer = setTimeout(() => controller.abort(new Error("upstream response timeout")), opts.responseTimeoutMs ?? UPSTREAM_RESPONSE_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(opts.body),
+      redirect: "manual",
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    opts.signal?.removeEventListener("abort", onAbort);
+    throw err;
+  }
   const contentType = response.headers.get("content-type") ?? "application/json";
   if (response.body && contentType.toLowerCase().includes("event-stream")) {
+    // Headers arrived; the stream itself is governed by the client connection.
+    clearTimeout(timer);
+    opts.signal?.removeEventListener("abort", onAbort);
     const reader = response.body.getReader();
     return {
       kind: "stream",
@@ -84,8 +107,13 @@ export async function forwardToUpstream(opts: {
       },
     };
   }
-  const bodyText = await readLimitedText(response, BUFFERED_BODY_LIMIT);
-  return { kind: "buffered", status: response.status, contentType, bodyText };
+  try {
+    const bodyText = await readLimitedText(response, BUFFERED_BODY_LIMIT);
+    return { kind: "buffered", status: response.status, contentType, bodyText };
+  } finally {
+    clearTimeout(timer);
+    opts.signal?.removeEventListener("abort", onAbort);
+  }
 }
 
 function mockForward(opts: {
@@ -226,6 +254,8 @@ async function readLimitedText(response: Response, limit: number): Promise<strin
 export interface Usage {
   prompt_tokens: number;
   completion_tokens: number;
+  /** Provider-run tool calls billed per use, e.g. { web_search: 3 }. */
+  server_tool_requests?: Record<string, number>;
 }
 
 /**
@@ -241,6 +271,8 @@ export class SseUsageTracker {
   private openai: Usage | null = null;
   /** Latest value of each Anthropic usage field. `message_delta` counts are cumulative, so later wins. */
   private anthropic: Record<string, unknown> | null = null;
+  /** message_start carries a placeholder output count; only a message_delta count is final. */
+  private anthropicOutputFinal = false;
   finished = false;
 
   feed(chunk: string): void {
@@ -266,7 +298,8 @@ export class SseUsageTracker {
     if (this.anthropic) {
       const input = anthropicInputTokens(this.anthropic);
       const output = tokenCount(this.anthropic, "output_tokens", "output_tokens");
-      return input != null && output != null ? { prompt_tokens: input, completion_tokens: output } : null;
+      if (!this.anthropicOutputFinal) return null;
+      return input != null && output != null ? withServerTools({ prompt_tokens: input, completion_tokens: output }, this.anthropic) : null;
     }
     return this.openai;
   }
@@ -303,6 +336,7 @@ export class SseUsageTracker {
         return;
       case "message_delta":
         this.mergeAnthropic(obj.usage);
+        if (obj.usage && typeof (obj.usage as Record<string, unknown>).output_tokens === "number") this.anthropicOutputFinal = true;
         return;
       case "message_stop":
         this.finished = true;
@@ -365,7 +399,7 @@ export function parseUsageText(contentType: string, bodyText: string): Usage | n
   return parseJsonUsage(bodyText);
 }
 
-function parseJsonUsage(bodyText: string): { prompt_tokens: number; completion_tokens: number } | null {
+function parseJsonUsage(bodyText: string): Usage | null {
   try {
     return parseUsageObject(JSON.parse(bodyText) as unknown);
   } catch {
@@ -373,7 +407,7 @@ function parseJsonUsage(bodyText: string): { prompt_tokens: number; completion_t
   }
 }
 
-function parseUsageObject(value: unknown): { prompt_tokens: number; completion_tokens: number } | null {
+function parseUsageObject(value: unknown): Usage | null {
   if (!value || typeof value !== "object") return null;
   const usage = (value as { usage?: unknown }).usage;
   if (!usage || typeof usage !== "object") return null;
@@ -381,7 +415,20 @@ function parseUsageObject(value: unknown): { prompt_tokens: number; completion_t
   const prompt = typeof row.prompt_tokens === "number" ? tokenCount(row, "prompt_tokens", "input_tokens") : anthropicInputTokens(row);
   const completion = tokenCount(row, "completion_tokens", "output_tokens");
   if (prompt == null || completion == null) return null;
-  return { prompt_tokens: prompt, completion_tokens: completion };
+  return withServerTools({ prompt_tokens: prompt, completion_tokens: completion }, row);
+}
+
+/** Anthropic reports `usage.server_tool_use.web_search_requests` and the like. */
+function withServerTools(usage: Usage, row: Record<string, unknown>): Usage {
+  const st = row.server_tool_use;
+  if (!st || typeof st !== "object") return usage;
+  const requests: Record<string, number> = {};
+  for (const [k, v] of Object.entries(st as Record<string, unknown>)) {
+    if (!k.endsWith("_requests")) continue;
+    // An unreadable count is charged as unknown (the estimate), never as zero.
+    requests[k.slice(0, -"_requests".length)] = typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.ceil(v) : Number.NaN;
+  }
+  return { ...usage, server_tool_requests: requests };
 }
 
 function tokenCount(row: Record<string, unknown>, primary: string, alternate: string): number | null {
