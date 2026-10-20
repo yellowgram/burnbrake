@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isEntryPoint } from "../src/cli.ts";
 
-// BB-R1 (LaunchGate re-review): npm installs the bin as a symlink, and the CLI used to
+// npm installs the bin as a symlink, and the CLI used to
 // compare import.meta.url with argv[1] directly, so `burnbrake --help` printed nothing and
 // `burnbrake serve` exited at once. These tests run the CLI through a symlink.
 const cli = fileURLToPath(new URL("../src/cli.ts", import.meta.url));

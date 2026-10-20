@@ -1,6 +1,6 @@
-// LaunchGate re-review P3/P4 items fixed in round 2b: BB-R2 (bytes/3 under-counts text made of very
-// short tokens), BB-R3 (mcp_servers / container accepted unpriced), BB-R4 (Anthropic-defined client
-// tools refused with a misleading message).
+// Input estimate at least the pre-tokenizer piece count (bytes/3 under-counted text made of very
+// short tokens); requests with mcp_servers or container are refused (they can't be priced); and
+// Anthropic-defined client tools are refused with an accurate reason.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { estimateRequest, pieceCount } from "../src/estimate.ts";
@@ -14,7 +14,7 @@ const chat = (content: string) =>
 const claude = (extra: Record<string, unknown>) =>
   estimateRequest({ model: "claude-3-5-haiku-latest", max_tokens: 16, messages: [{ role: "user", content: "hi" }], ...extra }, anthropicTable, 4096, "/v1/messages");
 
-describe("BB-R2: input tokens are at least the pre-tokenizer piece count", () => {
+describe("input tokens are at least the pre-tokenizer piece count", () => {
   it("30k space-separated single letters reserve at least 30k input tokens (bytes/3 gave 20,004)", () => {
     const text = Array.from({ length: 30_000 }, (_, i) => String.fromCharCode(97 + (i % 26))).join(" ");
     const r = chat(text);
@@ -41,7 +41,7 @@ describe("BB-R2: input tokens are at least the pre-tokenizer piece count", () =>
   });
 });
 
-describe("BB-R3: MCP connector servers and code-execution containers are refused", () => {
+describe("MCP connector servers and code-execution containers are refused", () => {
   for (const extra of [
     { mcp_servers: [{ type: "url", url: "https://example.invalid/mcp", name: "x" }] },
     { container: "container_123" },
@@ -56,7 +56,7 @@ describe("BB-R3: MCP connector servers and code-execution containers are refused
   }
 });
 
-describe("BB-R4: Anthropic-defined client tools are refused with an accurate reason", () => {
+describe("Anthropic-defined client tools are refused with an accurate reason", () => {
   for (const type of ["bash_20250124", "text_editor_20250728", "computer_20250124"]) {
     it(`refuses ${type} as an unpriced Anthropic-defined client tool`, () => {
       const r = claude({ tools: [{ type, name: "t" }] });
