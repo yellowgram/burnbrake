@@ -2,7 +2,7 @@
 
 ## Private vulnerability reports
 
-Do not open a GitHub Issue with a proof of concept, exploit steps, or a zero-day. Do not paste live Stripe keys, Polar tokens, database URLs, webhook secrets, or customer billing details into Issues, pull requests.
+Do not open a GitHub Issue with a proof of concept, exploit steps, or a zero-day. Do not paste provider API keys, BurnBrake keys, or ledger files into Issues or pull requests.
 
 Report privately by email to **hello@yellowgram.dev** with subject `BurnBrake security`. Prefer a short description and a redacted repro. Do not attach live secrets.
 

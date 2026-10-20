@@ -6,7 +6,7 @@ import { openReplayBody, sealReplayBody, deriveReplayKey } from "../src/replay-b
 import { BurnBrake } from "../src/sdk/index.ts";
 import { bootSidecar, postChat } from "./helpers.ts";
 
-describe("P2 features", () => {
+describe("allowance, Anthropic route, replay bodies, heartbeat", () => {
   it("grants one reserve and then halts again", async () => {
     const sidecar = await bootSidecar({ caps: { user: null, run: 1, day: null } });
     try {

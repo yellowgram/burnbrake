@@ -119,7 +119,7 @@ try {
   const denied = decisions.decisions.find((row: { code: string }) => row.code === "BUDGET_EXHAUSTED");
   assertStep(denied && denied.upstream_forwarded === 0, "decision upstream_forwarded=false");
   console.log(`45–60s decision upstream_forwarded=${denied.upstream_forwarded} terminal=${denied.terminal_reason ?? "n/a"}`);
-  console.log("Honesty: one already-forwarded call may still overshoot. Debt gates the next call. This reject did not call upstream.");
+  console.log("Note: one already-forwarded call may still overshoot. Debt gates the next call. This reject did not call upstream.");
 
   const elapsed = Date.now() - started;
   assertStep(elapsed < 60_000, `elapsed ${elapsed}ms`);

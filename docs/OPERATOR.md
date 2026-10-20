@@ -1,6 +1,6 @@
 # Operator runbook
 
-Full see/do list: [OPERATOR_NEEDS.md](./OPERATOR_NEEDS.md). This page is the shipped control surface.
+Everything an operator can see and do: balances, decisions, kill and pause, caps, the brake curve and force-release.
 
 The CLI opens the SQLite ledger (`BURNBRAKE_LEDGER_PATH` or `--ledger`) and can run while the sidecar is up. Whoever can read that file can change caps. Protect the file. The CLI does not take the writer lease. See [SINGLE_STORE.md](./SINGLE_STORE.md).
 
@@ -63,7 +63,7 @@ There is no switch to allow spend past a cap, and no switch to forward when the 
 
 ## Brake curve
 
-Shipped. `burnbrake brake show|set` and `GET`/`POST /v1/operator/brake` (operator key only; the spend key is 401). See [DESIGN_BRAKE_CURVE.md](./DESIGN_BRAKE_CURVE.md) (**BB_BRAKE_CURVE_1**).
+`burnbrake brake show|set` and `GET`/`POST /v1/operator/brake` (operator key only; the spend key is 401). How the zones work: [BRAKE_CURVE.md](./BRAKE_CURVE.md).
 
 `brake.enabled` defaults to **false** and is not a halt-off switch. While it is false, the spend path matches the pre-curve halt: no zone delay and no brake headers. At the cap the sidecar still returns HTTP **402** `BUDGET_EXHAUSTED` with `halt: true` and `retryable: false`. There is no `Retry-After` and no 429 for exhaust. A black delay is a pre-402 pause only. The wait does not change the verdict.
 

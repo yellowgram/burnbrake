@@ -1,6 +1,6 @@
 # Deploy invariants
 
-HTTP request-path spend governor. Cap + kill on calls that reach this sidecar.
+These hold for every BurnBrake deployment. They are checked at startup or reported by `GET /health`.
 
 ## Dual client
 
@@ -28,6 +28,6 @@ A user cap without a day cap remains rotatable. Set a day cap when the fence has
 
 See [EXHAUST_CONTRACT.md](./EXHAUST_CONTRACT.md). Those bytes are not a setting.
 
-## Hosted SKU
+## Tenancy
 
-See [HOSTED_VS_KIT.md](./HOSTED_VS_KIT.md). This process is the kit.
+One process, one SQLite ledger, one tenant. `GET /health` reports `deploy.hosted.multi_tenant_runtime: false`. Do not share one sidecar between customers who must not see or spend each other's budget.

@@ -1,6 +1,6 @@
 # Single store, one clock
 
-The kit ledger is one SQLite file. UTC day keys come from **this process clock** (`Date` on the writer). Health reports `day_clock.source: "process"` and `day_clock.multi_writer` as unsupported without one shared store and one clock.
+The ledger is one SQLite file. UTC day keys come from **this process clock** (`Date` on the writer). Health reports `day_clock.source: "process"` and `day_clock.multi_writer` as unsupported without one shared store and one clock.
 
 ## Before a second writer
 
@@ -12,4 +12,4 @@ That lease is **one writer**, not a multi-pod design. It does not merge clocks. 
 
 ## What this is not
 
-A shared multi-pod kit. A hosted multi-tenant runtime. See [HOSTED_VS_KIT.md](./HOSTED_VS_KIT.md).
+A shared multi-pod ledger, or a multi-tenant service.

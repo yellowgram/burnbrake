@@ -1,4 +1,4 @@
-/** BB_BRAKE_CURVE_1. Curve only. Exhaust bytes stay 402 / halt / not retryable. */
+/** Brake curve: optional slow-down before the cap. Exhaust stays 402 / halt / not retryable. */
 
 export const ABSOLUTE_MAX_DELAY_MS = 15_000;
 

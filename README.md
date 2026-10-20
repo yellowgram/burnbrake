@@ -2,108 +2,68 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Request-path spend governor for agent loops. The sidecar estimates a completion, reserves that amount against user, run, and day caps, and **rejects the next call** when the reserve (including debt) cannot be covered.
+BurnBrake puts a hard dollar cap on LLM calls made by agents. It is a small proxy that sits between your agent and OpenAI or Anthropic. Before each call it estimates the worst-case cost, holds that amount against the user, run and daily budgets, and refuses the call with HTTP 402 if the budget can't cover it. After the call it charges the real cost from the provider's usage numbers and gives back the rest.
 
-One already-forwarded call may still overshoot. Debt gates the next call. This is not a promise of zero spend on a call that already left the process.
+Use it when an agent loop could run away with your API bill and you want a stop that the agent cannot argue with.
 
-Primary shape: OpenAI-compatible sidecar. Secondary: a thin TypeScript SDK. MIT licensed ([LICENSE](LICENSE)). Releases before 0.2.0 (tag `v0.1.1` and its zip) were published under the previous license; 0.2.0 and later are MIT. BurnBrake is no longer sold.
+- Works with OpenAI-shaped `/v1/chat/completions` and `/v1/completions`, and Anthropic `/v1/messages`, streamed or not.
+- Budgets per user, per run and per UTC day, kept in one SQLite file.
+- A refused call never reaches the provider.
+- Streams pass straight through as they arrive; BurnBrake reads the usage on the way past and settles when the stream ends.
 
-Contact: hello@yellowgram.dev
+## Five-minute quickstart
 
-## Quick start
-
-Offline sealed smoke (fixture / mock upstream, no live keys, no provider spend):
+Needs Node 22.13 or newer. Nothing here calls a real provider or spends money.
 
 ```bash
+git clone https://github.com/yellowgram/burnbrake && cd burnbrake
 npm ci
-npm run demo
+npm run demo        # offline: health, one allowed call, then a 402 with no upstream call
 ```
 
-`npm run demo` runs `scripts/demo-60s.ts`. The script sets `mockUpstream: true` and clears `OPENAI_API_KEY` for that process. There is no live provider key and no provider spend.
+Run it yourself against the built-in mock provider:
 
-Needs Node 22.13+ and a full `npm ci`. The demo uses the TypeScript runner, so do not pass `--omit=dev`.
+```bash
+npm run build
+export BURNBRAKE_KEY=bb_replace_me               # the key your agent sends to BurnBrake
+export BURNBRAKE_OPERATOR_KEY=bb_operator_me     # a different key, for changing caps
+export BURNBRAKE_CAP_USER_USD=10 BURNBRAKE_CAP_RUN_USD=1 BURNBRAKE_CAP_DAY_USD=5
+export BURNBRAKE_MOCK_UPSTREAM=1                 # drop this and set OPENAI_API_KEY for real calls
+node dist/cli.js serve                           # listens on 127.0.0.1:8787
+```
 
-What it proves: health, then one under-budget allow, then **402** `BUDGET_EXHAUSTED` with the mock forward count flat.
+In another shell:
 
-Honesty: one already-forwarded call may still overshoot; the deny step is HTTP **402** `BUDGET_EXHAUSTED` (halt, not retryable, not 429) and does not call upstream.
+```bash
+curl -sS http://127.0.0.1:8787/v1/chat/completions \
+  -H "content-type: application/json" \
+  -H "X-BurnBrake-Key: bb_replace_me" \
+  -H "x-burnbrake-user-id: alice" -H "x-burnbrake-run-id: run-1" \
+  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}],"max_tokens":16}'
 
-Details: [docs/DEMO_60S.md](docs/DEMO_60S.md).
+node dist/cli.js balances --user alice --run run-1 --ledger data/burnbrake.sqlite
+```
 
-## START_HERE
+To use it from an existing OpenAI client, point the client at the proxy and send the BurnBrake key instead of the provider key:
 
-BurnBrake only governs traffic that hits the sidecar. A second client pointed at `https://api.openai.com` bypasses every cap.
+```bash
+export OPENAI_BASE_URL=http://127.0.0.1:8787/v1
+```
 
-1. Install and start on localhost (auth required):
+The provider key (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) lives only in the BurnBrake process. Your agent never needs it.
 
- ```bash
- npm ci
- npm run build
- export BURNBRAKE_KEY=bb_replace_me
- export BURNBRAKE_CAP_USER_USD=10
- export BURNBRAKE_CAP_RUN_USD=1
- export BURNBRAKE_CAP_DAY_USD=5
- export BURNBRAKE_MOCK_UPSTREAM=1
- node --disable-warning=ExperimentalWarning dist/cli.js serve
- ```
+## How a call is handled
 
- Default listen is `127.0.0.1:8787`. `burnbrake serve` reads the process environment. It does not load `.env`. Docker Compose reads `config.example.env` directly; a copied `.env` does not override that file. Set **user and/or day** as well as run. A per-run cap alone is washable by minting new run ids. Operator HTTP (`/v1/operator/*`) needs a different `BURNBRAKE_OPERATOR_KEY`. The spend key cannot change caps.
+1. **Estimate.** Input tokens from the request, plus the output ceiling (`max_tokens`, times `n` or `best_of`), priced from `prices/openai.yaml` or `prices/anthropic.yaml`. If you leave out `max_tokens`, BurnBrake sets it to 4096 and tells the provider; a higher value you set is never lowered. Models missing from the price table are refused, never priced at $0.
+2. **Reserve.** The estimate is held against every configured scope (user, run, day). If any scope can't cover it, including debt from earlier overshoots, the answer is 402 `BUDGET_EXHAUSTED` and nothing is sent upstream.
+3. **Forward.** The request goes to the provider. For streams, bytes go back to your agent as they arrive.
+4. **Settle.** BurnBrake reads the provider's usage (OpenAI `usage`, or Anthropic `message_start` and `message_delta` usage, including prompt-cache tokens) and charges the real cost. If the provider never reported usage, or the stream was cut off, the full estimate is charged.
 
- A git checkout has no `dist/`, so `npm run build` is required. `npm run demo` needs the TypeScript runner from devDependencies, so do not pass `--omit=dev`.
+For OpenAI streams BurnBrake adds `stream_options.include_usage: true` so the provider reports usage at the end. Anthropic streams always report usage, so nothing is added.
 
- The exports above turn on user, run, and day. A completion must send both identity headers or the sidecar returns **400** `IDENTITY_REQUIRED` and does not forward. The OpenAI `user` field is not a budget id.
+## When a call is refused
 
- ```bash
- curl -sS http://127.0.0.1:8787/v1/chat/completions \
- -H "content-type: application/json" \
- -H "X-BurnBrake-Key: $BURNBRAKE_KEY" \
- -H "x-burnbrake-user-id: alice" \
- -H "x-burnbrake-run-id: run-1" \
- -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}],"max_tokens":16}'
- ```
-
-2. Send `X-BurnBrake-Key` (or `Authorization: Bearer bb_…`). Never put the provider API key in that header, and never send the BurnBrake key upstream. `OPENAI_API_KEY` is used only on the sidecar → provider hop.
-
-3. Point the OpenAI client at the sidecar:
-
- ```bash
- export OPENAI_BASE_URL=http://127.0.0.1:8787/v1
- ```
-
- SDK users set `baseURL` to `http://127.0.0.1:8787` (no `/v1`; the client appends the route).
-
-4. Confirm the app has no second, ungated provider client.
-
-5. Under budget, a completion returns 200 and the ledger moves reserve → settle. Over budget, the next completion returns **402** `BUDGET_EXHAUSTED` and the upstream call count stays flat.
-
-6. Halt the agent loop on 402. Do not retry it as a rate limit, and do not open another base URL to get around it.
-
-7. For long jobs, set your own `max_tokens`. The sidecar injects `max_tokens=4096` **only when you omit it**. It will not silently lower a higher ceiling you set. A high ceiling reserves more and can deny earlier. That is the gate working. `n` and `best_of`, when present, multiply that output ceiling. They are forwarded unchanged.
-
-The sealed offline smoke is [Quick start](#quick-start).
-
-## Dual-client bypass
-
-Deploy invariant: BurnBrake governs only calls that reach this sidecar. It does not govern a second client. `GET /health` reports `deploy.stops_all_spend: false` and `deploy.dual_client.detected_here: false`. Startup logs the same limit. A health check is not evidence that every agent uses the sidecar.
-
-After every agent deploy, check:
-
-- `OPENAI_BASE_URL` (or the SDK `baseURL`) points at this sidecar
-- requests carry `X-BurnBrake-Key` or `Bearer bb_…`
-- the tree has no raw `api.openai.com` client left beside the gated one
-
-If spend continues through a client that never hits the sidecar, the caps did not fail. The call never entered the gate.
-
-## Production scopes
-
-`NODE_ENV=production` or `BURNBRAKE_PRODUCTION=1` refuses to start unless a **user** cap and/or a **day** cap is set. Run-alone is washable by rotating `x-burnbrake-run-id` and is not a production fence. Outside production the process still starts, and health `deploy.scopes` plus the CLI warning say when the fence is run-only. A user cap without a day cap still warns: those headers are caller-chosen. The OpenAI `user` field is not a budget id.
-
-If production is already up and the user and day caps are later removed, the next reserve returns **503** `PRODUCTION_SCOPE_REQUIRED` and does not forward.
-
-## Decision table
-
-`BUDGET_EXHAUSTED` is a halt. It is not HTTP 429. Do not retry the spend call.
-
-HTTP **402** is the halt family. Budget, pause, and unpriced share that status and are distinguished by `error.code`. They are never **429**. Every other failure uses a different status.
+`BUDGET_EXHAUSTED` means stop. It is HTTP 402, never 429, and it has no `Retry-After`. Retrying it just gets another 402.
 
 | Signal | HTTP | Code | Retry the spend call? | Agent action |
 | --- | --- | --- | --- | --- |
@@ -125,153 +85,92 @@ HTTP **402** is the halt family. Budget, pause, and unpriced share that status a
 | Other `/v1/*` route | **404** | `ROUTE_NOT_GOVERNED` | No | Not proxied. |
 | Provider rate limit | provider **429** (passed through) | upstream body | Per the provider, not this gate | Do not confuse this with `BUDGET_EXHAUSTED`. |
 | Provider 5xx or disconnect after forward | upstream / **502** | `UPSTREAM_ERROR` or the upstream body | Only with the **same idempotency key** | Expect settle if usage is known, otherwise `DEBIT_RESERVED`. |
+| Stream cut off mid-way | the stream just ends | (no end marker) | Only with the **same idempotency key** (you get 409 `ALREADY_TERMINAL`) | The estimate is debited. Treat the partial output as incomplete. |
 | Ledger failure after forward | **502** | `LEDGER_UNAVAILABLE` | Only with the **same idempotency key** | Distinct from the pre-forward 503. The debit stands. |
 | Upstream success | **200** | — | — | Continue. |
 
-SDK: a 402 `BUDGET_EXHAUSTED` is thrown as `BudgetExhausted` with the same fields (`scope`, `remaining_micros`, `requested_micros`, `run_id`, `user_id`). `halt` is true and `retryable` is false. The SDK does not sleep on 402. A brake delay, when configured, happens in the sidecar before reserve.
+The SDK throws `BudgetExhausted` on 402 with the same fields (`scope`, `remaining_micros`, `requested_micros`, `run_id`, `user_id`).
 
-Optional brake curve (default **off**): slow down before the cap, then the same 402 halt. `brake.enabled` is not a halt-off switch. While it is false, exhaust responses match the halt-only path (no zone headers, no `Retry-After`, never 429). Operator commands: `burnbrake brake show|set` and `/v1/operator/brake`. See [docs/OPERATOR.md](docs/OPERATOR.md).
+## Retries and idempotency
 
-Once a call is `FORWARDED`, BurnBrake does not reject it mid-stream. The next call is the gate.
+Send an `Idempotency-Key` header (the SDK makes it mandatory). A retry with the same key never makes a second provider call: you get the stored response back, or 409 `ALREADY_TERMINAL` if there is nothing to replay. Streams are stored for replay when they finished cleanly and are under 1.5 MB. Bigger or broken streams still pass through in full; they just aren't replayable. Without a key, a retry after BurnBrake has forwarded can start a second, separately charged provider call.
 
-## Idempotency
-
-The TypeScript SDK **requires** `idempotencyKey` on every happy-path call. Raw HTTP may omit `Idempotency-Key` / `x-burnbrake-request-id`, but that is loud on purpose: a retry after the sidecar has forwarded, sent without that key, can start a second provider call. Retries after forward must carry the same key. The same key does not double-forward. A key whose reservation is already terminal is not reserved again: the stored response is replayed, or the retry gets **409** `ALREADY_TERMINAL` if no body was stored. A new logical attempt needs a new key (a stored 402 is replayed for the old key).
-
-## Routes
-
-Governed (estimated, reserved, then forwarded or rejected):
-
-- `POST /v1/chat/completions`
-- `POST /v1/completions`
-- `POST /v1/messages` (Anthropic-shaped). Same reserve, forward, settle, and 402 halt. Priced from `prices/anthropic.yaml`. Live forwarding uses `ANTHROPIC_API_KEY` and `BURNBRAKE_ANTHROPIC_BASE_URL` (default `https://api.anthropic.com`). The mock upstream answers this route offline.
-
-Any other `/v1/*` route returns `ROUTE_NOT_GOVERNED` and is **not** proxied. `POST /v1/burnbrake/heartbeat` is not a spend route.
-
-## One-shot allowance
-
-Operator only: `POST /v1/operator/allowances` or `burnbrake allowance grant`. Body is `scope`, `key`, `grant_micros`, and `reason`. The next reserve that would have been `BUDGET_EXHAUSTED` on that scope may proceed once if the estimate is within the grant. The grant is then consumed. Spend still counts, so the following call is the hard 402 halt again. The grant cannot set `retryable`, change the HTTP status, or turn the halt off.
-
-## Heartbeat
-
-`POST /v1/burnbrake/heartbeat` with the spend key returns `stops_all_spend: false`. A success proves that this call reached the sidecar. It does not prove there is no second client. The SDK method is `heartbeat()`. It does not call the provider.
-
-## Configure caps
-
-| Env | Meaning |
-| --- | --- |
-| `BURNBRAKE_CAP_USER_USD` or `_MICROS` | Default cap for each `x-burnbrake-user-id` |
-| `BURNBRAKE_CAP_RUN_USD` or `_MICROS` | Default cap for each `x-burnbrake-run-id` |
-| `BURNBRAKE_CAP_DAY_USD` or `_MICROS` | Deploy-wide cap for the UTC day |
-
-Scopes that are configured are AND-ed. The first scope that cannot cover the estimate (user, then run, then day) is the one named on the 402. Day buckets use the ledger clock in **UTC**. Outstanding debt (settle above reserve, or a negative remaining after a debit) blocks the next reserve until a cap raise or, for the day scope, the next UTC day leaves that bucket behind.
-
-Identity headers are accepted only after auth: `x-burnbrake-user-id`, `x-burnbrake-run-id`. The OpenAI `user` field is forwarded to the provider and is **not** a budget id. A client that stamps a different `user` on each call does not mint a new cap. Without a day cap, those headers are caller-chosen and can be rotated.
-
-## Operator
-
-CLI talks to the SQLite ledger directly (`BURNBRAKE_LEDGER_PATH` or `--ledger`):
-
-```bash
-burnbrake balances --user alice --run run-1
-burnbrake decisions --deny-only --run run-1 --format csv
-burnbrake kill --run run-1
-burnbrake resume --run run-1
-burnbrake pause --global
-burnbrake caps set --scope day --usd 5
-burnbrake top-runs --window 1h
-burnbrake force-release --reservation <id> --reason "provider confirmed no charge" --attest-no-charge
-```
-
-The same controls are on `/v1/operator/*` (`balances`, `decisions`, `reservations`, `runs/top`, `runs/kill`, `pause`, `resume`, `caps`, `force-release`). Those routes require `BURNBRAKE_OPERATOR_KEY`: a `bb_…` secret that is not `BURNBRAKE_KEY` and not the provider key. Send it as `X-BurnBrake-Key` or `Authorization: Bearer bb_…` on operator routes. The spend key is rejected. If the operator key is unset, operator HTTP returns **403** `OPERATOR_KEY_REQUIRED` and does not fall back to the spend key, including on localhost. The CLI does not use that key; access to the SQLite file is operator control, so protect the file.
-
-`GET /health` (no key) reports listen address, `auth.required`, `operator_http`, `ledger.writable`, `fail_closed`, price-table `version` / `priced_at` / stale flag, and `estimate.default_max_tokens`. It never echoes secrets.
-
-Auth rotation: change `BURNBRAKE_KEY` for agents and `BURNBRAKE_OPERATOR_KEY` for operator HTTP independently, restart the sidecar, and update the clients that hold that secret. Do not put the operator key in the agent environment. Do not rotate by swapping in the provider key. Rotating either HTTP key does not lock the SQLite file. The CLI has no key; the file is created mode `0600`, and anyone who can write it can change caps.
-
-Force-release is audited and only for a stuck row you have proved was not charged. The default for crash or TTL while `FORWARDED` is **DEBIT_RESERVED** (the estimate is spent). A `RESERVED` row that never forwarded is released. TTL is **15 minutes**.
-
-Denies must show `upstream_forwarded=false`. If a deny shows true, stop and treat it as a product bug.
-
-Runbook: [docs/OPERATOR.md](docs/OPERATOR.md). Design pack: [docs/](docs/).
-
-## Price table
-
-`prices/openai.yaml` is a static versioned table (`version`, `priced_at`). Models missing from it are denied. There is no live price feed and no silent $0. If `priced_at` is older than **30 days**, health and the operator balances warn. The gate still enforces. Stale does not fail open.
-
-## Reservation states
-
-| State | Budget effect |
-| --- | --- |
-| `RESERVED`, then reject or failure before forward | `RELEASE_PRE_FORWARD` |
-| `FORWARDED`, then usage known | `SETTLED` (debit actual, release unused hold). Overshoot becomes debt. |
-| `FORWARDED`, provider 4xx and no usage | `RELEASE_UPSTREAM_NO_CHARGE` |
-| `FORWARDED`, then 5xx, disconnect, or no usage | `DEBIT_UPSTREAM_UNKNOWN` |
-| Crash or TTL while `FORWARDED` | `DEBIT_TTL_OR_CRASH` |
-| Operator force-release with attestation | `FORCE_RELEASE_AUDITED` |
+Stored bodies are deleted after 24 hours by default (`BURNBRAKE_IDEMPOTENCY_BODY_TTL_MS`, never longer). Set `BURNBRAKE_REPLAY_KEY` to encrypt them at rest.
 
 ## SDK
 
 ```ts
 import { BurnBrake, BudgetExhausted } from "burnbrake";
 
-const bb = new BurnBrake({
- baseURL: "http://127.0.0.1:8787",
- apiKey: process.env.BURNBRAKE_KEY!,
-});
+const bb = new BurnBrake({ baseURL: "http://127.0.0.1:8787", apiKey: process.env.BURNBRAKE_KEY! });
 
 try {
- await bb.chat.completions.create(
- { model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }], max_tokens: 256 },
- { idempotencyKey: "step-1", userId: "alice", runId: "run-1" },
- );
+  await bb.chat.completions.create(
+    { model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }], max_tokens: 256 },
+    { idempotencyKey: "step-1", userId: "alice", runId: "run-1" },
+  );
 } catch (err) {
- if (err instanceof BudgetExhausted) {
- // Halt. Do not retry. Do not open a second base URL.
- throw err;
- }
- throw err;
+  if (err instanceof BudgetExhausted) {
+    // Stop the loop. Do not retry, and do not switch to another base URL.
+  }
+  throw err;
 }
 ```
 
-`idempotencyKey` is required. The SDK throws `IdempotencyKeyRequired` before sending if it is missing.
+## Caps
 
-## Install
+| Env | Meaning |
+| --- | --- |
+| `BURNBRAKE_CAP_USER_USD` or `_MICROS` | Default cap for each `x-burnbrake-user-id` |
+| `BURNBRAKE_CAP_RUN_USD` or `_MICROS` | Default cap for each `x-burnbrake-run-id` |
+| `BURNBRAKE_CAP_DAY_USD` or `_MICROS` | Cap for everything in one UTC day |
 
-- From npm: `npm install burnbrake`, then `npx burnbrake serve` (Node 22.13+).
-- From git: `npm ci`, `npm run build`, `node dist/cli.js serve`.
-- Optional Docker: the image listens on `127.0.0.1` unless you opt in. `docker compose up --build` publishes **only** `127.0.0.1:8787` and sets `BURNBRAKE_HOST=0.0.0.0` plus `BURNBRAKE_ALLOW_PUBLIC_BIND=1` inside the container so Docker can reach that process. Compose loads `config.example.env` as its env file. Edit that file. A copied `.env` is not read. The placeholder keys in the example are public and are only appropriate on that localhost publish. Do not `docker run -p 8787:8787` and do not publish `0.0.0.0` without an ACL.
+Every configured scope must cover the call. The 402 names the first one that couldn't (user, then run, then day). Identity comes from the two `x-burnbrake-*` headers only; the OpenAI `user` field is passed through and ignored for budgets. Because the caller picks those headers, a run cap alone can be dodged by inventing new run ids. Always set a user or day cap; with `NODE_ENV=production` or `BURNBRAKE_PRODUCTION=1`, BurnBrake refuses to start without one.
 
-This repository is a single-tenant SQLite process. It has no multi-tenant hosted runtime. Tenancy notes: [docs/HOSTED_VS_KIT.md](docs/HOSTED_VS_KIT.md).
+Optional slow-down before the cap: [docs/BRAKE_CURVE.md](docs/BRAKE_CURVE.md).
 
-Older releases: tag `v0.1.1` and the `checksums/` manifests for 0.1.0 and 0.1.1 are kept as historical artifacts and were published under the previous license.
-
-## Tests
+## Operating it
 
 ```bash
-npm test
-npm run demo
+burnbrake balances --user alice --run run-1
+burnbrake decisions --deny-only --run run-1 --format csv
+burnbrake kill --run run-1          # and: resume, pause --global
+burnbrake caps set --scope day --usd 5
+burnbrake top-runs --window 1h
+burnbrake allowance grant ...       # let one more call through on a scope, once
 ```
 
-Pull requests and pushes to `main` run `npm ci`, `npm run typecheck`, `npm test`, and `npm run build` on Node 22.
+The CLI works on the ledger file directly. The same controls are on `/v1/operator/*` and need `BURNBRAKE_OPERATOR_KEY`, which must differ from the spend key and the provider key. `GET /health` reports the setup without echoing secrets. Full runbook: [docs/OPERATOR.md](docs/OPERATOR.md).
 
-## Known limits
+Install from npm with `npm install burnbrake` and run `npx burnbrake serve`. A Docker image and `docker-compose.yml` are included; compose publishes only `127.0.0.1:8787`.
 
-- One in-flight call can settle above the reserve, or a crash can debit the estimate. The next call is gated. Tool and vision ceilings are flat allowances, so that one call can still overshoot. Debt gates the next call. This is not a promise of zero overspend. There is no claim that BurnBrake will outrun OpenAI forever.
-- The idempotency table stores upstream response bodies so a short retry can replay them. Bodies are removed after **24 hours** by default (`BURNBRAKE_IDEMPOTENCY_BODY_TTL_MS`, minimum 1 second, never longer than 24 hours). The key stays terminal and is not reserved again. `BURNBRAKE_REPLAY_KEY` encrypts new bodies at rest (AES-256-GCM). Without that key, bodies stay plaintext in the SQLite file. The file is mode `0600` and is still a secret. Decision rows do not store prompts.
-- A day cap set only on one UTC date (`--key` / `key` for that date) does not roll to the next day. Set the default day cap (omit the key) if you want the fence to continue.
-- Skewed clocks across writers that do not share this ledger can split the UTC day bucket. More than one writer requires one shared store and one process clock. `BURNBRAKE_WRITER_LEASE=1` is an advisory single-writer lease on that file. It is not a multi-pod ledger. The CLI on the file remains operator control and does not take the lease.
-- A client that ignores the sidecar is outside this process. Health reports that directly (`deploy.stops_all_spend` is false). There is no claim that every provider call is gated.
-- Per-run caps alone, or a user cap without a day cap, can be washed by rotating `x-burnbrake-run-id` / `x-burnbrake-user-id`. Production (`NODE_ENV=production` or `BURNBRAKE_PRODUCTION=1`) refuses to start on run-alone. The OpenAI `user` field does not do that; it is not a budget id.
-- Filesystem access to the ledger is full operator control. The CLI has no key of its own.
-- `X-BurnBrake-Key` is compared without an early return on length. During rotation, set `BURNBRAKE_KEY_PREVIOUS` (and `BURNBRAKE_OPERATOR_KEY_PREVIOUS` for operator HTTP) to the outgoing secret, restart with the new `BURNBRAKE_KEY`, then drop the previous key on a later restart. Process logs print error messages only. They do not print the BurnBrake key, the operator key, or the provider key. Do not put a secret in an idempotency key; that key is stored in the ledger.
-- A TTL or crash debit records `debt_delta_micros` as 0 on the decision row. Balances still show debt when spent plus held exceeds the cap, and the next reserve still denies. Force-release is the only path that drops a hold after `FORWARDED`, and it requires the operator key plus `attest_no_charge`. A false attestation is operator misuse.
+## Limits and threat model
 
-Design notes are in [docs/](docs/). Earlier review logs are in the git history.
+What BurnBrake protects against: an agent (buggy, looping, or prompt-injected) that keeps making model calls through the proxy. It cannot raise its own caps, because the spend key cannot reach operator routes.
 
-## Support
+What it does not protect against:
 
-There is no support contract and no SLA. Open a GitHub Issue for bugs. Security reports: [SECURITY.md](SECURITY.md).
+- **Calls that don't go through it.** A second client pointed straight at `api.openai.com` bypasses every cap, and so does anyone holding the provider key. `GET /health` says so (`deploy.stops_all_spend: false`). After each deploy, check that no other provider client is left in the code.
+- **Overshoot on the call in flight.** The cap is checked before a call. Once forwarded, a call is never cut off. Its real cost can exceed the estimate (tool and vision costs are estimated with flat floors), and the difference becomes debt that blocks the next call. Expect to overshoot a cap by at most one call.
+- **Client disconnects.** If your agent hangs up mid-stream, BurnBrake closes the provider connection and charges the full estimate, because providers bill for tokens already generated and don't report them on a cancelled stream.
+- **Stale prices.** Prices are a static table you maintain. Health warns when `priced_at` is more than 30 days old; enforcement continues with the old prices.
+- **Caller-chosen identity.** User and run ids are headers the caller sets. A day cap is the only fence that survives header games.
+- **One process, one file, one tenant.** The ledger is a single SQLite file with the process clock as the day boundary. It is not a multi-pod or multi-tenant ledger ([docs/SINGLE_STORE.md](docs/SINGLE_STORE.md)). Whoever can write the file can change caps; it is created with mode 0600.
+- **Stored responses.** Replay bodies sit in the ledger for up to 24 hours, in plain text unless `BURNBRAKE_REPLAY_KEY` is set. Prompts are not written to the decision log.
+
+More detail: [docs/DEPLOY_INVARIANTS.md](docs/DEPLOY_INVARIANTS.md), [docs/EXHAUST_CONTRACT.md](docs/EXHAUST_CONTRACT.md).
+
+## Development
+
+```bash
+npm ci
+npm run typecheck
+npm test
+```
+
+CI runs the same on Node 22. Releases before 0.2.0 were published under a different license; 0.2.0 and later are MIT.
+
+Bugs: GitHub Issues. Security reports: [SECURITY.md](SECURITY.md). There is no paid support.
 
 ## License
 

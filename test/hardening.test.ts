@@ -16,7 +16,7 @@ import { Ledger } from "../src/ledger.ts";
 import { loadPriceTable } from "../src/prices.ts";
 import { bootSidecar, postChat, tempLedgerPath } from "./helpers.ts";
 
-describe("P1 hardening", () => {
+describe("hardening", () => {
   it("compares secrets without throwing on a length mismatch and accepts a previous key", async () => {
     assert.equal(safeEqual("bb_short", "bb_short"), true);
     assert.equal(safeEqual("bb_short", "bb_a_much_longer_secret_value"), false);

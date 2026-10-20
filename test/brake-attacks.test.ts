@@ -19,7 +19,7 @@ const SPOOF = {
   "x-burnbrake-scope": "user",
 };
 
-describe("CR3 brake curve attacks", () => {
+describe("brake curve attacks", () => {
   it("fails closed when the ledger closes during an amber delay", async () => {
     const sidecar = await bootSidecar({
       caps: { user: null, run: 50_000_000, day: null },

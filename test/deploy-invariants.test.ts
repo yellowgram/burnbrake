@@ -9,8 +9,8 @@ import { bootSidecar, postChat } from "./helpers.ts";
 
 const ROOT = join(import.meta.dirname, "..");
 
-describe("P0 deploy invariants", () => {
-  it("health reports dual-client, frozen exhaust, and the hosted fence", async () => {
+describe("deploy invariants", () => {
+  it("health reports dual-client, frozen exhaust, and single tenancy", async () => {
     const sidecar = await bootSidecar();
     try {
       const health = await fetch(`${sidecar.baseURL}/health`);
@@ -123,8 +123,8 @@ describe("P0 deploy invariants", () => {
     assert.equal(hard.failClosed, true);
   });
 
-  it("buyer surfaces do not claim total spend control or an L2 send path", () => {
-    const files = buyerFiles();
+  it("user-facing docs do not claim total spend control", () => {
+    const files = userFacingFiles();
     const banned = [/stops all (agent )?spend/i, /stop all (agent )?spend/i, /eth_send/i, /all agent spend/i];
     const hits: string[] = [];
     for (const file of files) {
@@ -137,24 +137,18 @@ describe("P0 deploy invariants", () => {
     const readme = readFileSync(join(ROOT, "README.md"), "utf8");
     assert.match(readme, /stops_all_spend/);
     assert.doesNotMatch(readme, /checkout\.polar\.sh|polar\.sh\/checkout/i);
-    const hosted = readFileSync(join(ROOT, "docs/HOSTED_VS_KIT.md"), "utf8");
-    assert.match(hosted, /separate product/i);
-    assert.match(hosted, /no multi-tenant|multi_tenant_runtime: false|no multi-tenant hosted/i);
-    const status = readFileSync(join(ROOT, "docs/STATUS.md"), "utf8");
-    assert.match(status, /merged without a 4th CR verdict/i);
+    assert.match(readme, /single-tenant|one tenant/i);
   });
 });
 
-function buyerFiles(): string[] {
+function userFacingFiles(): string[] {
   const docs = [
     "README.md",
-    "docs/START_HERE.md",
     "docs/OPERATOR.md",
-    "docs/SUPPORT.md",
+    "docs/BRAKE_CURVE.md",
     "docs/DEPLOY_INVARIANTS.md",
     "docs/EXHAUST_CONTRACT.md",
-    "docs/HOSTED_VS_KIT.md",
-    "docs/STATUS.md",
+    "docs/SINGLE_STORE.md",
   ].map((rel) => join(ROOT, rel));
   const src = walk(join(ROOT, "src")).filter((file) => file.endsWith(".ts"));
   return [...docs, ...src];

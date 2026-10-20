@@ -1,6 +1,6 @@
 # Exhaust contract
 
-Frozen. These bytes are the product:
+The budget-exhausted response never changes shape, and no setting can soften it:
 
 | Field | Value |
 | --- | --- |
@@ -21,6 +21,6 @@ Startup refuses:
 - `BURNBRAKE_EXHAUST_RETRYABLE` set on
 - `BURNBRAKE_EXHAUST_HTTP` set to anything other than `402`
 
-Coupons and cold invoices are not an exhaust path. There is no warn-only ledger and no fail-open ledger.
+There is no warn-only mode and no fail-open mode.
 
 `GET /health` echoes `deploy.exhaust` with `frozen: true`.

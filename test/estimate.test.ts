@@ -10,7 +10,7 @@ import { defaultPriceTablePath } from "../src/config.ts";
 describe("estimate", () => {
   const table = loadPriceTable(defaultPriceTablePath());
 
-  it("uses a buyer ceiling verbatim and injects 4096 only when omitted", () => {
+  it("uses the caller's ceiling verbatim and injects 4096 only when omitted", () => {
     const injected = estimateRequest(
       { model: "gpt-4o-mini", messages: [{ role: "user", content: "hi" }] },
       table,
