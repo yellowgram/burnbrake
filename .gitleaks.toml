@@ -1,0 +1,7 @@
+# Placeholders that appear in the docs and example config on purpose.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "documented placeholder values"
+regexes = ['''bb_replace_me''', '''replace-with-16-plus-chars''']
