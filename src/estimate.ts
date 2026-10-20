@@ -526,6 +526,15 @@ export function pieceCount(text: string): number {
   return n;
 }
 
+/**
+ * Tokens in a piece of generated text, counted the way input is: the larger of bytes/3 and the
+ * pre-tokenizer piece count, and at least 1 for non-empty text. Used to meter a stream as it arrives.
+ */
+export function generatedTextTokens(text: string): number {
+  if (!text) return 0;
+  return Math.max(1, byteTokens(Buffer.byteLength(text, "utf8")), pieceCount(text));
+}
+
 /** Input text tokens: the larger of bytes/3 and the piece count, so neither shape under-counts. */
 function textTokens(acc: Acc): number {
   return Math.max(byteTokens(acc.bytes), acc.pieces);

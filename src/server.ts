@@ -14,10 +14,11 @@ import {
   VISION_INPUT_TOKEN_FLOOR,
   type GovernedRoute,
 } from "./estimate.js";
-import { decisionsToCsv, Ledger, type BrakePreview, type DecisionInput, type DefaultCaps, type ReserveResult } from "./ledger.js";
+import { decisionsToCsv, Ledger, type BrakePreview, type DecisionInput, type DefaultCaps, type ExtendResult, type ReserveResult, type ScopeName } from "./ledger.js";
 import { loadPriceTable, priceTableFreshness, type PriceTable } from "./prices.js";
 import { deriveReplayKey, openReplayBody, sealReplayBody } from "./replay-body.js";
 import { forwardToUpstream, settleUsage, SseUsageTracker, type MockState, type Usage } from "./upstream.js";
+import { SseEventFramer, StreamMeter, terminalErrorEvent } from "./stream-meter.js";
 import { usdToMicros } from "./money.js";
 
 const GOVERNED = new Set<GovernedRoute>(["/v1/chat/completions", "/v1/completions", "/v1/messages"]);
@@ -266,6 +267,7 @@ function healthBody(ctx: {
         tools_flat_micros: TOOLS_FLAT_MICROS_FLOOR,
       },
     },
+    stream_kill: { enabled: ctx.config.streamKill },
     reservation_ttl_seconds: Math.round(ctx.config.reservationTtlMs / 1000),
     day_boundary: "UTC",
     day_clock: {
@@ -790,7 +792,7 @@ async function handleGoverned(
         if (actual == null) {
           const debited = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
           terminalReason = debited.terminalReason;
-          settledMicros = estimate.micros;
+          settledMicros = debited.debitedMicros;
         } else {
           const settled = ctx.ledger.settle(reservationId, actual);
           terminalReason = settled.terminalReason;
@@ -800,7 +802,7 @@ async function handleGoverned(
       } else {
         const debited = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
         terminalReason = debited.terminalReason;
-        settledMicros = estimate.micros;
+        settledMicros = debited.debitedMicros;
       }
     } else if (status >= 400 && status < 500 && !usage) {
       ctx.ledger.releaseNoCharge(reservationId);
@@ -812,7 +814,7 @@ async function handleGoverned(
       if (actual == null) {
         const debited = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
         terminalReason = debited.terminalReason;
-        settledMicros = estimate.micros;
+        settledMicros = debited.debitedMicros;
       } else {
         const settled = ctx.ledger.settle(reservationId, actual);
         terminalReason = settled.terminalReason;
@@ -834,11 +836,15 @@ async function handleGoverned(
     if (row?.state === "FORWARDED") {
       const debited = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
       terminalReason = debited.terminalReason;
-      settledMicros = estimate.micros;
+      settledMicros = debited.debitedMicros;
     }
     return { terminalReason, settledMicros, debtDelta: 0 };
   };
-  const logAllowed = (code: string, outcome: { terminalReason: string; settledMicros: number | null; debtDelta: number }) =>
+  const logAllowed = (
+    code: string,
+    outcome: { terminalReason: string; settledMicros: number | null; debtDelta: number },
+    more: Partial<DecisionInput> = {},
+  ) =>
     ctx.ledger.logDecision(decisionBase({ table }, started, {
       userId,
       runId,
@@ -856,6 +862,7 @@ async function handleGoverned(
       settledMicros: outcome.settledMicros,
       terminalReason: outcome.terminalReason,
       maxTokensSource: estimate.maxTokensSource,
+      ...more,
     }));
   const extra: Record<string, string> = { "x-burnbrake-reservation-id": reservationId };
   if (upstream.status === 200 && color) {
@@ -868,55 +875,187 @@ async function handleGoverned(
 
   if (upstream.kind === "stream") {
     // Pass bytes to the client as they arrive. Read usage on the way through and keep
-    // a copy only up to the replay limit. Settle once, when the stream ends or breaks.
+    // a copy only up to the replay limit. Settle once, when the stream ends, breaks or is cut.
+    const stream = upstream;
     const tracker = new SseUsageTracker();
-    const decoder = new TextDecoder();
+    const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
     const replay: Buffer[] = [];
     let replayBytes = 0;
     let replayable = true;
+    const keepCopy = (buf: Buffer) => {
+      if (!replayable) return;
+      replayBytes += buf.byteLength;
+      if (replayBytes > STREAM_REPLAY_LIMIT) {
+        replayable = false;
+        replay.length = 0;
+      } else replay.push(buf);
+    };
     let clientLeft = clientGone(res);
     const onClose = () => {
       if (!res.writableFinished) {
         clientLeft = true;
-        upstream.abort();
+        stream.abort();
       }
     };
     res.on("close", onClose);
     let streamError: unknown = null;
+
+    // Mid-stream kill (on unless BURNBRAKE_STREAM_KILL=0). Only a successful stream is metered.
+    const metering = ctx.config.streamKill && stream.status >= 200 && stream.status < 300;
+    const dialect = route === "/v1/messages" ? "anthropic" : "openai";
+    const meter = new StreamMeter(dialect);
+    const framer = new SseEventFramer();
+    let hold = estimate.micros;
+    let cut: StreamCut | null = null;
+    /** Meter one event. False means: do not forward it; the stream is cut before it. */
+    const admit = (event: string): boolean => {
+      const step = meter.observe(event);
+      // Nothing new was consumed, or generation is already over (nothing left to stop).
+      if (!step.grew || step.final) return true;
+      // Output counted from deltas is capped at the reserved output (R4-1): a stream inside its
+      // own reservation is never cut; only input, cache and server-tool surprises can cross.
+      const projected = costFromUsage(table, estimate.model, meter.usage(estimate.inputTokens, estimate.outputTokens), estimate.flatMicros);
+      if (projected == null) {
+        cut = { code: "UNKNOWN_SURCHARGE", scope: null, remaining: 0, needed: 0 };
+        return false;
+      }
+      if (projected <= hold) return true;
+      let ext: ExtendResult;
+      try {
+        ext = ctx.ledger.extendHold(reservationId, projected - hold);
+      } catch (err) {
+        console.error("extending the stream hold failed closed", err instanceof Error ? err.message : err);
+        cut = { code: "LEDGER_UNAVAILABLE", scope: null, remaining: 0, needed: projected - hold };
+        return false;
+      }
+      if (ext.ok) {
+        hold = ext.hold_micros;
+        return true;
+      }
+      cut = {
+        code: ext.code === "SPEND_PAUSED" ? "SPEND_PAUSED" : "BUDGET_EXHAUSTED",
+        scope: ext.scope,
+        remaining: ext.remaining_micros,
+        needed: projected - hold,
+      };
+      return false;
+    };
+    /** Frame, meter and forward decoded text. Stops at the first event that would cross the budget. */
+    const forwardText = async (text: string, final: boolean): Promise<void> => {
+      let events: string[];
+      try {
+        events = framer.push(text);
+        if (final) {
+          const rest = framer.flush();
+          if (rest) events.push(rest);
+        }
+      } catch {
+        cut = { code: "UPSTREAM_STREAM_BROKEN", scope: null, remaining: 0, needed: 0 };
+        return;
+      }
+      let out = "";
+      for (const event of events) {
+        if (!admit(event)) break;
+        tracker.feed(event);
+        out += event;
+      }
+      if (!out || clientLeft) return;
+      const buf = Buffer.from(out, "utf8");
+      keepCopy(buf);
+      if (!res.write(buf)) await waitDrainOrClose(res);
+    };
+    /**
+     * The provider stream is already closed. Settle at the metered input and server tools
+     * (including the event that crossed) plus the whole output allowance: output the provider
+     * billed but never streamed (hidden thinking or reasoning, tokens generated after the close)
+     * can't be seen, and it is all within max_tokens (R4-2). Then end the client stream with one
+     * terminal error event. A cut stream is never stored for replay.
+     */
+    const finishCutStream = async (c: StreamCut): Promise<void> => {
+      let outcome: { terminalReason: string; settledMicros: number | null; debtDelta: number };
+      try {
+        const actual =
+          c.code === "BUDGET_EXHAUSTED" || c.code === "SPEND_PAUSED"
+            ? costFromUsage(table, estimate.model, meter.cutUsage(estimate.inputTokens, estimate.outputTokens), estimate.flatMicros)
+            : null;
+        if (actual == null) {
+          // Unreadable stream, unpriced tool or ledger trouble: the outcome is unknown, charge the hold.
+          const debited = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
+          outcome = { terminalReason: debited.terminalReason, settledMicros: debited.debitedMicros, debtDelta: 0 };
+        } else {
+          const settled = ctx.ledger.settle(reservationId, actual);
+          outcome = { terminalReason: settled.terminalReason, settledMicros: actual, debtDelta: settled.debtDeltaMicros };
+        }
+      } catch (err) {
+        outcome = settleFallback();
+        console.error("settle after a stream cut failed closed", err instanceof Error ? err.message : err);
+      }
+      const fields = errorBody({
+        code: c.code,
+        httpStatus: c.code === "BUDGET_EXHAUSTED" || c.code === "SPEND_PAUSED" || c.code === "UNKNOWN_SURCHARGE" ? 402 : 502,
+        message: cutMessage(c),
+        scope: c.scope,
+        remaining_micros: c.remaining,
+        requested_micros: c.needed,
+        user_id: userId,
+        run_id: runId,
+        halt: true,
+        retryable: false,
+      }).error;
+      fields.stream_cut = true;
+      fields.charged_micros = outcome.settledMicros;
+      if (!clientLeft && !res.destroyed) {
+        const type = c.code === "BUDGET_EXHAUSTED" ? "budget_exhausted" : c.code === "SPEND_PAUSED" ? "spend_paused" : "api_error";
+        res.end(terminalErrorEvent(dialect, type, fields));
+      }
+      try {
+        if (idem) ctx.ledger.completeIdempotency(idem, stream.status, "", { replay: false });
+        logAllowed(`STREAM_CUT_${c.code}`, outcome, { scope: c.scope, remainingAfterMicros: minRemaining(ctx.ledger, userId, runId) });
+      } catch (err) {
+        console.error("recording the cut stream failed", err instanceof Error ? err.message : err);
+      }
+    };
     try {
       if (clientLeft) throw new Error("client left before the stream started");
-      res.writeHead(upstream.status, {
-        "content-type": upstream.contentType,
+      res.writeHead(stream.status, {
+        "content-type": stream.contentType,
         "cache-control": "no-store",
         "x-accel-buffering": "no",
         ...extra,
       });
       res.flushHeaders();
-      for await (const chunk of upstream.body) {
-        tracker.feed(decoder.decode(chunk, { stream: true }));
-        if (replayable) {
-          replayBytes += chunk.byteLength;
-          if (replayBytes > STREAM_REPLAY_LIMIT) {
-            replayable = false;
-            replay.length = 0;
-          } else replay.push(Buffer.from(chunk));
+      for await (const chunk of stream.body) {
+        if (metering) {
+          await forwardText(decoder.decode(chunk, { stream: true }), false);
+          if ((cut as StreamCut | null) || clientLeft) break;
+          continue;
         }
+        tracker.feed(decoder.decode(chunk, { stream: true }));
+        keepCopy(Buffer.from(chunk));
         if (clientLeft) break;
         if (!res.write(chunk)) await waitDrainOrClose(res);
         if (clientLeft) break;
       }
-      tracker.feed(decoder.decode());
-      tracker.end();
+      if (!(cut as StreamCut | null) && !clientLeft) {
+        if (metering) await forwardText(decoder.decode(), true);
+        else tracker.feed(decoder.decode());
+        tracker.end();
+      }
     } catch (err) {
       streamError = err;
     } finally {
       res.off("close", onClose);
-      if (clientLeft || streamError) upstream.abort();
+      if (clientLeft || streamError || (cut as StreamCut | null)) stream.abort();
+    }
+    const cutNow = cut as StreamCut | null;
+    if (cutNow) {
+      await finishCutStream(cutNow);
+      return;
     }
     if (!clientLeft && !res.destroyed) res.end();
     let outcome;
     try {
-      outcome = settleForwarded(upstream.status, tracker.usage());
+      outcome = settleForwarded(stream.status, tracker.usage());
     } catch (err) {
       outcome = settleFallback();
       console.error("settle failed closed", err instanceof Error ? err.message : err);
@@ -924,15 +1063,16 @@ async function handleGoverned(
     // A stream that did not finish, or is too large to keep, is not replayed:
     // a retry with this key gets 409 ALREADY_TERMINAL instead of a second forward.
     const keep = replayable && tracker.finished && !streamError && !clientLeft;
-    const code = clientLeft ? "CLIENT_CLOSED" : streamError || !tracker.finished ? "UPSTREAM_STREAM_BROKEN" : okCode(upstream.status);
+    const code = clientLeft ? "CLIENT_CLOSED" : streamError || !tracker.finished ? "UPSTREAM_STREAM_BROKEN" : okCode(stream.status);
     try {
-      if (idem) ctx.ledger.completeIdempotency(idem, upstream.status, keep ? Buffer.concat(replay).toString("utf8") : "", { replay: keep });
+      if (idem) ctx.ledger.completeIdempotency(idem, stream.status, keep ? Buffer.concat(replay).toString("utf8") : "", { replay: keep });
       logAllowed(code, outcome);
     } catch (err) {
       console.error("recording the finished stream failed", err instanceof Error ? err.message : err);
     }
     if (streamError && !clientLeft) console.error("upstream stream broke", streamError instanceof Error ? streamError.message : streamError);
     return;
+
   }
 
   const usage = settleUsage(upstream.contentType, upstream.bodyText);
@@ -963,6 +1103,30 @@ async function handleGoverned(
   if (idem) ctx.ledger.completeIdempotency(idem, upstream.status, upstream.bodyText);
   logAllowed(okCode(upstream.status), outcome);
   sendRaw(res, upstream.status, upstream.contentType, upstream.bodyText, extra);
+}
+
+interface StreamCut {
+  code: "BUDGET_EXHAUSTED" | "SPEND_PAUSED" | "UNKNOWN_SURCHARGE" | "LEDGER_UNAVAILABLE" | "UPSTREAM_STREAM_BROKEN";
+  scope: ScopeName | null;
+  remaining: number;
+  /** Micros the stream needed beyond its hold when it was cut. */
+  needed: number;
+}
+
+function cutMessage(c: StreamCut): string {
+  const tail = "BurnBrake closed the provider stream; the answer above is incomplete. Halt; this is not a rate limit.";
+  switch (c.code) {
+    case "BUDGET_EXHAUSTED":
+      return `Budget exhausted for scope ${c.scope ?? "unknown"} while streaming. ${tail}`;
+    case "SPEND_PAUSED":
+      return `Spend was paused while this stream needed more budget. ${tail}`;
+    case "UNKNOWN_SURCHARGE":
+      return `The stream used something the price table cannot price. Charged the hold. ${tail}`;
+    case "LEDGER_UNAVAILABLE":
+      return `The ledger could not extend the hold. Fail closed. ${tail}`;
+    default:
+      return `The provider stream could not be read (an event exceeded the size limit). Charged the hold. ${tail}`;
+  }
 }
 
 /** A streamed reply larger than this is still passed through in full, but not stored for replay. */

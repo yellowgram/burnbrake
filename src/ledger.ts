@@ -84,6 +84,16 @@ export type BrakePreview =
       remaining_micros: number;
     };
 
+export type ExtendResult =
+  | { ok: true; hold_micros: number }
+  | {
+      ok: false;
+      code: "BUDGET_EXHAUSTED" | "SPEND_PAUSED" | "NOT_FORWARDED";
+      scope: ScopeName | null;
+      remaining_micros: number;
+      hold_micros: number;
+    };
+
 type PreparedReserve =
   | { outcome: "done"; result: ReserveResult }
   | { outcome: "ready"; dayKey: string; accounts: AccountRow[]; allowanceIds: string[] };
@@ -163,6 +173,8 @@ interface ReservationRow {
   day_key: string;
   scopes: string;
   estimate_micros: number;
+  /** Hold added while a stream ran past its estimate (mid-stream kill). The hold is estimate + extended. */
+  extended_micros: number;
   actual_micros: number | null;
   state: ReservationState;
   terminal_reason: string | null;
@@ -198,6 +210,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   day_key TEXT NOT NULL,
   scopes TEXT NOT NULL,
   estimate_micros INTEGER NOT NULL,
+  extended_micros INTEGER NOT NULL DEFAULT 0,
   actual_micros INTEGER,
   state TEXT NOT NULL,
   terminal_reason TEXT,
@@ -308,6 +321,7 @@ export class Ledger {
     this.db.exec("PRAGMA journal_mode = WAL");
     this.db.exec("PRAGMA foreign_keys = ON");
     this.db.exec(SCHEMA);
+    migrate(this.db);
     this.ttlMs = opts.reservationTtlMs ?? RESERVATION_TTL_MS;
     const requestedTtl = opts.replayBodyTtlMs ?? IDEMPOTENCY_BODY_TTL_MS;
     this.replayBodyTtlMs = Math.min(requestedTtl, IDEMPOTENCY_BODY_TTL_MS);
@@ -631,7 +645,7 @@ export class Ledger {
         return { debtDeltaMicros: 0, terminalReason: row.terminal_reason ?? "SETTLED" };
       }
       if (row.state === "DEBIT_RESERVED") {
-        const delta = actualMicros - row.estimate_micros;
+        const delta = actualMicros - (row.actual_micros ?? holdOf(row));
         if (delta !== 0) this.addSpent(row, delta);
         if (delta > 0) this.addOvershoot(row, delta);
         const now = this.now();
@@ -647,7 +661,7 @@ export class Ledger {
       }
       this.releaseHold(row);
       this.addSpent(row, actualMicros);
-      const overshoot = Math.max(0, actualMicros - row.estimate_micros);
+      const overshoot = Math.max(0, actualMicros - holdOf(row));
       if (overshoot > 0) this.addOvershoot(row, overshoot);
       const now = this.now();
       this.db
@@ -662,24 +676,24 @@ export class Ledger {
   debitReserved(
     reservationId: string,
     reason: "DEBIT_TTL_OR_CRASH" | "DEBIT_UPSTREAM_UNKNOWN",
-  ): { debtDeltaMicros: number; terminalReason: string } {
+  ): { debtDeltaMicros: number; terminalReason: string; debitedMicros: number } {
     return this.tx(() => {
       const row = this.mustReservation(reservationId);
       if (row.state === "DEBIT_RESERVED" || row.state === "SETTLED") {
-        return { debtDeltaMicros: 0, terminalReason: row.terminal_reason ?? reason };
+        return { debtDeltaMicros: 0, terminalReason: row.terminal_reason ?? reason, debitedMicros: row.actual_micros ?? holdOf(row) };
       }
       if (row.state !== "FORWARDED") {
         throw new Error(`refusing DEBIT_RESERVED from state ${row.state}`);
       }
       this.releaseHold(row);
-      this.addSpent(row, row.estimate_micros);
+      this.addSpent(row, holdOf(row));
       const now = this.now();
       this.db
         .prepare(
           "UPDATE reservations SET state = 'DEBIT_RESERVED', terminal_reason = ?, actual_micros = ?, updated_at = ? WHERE id = ?",
         )
-        .run(reason, row.estimate_micros, now, reservationId);
-      return { debtDeltaMicros: 0, terminalReason: reason };
+        .run(reason, holdOf(row), now, reservationId);
+      return { debtDeltaMicros: 0, terminalReason: reason, debitedMicros: holdOf(row) };
     });
   }
 
@@ -700,6 +714,82 @@ export class Ledger {
       this.db
         .prepare("INSERT INTO force_release_audit(reservation_id, reason, ts) VALUES (?, ?, ?)")
         .run(reservationId, reason.trim(), now);
+    });
+  }
+
+  /**
+   * Repair scope holds after a downgrade to 0.3.0 that ignored the "no stream in flight" note.
+   * 0.3.0 doesn't know `extended_micros`, so when it settles, debits or sweeps an extended
+   * reservation it releases only the estimate, and the extension stays in `held_micros` for
+   * good (fail-closed: lost capacity, not lost money). This sets every scope's `held_micros`
+   * to what its open (RESERVED/FORWARDED) reservations really hold, in one transaction, and
+   * returns the scopes it changed. Spend is not touched.
+   */
+  reconcileHolds(): Array<{ scope: string; scope_key: string; held_before: number; held_after: number }> {
+    return this.tx(() => {
+      const expected = new Map<string, number>();
+      const open = this.db
+        .prepare("SELECT * FROM reservations WHERE state IN ('RESERVED', 'FORWARDED')")
+        .all() as unknown as ReservationRow[];
+      for (const row of open) {
+        for (const sc of heldScopes(row)) {
+          const k = `${sc.scope}\u0000${sc.key}`;
+          expected.set(k, (expected.get(k) ?? 0) + holdOf(row));
+        }
+      }
+      const accounts = this.db
+        .prepare("SELECT scope, scope_key, held_micros FROM scope_accounts ORDER BY scope, scope_key")
+        .all() as unknown as Array<{ scope: string; scope_key: string; held_micros: number }>;
+      const changed: Array<{ scope: string; scope_key: string; held_before: number; held_after: number }> = [];
+      for (const a of accounts) {
+        const want = expected.get(`${a.scope}\u0000${a.scope_key}`) ?? 0;
+        if (a.held_micros === want) continue;
+        this.db
+          .prepare("UPDATE scope_accounts SET held_micros = ? WHERE scope = ? AND scope_key = ?")
+          .run(want, a.scope, a.scope_key);
+        changed.push({ scope: a.scope, scope_key: a.scope_key, held_before: a.held_micros, held_after: want });
+      }
+      return changed;
+    });
+  }
+
+  /**
+   * Grow a forwarded reservation's hold by `deltaMicros` (a stream has used more than its
+   * estimate). All-or-nothing in one write transaction: every scope the reservation holds
+   * must have `deltaMicros` unreserved (cap - spent - held), or nothing changes. Concurrent
+   * streams therefore cannot both claim the same headroom. Refused while spend is paused
+   * (global or the reservation's run), so `pause` also stops streams that need more budget.
+   * Allowances are not consumed: they back one reserve, not an extension.
+   */
+  extendHold(reservationId: string, deltaMicros: number): ExtendResult {
+    assertMicros(deltaMicros, "extension");
+    return this.tx(() => {
+      const row = this.mustReservation(reservationId);
+      if (row.state !== "FORWARDED") {
+        return { ok: false, code: "NOT_FORWARDED", scope: null, remaining_micros: 0, hold_micros: holdOf(row) };
+      }
+      const runPaused = Boolean(row.run_id && this.readControl("run", row.run_id));
+      if (this.readControl("global", "global") || runPaused) {
+        return { ok: false, code: "SPEND_PAUSED", scope: runPaused ? "run" : null, remaining_micros: 0, hold_micros: holdOf(row) };
+      }
+      if (deltaMicros === 0) return { ok: true, hold_micros: holdOf(row) };
+      const scopes = heldScopes(row);
+      for (const scope of scopes) {
+        const acct = this.account(scope.scope, scope.key);
+        const remaining = acct ? acct.cap_micros - acct.spent_micros - acct.held_micros : 0;
+        if (!acct || remaining < deltaMicros) {
+          return { ok: false, code: "BUDGET_EXHAUSTED", scope: scope.scope, remaining_micros: Math.max(0, remaining), hold_micros: holdOf(row) };
+        }
+      }
+      for (const scope of scopes) {
+        this.db
+          .prepare("UPDATE scope_accounts SET held_micros = held_micros + ? WHERE scope = ? AND scope_key = ?")
+          .run(deltaMicros, scope.scope, scope.key);
+      }
+      this.db
+        .prepare("UPDATE reservations SET extended_micros = extended_micros + ?, updated_at = ? WHERE id = ?")
+        .run(deltaMicros, this.now(), reservationId);
+      return { ok: true, hold_micros: holdOf(row) + deltaMicros };
     });
   }
 
@@ -1241,12 +1331,12 @@ export class Ledger {
         released += 1;
       } else if (row.state === "FORWARDED") {
         this.releaseHold(row);
-        this.addSpent(row, row.estimate_micros);
+        this.addSpent(row, holdOf(row));
         this.db
           .prepare(
             "UPDATE reservations SET state = 'DEBIT_RESERVED', terminal_reason = 'DEBIT_TTL_OR_CRASH', actual_micros = ?, updated_at = ? WHERE id = ?",
           )
-          .run(row.estimate_micros, this.now(), row.id);
+          .run(holdOf(row), this.now(), row.id);
         debited += 1;
       }
     }
@@ -1262,6 +1352,7 @@ export class Ledger {
   }
 
   private releaseHold(row: ReservationRow): void {
+    const hold = holdOf(row);
     for (const scope of heldScopes(row)) {
       const updated = this.db
         .prepare(
@@ -1269,7 +1360,7 @@ export class Ledger {
            SET held_micros = held_micros - ?
            WHERE scope = ? AND scope_key = ? AND held_micros >= ?`,
         )
-        .run(row.estimate_micros, scope.scope, scope.key, row.estimate_micros);
+        .run(hold, scope.scope, scope.key, hold);
       if (updated.changes !== 1) {
         throw new Error(`ledger hold integrity failure for ${scope.scope}:${scope.key}`);
       }
@@ -1465,6 +1556,19 @@ export class Ledger {
       }
     }
     throw new Error("ledger lock timeout");
+  }
+}
+
+/** What a reservation holds against each of its scopes. */
+function holdOf(row: ReservationRow): number {
+  return row.estimate_micros + (row.extended_micros ?? 0);
+}
+
+/** Ledgers created before 0.4.0 lack reservations.extended_micros. */
+function migrate(db: DatabaseSync): void {
+  const cols = db.prepare("PRAGMA table_info(reservations)").all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === "extended_micros")) {
+    db.exec("ALTER TABLE reservations ADD COLUMN extended_micros INTEGER NOT NULL DEFAULT 0");
   }
 }
 

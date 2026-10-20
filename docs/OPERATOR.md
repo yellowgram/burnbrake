@@ -1,6 +1,6 @@
 # Operator runbook
 
-Everything an operator can see and do: balances, decisions, kill and pause, caps, the brake curve and force-release.
+Everything an operator can see and do: balances, decisions, kill and pause, caps, the brake curve, force-release and reconcile-holds.
 
 The CLI opens the SQLite ledger (`BURNBRAKE_LEDGER_PATH` or `--ledger`) and can run while the sidecar is up. Whoever can read that file can change caps. Protect the file. The CLI does not take the writer lease. See [SINGLE_STORE.md](./SINGLE_STORE.md).
 
@@ -59,7 +59,27 @@ burnbrake caps set --scope run --usd 1   # default for new runs
 
 `caps set` without `--key` updates the default for new user or run ids. For day, it updates the default and today's UTC bucket. Existing user/run rows keep their cap until you pass `--key`.
 
+`kill`/`pause` also stop a stream that is already running once it needs more than its reservation: the mid-stream kill asks the ledger to grow the hold, and a paused run or global pause refuses it, so the stream is cut with `SPEND_PAUSED`. A stream still inside its reservation runs to its end.
+
 There is no switch to allow spend past a cap, and no switch to forward when the ledger is down.
+
+## Mid-stream kill
+
+On by default (`BURNBRAKE_STREAM_KILL=0` turns it off; any other value than on/off/1/0/true/false/yes/no refuses to start). See the README section of the same name for what is metered. In the ledger:
+
+- a stream that runs past its estimate grows its reservation's hold (`extended_micros` on the reservation row; `held_micros` on every scope it holds) one event at a time, only while every scope has the headroom;
+- a cut stream settles at its real input and server-tool calls so far (the event that crossed included) plus its whole output allowance (`max_tokens`), because the provider bills output it never streamed (hidden thinking or reasoning, tokens generated after the close): `terminal_reason` `SETTLED`, decision code `STREAM_CUT_BUDGET_EXHAUSTED` or `STREAM_CUT_SPEND_PAUSED`, with `scope` set. Each cut stream bills at most one crossing event beyond the budget, plus the part of `max_tokens` it hadn't streamed; with N streams cut at once, N such amounts. When the crossing event is Anthropic's `message_start`, that one event is the whole difference between the real prompt and the estimate;
+- a stream that broke off or whose client left is debited its whole hold (estimate plus any extension), as before.
+
+A 0.3.0 ledger file gains the `extended_micros` column the first time 0.4.0 opens it. If another process holds the file's write lock, opening waits 5 s and then fails without changing it; start again once the lock is free.
+
+**Going back to 0.3.0.** Stop 0.4.0 with no stream in flight first. 0.3.0 doesn't know `extended_micros`: if it settles, debits or sweeps a reservation whose hold was extended, it releases only the estimate part, and the extension stays in `held_micros` on that reservation's user and run scopes **permanently** (the day scope recovers at the next UTC day). Upgrading again doesn't remove it. This fails closed: those scopes have less room than they should (calls are refused early), and no money is lost. 0.3.0's TTL sweep of such a row also debits only the estimate, so the spend recorded for it is low by the extension. To repair the holds, run once with 0.4.0 or later, against the same ledger file:
+
+```bash
+burnbrake reconcile-holds            # or: npx burnbrake@0.4.0 reconcile-holds --ledger /path/to/ledger.sqlite
+```
+
+It sets every scope's `held_micros` to what its open (RESERVED or FORWARDED) reservations hold, in one transaction, and prints one `HOLD_RECONCILED scope:key held_micros <before> -> <after>` line per scope it changed (`HOLDS_OK` when nothing was off; `--json` for a machine-readable list). Spend is not changed. It is safe while the sidecar runs: open reservations, including extended ones, are counted.
 
 ## Brake curve
 

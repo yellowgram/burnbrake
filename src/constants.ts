@@ -1,5 +1,5 @@
 /** Defaults. Changing them changes what an unconfigured install enforces. */
-export const VERSION = "0.3.0";
+export const VERSION = "0.4.0";
 export const DEFAULT_MAX_TOKENS = 4096;
 export const RESERVATION_TTL_MS = 15 * 60 * 1000;
 /** Replay bodies are dropped after this. The idempotency key stays terminal. */

@@ -43,6 +43,12 @@ export interface AppConfig {
   caps: DefaultCaps;
   /** Curve only. `enabled: false` keeps the pre-curve halt path. Not a halt-off switch. */
   brake: BrakeConfig;
+  /**
+   * Mid-stream kill (BURNBRAKE_STREAM_KILL, default on). While a stream is proxied, its spend so
+   * far is metered; when it would cross the reservation plus the budget still free, the provider
+   * stream is cut and the client gets a terminal error event.
+   */
+  streamKill: boolean;
   /** NODE_ENV=production or BURNBRAKE_PRODUCTION=1. Requires a user and/or day cap. */
   production: boolean;
   failClosed: true;
@@ -160,6 +166,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, options: { requ
       day: readCap(env, "DAY"),
     },
     brake: brakeFromEnv(env),
+    streamKill: readStreamKill(env.BURNBRAKE_STREAM_KILL),
     production: productionMode(env),
     failClosed: true,
   };
@@ -202,6 +209,14 @@ export function assertBind(host: string, allowPublicBind: boolean): void {
       `Refusing to bind ${host}. Default listen is 127.0.0.1. Set BURNBRAKE_ALLOW_PUBLIC_BIND=1 to bind elsewhere, and keep auth on. Public bind without an ACL is a fund-drain risk.`,
     );
   }
+}
+
+/** On unless explicitly turned off. An unreadable value refuses to start rather than guessing. */
+export function readStreamKill(value: string | undefined): boolean {
+  const v = (value ?? "").trim().toLowerCase();
+  if (v === "" || ["1", "true", "yes", "on"].includes(v)) return true;
+  if (["0", "false", "no", "off"].includes(v)) return false;
+  throw new Error(`BURNBRAKE_STREAM_KILL must be on or off (got "${value}").`);
 }
 
 export function flagOn(value: string | undefined): boolean {

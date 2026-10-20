@@ -353,7 +353,7 @@ export class SseUsageTracker {
  * one input rate per model, so it converts cache tokens to input-token equivalents
  * (rounding up). If the write breakdown is missing it assumes the dearer 2x.
  */
-function anthropicInputTokens(usage: Record<string, unknown>): number | null {
+export function anthropicInputTokens(usage: Record<string, unknown>): number | null {
   const n = (k: string) => (typeof usage[k] === "number" && Number.isFinite(usage[k]) && (usage[k] as number) >= 0 ? (usage[k] as number) : 0);
   if (typeof usage.input_tokens !== "number") return null;
   const breakdown = usage.cache_creation as Record<string, unknown> | undefined;

@@ -31,6 +31,7 @@ const HELP = `BurnBrake — request-path spend governor (cap + kill)
                        [--amber-delay-ms N] [--red-delay-ms N] [--black-delay-ms N]
                        [--max-delay-ms N]
   burnbrake force-release --reservation id --reason "..." --attest-no-charge
+  burnbrake reconcile-holds [--json]
   burnbrake top-runs [--window 1h|24h]
   burnbrake reservations [--state FORWARDED] [--run id]
   burnbrake estimate-error
@@ -72,6 +73,7 @@ export async function execute(argv: string[], io: Io = defaultIo()): Promise<num
     if (command === "caps") return caps(args[0] === "set" ? args.slice(1) : args, io);
     if (command === "brake") return brake(args, io);
     if (command === "force-release") return forceRelease(args, io);
+    if (command === "reconcile-holds") return reconcileHolds(args, io);
     if (command === "top-runs") return topRuns(args, io);
     if (command === "reservations") return reservations(args, io);
     if (command === "estimate-error") return estimateError(args, io);
@@ -360,6 +362,25 @@ function forceRelease(argv: string[], io: Io): number {
   try {
     ledger.forceRelease(values.reservation, values.reason);
     io.log(`FORCE_RELEASE_AUDITED ${values.reservation}`);
+    return 0;
+  } finally {
+    ledger.close();
+  }
+}
+
+/** Reset each scope's held_micros to what its open reservations hold (after a 0.3.0 downgrade). */
+function reconcileHolds(argv: string[], io: Io): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: { ledger: { type: "string" }, json: { type: "boolean", default: false } },
+    strict: true,
+  });
+  const { ledger } = openLedger(values.ledger, io.env);
+  try {
+    const changed = ledger.reconcileHolds();
+    if (values.json) io.log(JSON.stringify({ changed }));
+    else if (!changed.length) io.log("HOLDS_OK every scope's held_micros matches its open reservations");
+    else for (const c of changed) io.log(`HOLD_RECONCILED ${c.scope}:${c.scope_key} held_micros ${c.held_before} -> ${c.held_after}`);
     return 0;
   } finally {
     ledger.close();

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 (2026-10-20)
+
+**Mid-stream kill.** A streamed response can no longer run past the budget before it settles.
+
+- While a stream is proxied, BurnBrake cuts it into server-sent events and meters what the call has consumed: Anthropic's real input count from `message_start` (prompt-cache tokens converted as at settle), text, thinking and tool-input deltas, the cumulative `message_delta` usage and `server_tool_use` blocks; OpenAI-style choice deltas (text, refusal, tool-call arguments; at least one token per choice per chunk) and any `usage` a chunk carries. Generated text is counted with the input estimator's floor and capped at the reserved output (`max_tokens` × choices), so a stream inside its own reservation is never cut; the provider's own count wins when higher.
+- When the consumption would pass the call's hold, the hold is grown from the free budget in one ledger transaction across all scopes, so concurrent streams on one budget can't spend the same headroom. If it can't be grown (budget exhausted, or the run or deploy paused), the provider stream is closed before the crossing event, the call is charged its real input and server-tool calls (including that event) plus its whole output allowance, which covers output the provider bills but never streamed (hidden thinking or reasoning, tokens after the close), and the client gets one terminal error event: Anthropic's `event: error` shape on `/v1/messages` (no `message_stop`), an OpenAI-style `data: {"error":…}` chunk elsewhere (no `[DONE]`). The error has `code` `BUDGET_EXHAUSTED` or `SPEND_PAUSED`, `stream_cut: true` and `charged_micros`. Decision codes `STREAM_CUT_BUDGET_EXHAUSTED` / `STREAM_CUT_SPEND_PAUSED`. Cut streams are not stored for replay.
+- Final usage events never cut (generation is over). An SSE event over 4 MB without an end is cut as `UPSTREAM_STREAM_BROKEN` and charged its hold.
+- On by default; `BURNBRAKE_STREAM_KILL=0` restores 0.3.0's uncut pass-through. An unreadable value refuses to start. `GET /health` reports `stream_kill.enabled`.
+- Ledger: reservations gain `extended_micros` (added automatically to a 0.3.0 file). Debits on broken or abandoned streams charge the whole hold (estimate plus extension); overshoot is measured against the hold.
+- Each cut stream bills at most one crossing event beyond the budget, plus the unstreamed rest of its `max_tokens`.
+- `burnbrake reconcile-holds` repairs scope holds left behind if 0.3.0 was run against a ledger with an extended reservation in flight (see OPERATOR, "Going back to 0.3.0").
+
 ## 0.3.0 (2026-10-19)
 
 Streaming is now real pass-through, and Anthropic streams are charged correctly.
