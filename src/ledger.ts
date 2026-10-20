@@ -895,9 +895,10 @@ export class Ledger {
       .all(since, limit) as unknown as Array<{ run_id: string; spent_micros: number }>;
   }
 
-  completeIdempotency(key: string, httpStatus: number, body: string): void {
-    const stored = body.length > 1_500_000 ? "" : this.sealStored(body);
-    const status = body.length > 1_500_000 ? 0 : httpStatus;
+  completeIdempotency(key: string, httpStatus: number, body: string, opts: { replay?: boolean } = {}): void {
+    const keep = opts.replay !== false && body.length <= 1_500_000;
+    const stored = keep ? this.sealStored(body) : "";
+    const status = keep ? httpStatus : 0;
     this.db
       .prepare(
         `UPDATE idempotency

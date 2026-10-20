@@ -177,7 +177,7 @@ function estimateMessages(
     }
     walkAnthropicContent((message as Record<string, unknown>).content, acc, table);
   }
-  const ceiling = outputCeiling(body, defaultMaxTokens);
+  const ceiling = outputCeiling(body, defaultMaxTokens, false);
   const choices = choiceCount(body);
   const inputTokens = textTokens(acc.text) + body.messages.length * 4 + acc.images * visionInputTokens(table);
   const outputTokens = scaleOutputTokens(ceiling.maxTokens, toolsExtraOutput(table, acc.tools), choices);
@@ -290,16 +290,22 @@ function hasTools(body: Record<string, unknown>): boolean {
   return false;
 }
 
+/**
+ * `openaiStreamUsage`: ask an OpenAI-shaped upstream to report usage at the end of a
+ * stream (`stream_options.include_usage`). Anthropic streams always report usage and
+ * reject unknown fields, so the Messages route passes false.
+ */
 function outputCeiling(
   body: Record<string, unknown>,
   defaultMaxTokens: number,
+  openaiStreamUsage = true,
 ): { maxTokens: number; source: MaxTokensSource; forwardBody: Record<string, unknown> } {
   const fromMax = readOptionalPositiveInt(body.max_tokens, "max_tokens");
   const fromCompletion = readOptionalPositiveInt(body.max_completion_tokens, "max_completion_tokens");
   const forwardBody: Record<string, unknown> = { ...body };
   if (fromMax == null && fromCompletion == null) {
     forwardBody.max_tokens = defaultMaxTokens;
-    if (forwardBody.stream === true) {
+    if (forwardBody.stream === true && openaiStreamUsage) {
       const existing =
         forwardBody.stream_options && typeof forwardBody.stream_options === "object" && !Array.isArray(forwardBody.stream_options)
           ? { ...(forwardBody.stream_options as Record<string, unknown>) }
@@ -310,7 +316,7 @@ function outputCeiling(
     return { maxTokens: defaultMaxTokens, source: "injected", forwardBody };
   }
   const maxTokens = Math.max(fromMax ?? 0, fromCompletion ?? 0);
-  if (forwardBody.stream === true) {
+  if (forwardBody.stream === true && openaiStreamUsage) {
     const existing =
       forwardBody.stream_options && typeof forwardBody.stream_options === "object" && !Array.isArray(forwardBody.stream_options)
         ? { ...(forwardBody.stream_options as Record<string, unknown>) }

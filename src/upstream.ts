@@ -4,11 +4,20 @@ export interface MockState {
   lastRoute: string | null;
 }
 
-export interface ForwardResult {
-  status: number;
-  contentType: string;
-  bodyText: string;
-}
+export type ForwardResult =
+  | { kind: "buffered"; status: number; contentType: string; bodyText: string }
+  | {
+      kind: "stream";
+      status: number;
+      contentType: string;
+      /** Upstream bytes as they arrive. Iterate once. */
+      body: AsyncIterable<Uint8Array>;
+      /** Stop reading and close the upstream connection (client went away). */
+      abort: () => void;
+    };
+
+/** Non-streamed upstream bodies above this size are refused (the provider has billed; we debit the estimate). */
+const BUFFERED_BODY_LIMIT = 8_000_000;
 
 export async function forwardToUpstream(opts: {
   mock: boolean;
@@ -44,18 +53,39 @@ export async function forwardToUpstream(opts: {
         "content-type": "application/json",
         authorization: `Bearer ${opts.openaiApiKey}`,
       };
+  const controller = new AbortController();
   const response = await fetch(url, {
     method: "POST",
     headers,
     body: JSON.stringify(opts.body),
     redirect: "manual",
+    signal: controller.signal,
   });
-  const bodyText = await readLimitedText(response, 2_000_000);
-  return {
-    status: response.status,
-    contentType: response.headers.get("content-type") ?? "application/json",
-    bodyText,
-  };
+  const contentType = response.headers.get("content-type") ?? "application/json";
+  if (response.body && contentType.toLowerCase().includes("event-stream")) {
+    const reader = response.body.getReader();
+    return {
+      kind: "stream",
+      status: response.status,
+      contentType,
+      abort: () => controller.abort(),
+      body: {
+        async *[Symbol.asyncIterator]() {
+          try {
+            for (;;) {
+              const { done, value } = await reader.read();
+              if (done) return;
+              if (value) yield value;
+            }
+          } finally {
+            reader.releaseLock();
+          }
+        },
+      },
+    };
+  }
+  const bodyText = await readLimitedText(response, BUFFERED_BODY_LIMIT);
+  return { kind: "buffered", status: response.status, contentType, bodyText };
 }
 
 function mockForward(opts: {
@@ -71,6 +101,7 @@ function mockForward(opts: {
   opts.mockState.lastRoute = opts.route;
   if (opts.statusOverride != null && opts.statusOverride >= 400) {
     return {
+      kind: "buffered",
       status: opts.statusOverride,
       contentType: "application/json",
       bodyText: JSON.stringify({
@@ -91,15 +122,27 @@ function mockForward(opts: {
     total_tokens: prompt + completion,
   };
   if (opts.body.stream === true) {
-    const chunks = [
-      `data: ${JSON.stringify({ choices: [{ index: 0, delta: { role: "assistant", content: "ok" } }] })}\n\n`,
-      `data: ${JSON.stringify({ usage })}\n\n`,
-      "data: [DONE]\n\n",
-    ];
-    return { status: 200, contentType: "text/event-stream", bodyText: chunks.join("") };
+    const chunks =
+      opts.route === "/v1/messages"
+        ? anthropicMockStream(String(opts.body.model), prompt, completion)
+        : [
+            `data: ${JSON.stringify({ choices: [{ index: 0, delta: { role: "assistant", content: "ok" } }] })}\n\n`,
+            `data: ${JSON.stringify({ choices: [], usage })}\n\n`,
+            "data: [DONE]\n\n",
+          ];
+    return {
+      kind: "stream",
+      status: 200,
+      contentType: "text/event-stream",
+      abort: () => {},
+      body: (async function* () {
+        for (const c of chunks) yield Buffer.from(c);
+      })(),
+    };
   }
   if (opts.route === "/v1/messages") {
     return {
+      kind: "buffered",
       status: 200,
       contentType: "application/json",
       bodyText: JSON.stringify({
@@ -136,7 +179,23 @@ function mockForward(opts: {
           ],
           usage,
         };
-  return { status: 200, contentType: "application/json", bodyText: JSON.stringify(body) };
+  return { kind: "buffered", status: 200, contentType: "application/json", bodyText: JSON.stringify(body) };
+}
+
+/** The event sequence Anthropic documents for a streamed Messages call (no `[DONE]`). */
+function anthropicMockStream(model: string, input: number, output: number): string[] {
+  const ev = (type: string, data: unknown) => `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
+  return [
+    ev("message_start", {
+      type: "message_start",
+      message: { id: "msg_mock", type: "message", role: "assistant", content: [], model, stop_reason: null, usage: { input_tokens: input, output_tokens: 1 } },
+    }),
+    ev("content_block_start", { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } }),
+    ev("content_block_delta", { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "ok" } }),
+    ev("content_block_stop", { type: "content_block_stop", index: 0 }),
+    ev("message_delta", { type: "message_delta", delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: output } }),
+    ev("message_stop", { type: "message_stop" }),
+  ];
 }
 
 const UPSTREAM_BODY_LIMIT_LABEL = "UPSTREAM_BODY_TOO_LARGE";
@@ -164,32 +223,137 @@ async function readLimitedText(response: Response, limit: number): Promise<strin
   return Buffer.concat(chunks).toString("utf8");
 }
 
-/** Usage that is safe to settle. An event stream without a terminal `[DONE]` is unfinished. */
-export function settleUsage(
-  contentType: string,
-  bodyText: string,
-): { prompt_tokens: number; completion_tokens: number } | null {
-  if (contentType.toLowerCase().includes("event-stream") && !sseFinished(bodyText)) return null;
+export interface Usage {
+  prompt_tokens: number;
+  completion_tokens: number;
+}
+
+/**
+ * Reads a server-sent-event stream as it passes through, without keeping it.
+ * Knows both stream dialects BurnBrake governs:
+ * - OpenAI: usage arrives in a chunk's `usage` (with `stream_options.include_usage`),
+ *   the stream ends with `data: [DONE]`.
+ * - Anthropic Messages: input tokens arrive in `message_start.message.usage`, output
+ *   tokens (cumulative) in `message_delta.usage`, the stream ends with `message_stop`.
+ */
+export class SseUsageTracker {
+  private pending = "";
+  private openai: Usage | null = null;
+  /** Latest value of each Anthropic usage field. `message_delta` counts are cumulative, so later wins. */
+  private anthropic: Record<string, unknown> | null = null;
+  finished = false;
+
+  feed(chunk: string): void {
+    this.pending += chunk;
+    let nl: number;
+    while ((nl = this.pending.indexOf("\n")) >= 0) {
+      this.line(this.pending.slice(0, nl));
+      this.pending = this.pending.slice(nl + 1);
+    }
+    // A line this long is content, never a usage event. Do not let it grow without bound.
+    if (this.pending.length > 1_000_000) this.pending = "";
+  }
+
+  /** Call at end of stream so a final line without a newline still counts. */
+  end(): void {
+    if (this.pending) this.line(this.pending);
+    this.pending = "";
+  }
+
+  /** Usage if the stream finished and reported it, else null (settle at the estimate). */
+  usage(): Usage | null {
+    if (!this.finished) return null;
+    if (this.anthropic) {
+      const input = anthropicInputTokens(this.anthropic);
+      const output = tokenCount(this.anthropic, "output_tokens", "output_tokens");
+      return input != null && output != null ? { prompt_tokens: input, completion_tokens: output } : null;
+    }
+    return this.openai;
+  }
+
+  private mergeAnthropic(usage: unknown): void {
+    if (!usage || typeof usage !== "object") return;
+    this.anthropic = { ...(this.anthropic ?? {}), ...(usage as Record<string, unknown>) };
+  }
+
+  private line(raw: string): void {
+    const line = raw.trim();
+    if (line === "event: message_stop" || line === "event:message_stop") {
+      this.finished = true;
+      return;
+    }
+    if (!line.startsWith("data:")) return;
+    const payload = line.slice(5).trim();
+    if (payload === "[DONE]") {
+      this.finished = true;
+      return;
+    }
+    if (!payload) return;
+    let value: unknown;
+    try {
+      value = JSON.parse(payload);
+    } catch {
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    const obj = value as Record<string, unknown>;
+    switch (obj.type) {
+      case "message_start":
+        this.mergeAnthropic((obj.message as { usage?: unknown } | undefined)?.usage);
+        return;
+      case "message_delta":
+        this.mergeAnthropic(obj.usage);
+        return;
+      case "message_stop":
+        this.finished = true;
+        return;
+    }
+    const usage = parseUsageObject(obj);
+    if (usage) this.openai = usage;
+  }
+}
+
+/**
+ * Anthropic bills prompt-cache tokens at different rates than plain input:
+ * reads at 0.1x (a few newer models charge less; BurnBrake uses the higher rate), 5-minute writes at 1.25x, 1-hour writes at 2x. BurnBrake prices
+ * one input rate per model, so it converts cache tokens to input-token equivalents
+ * (rounding up). If the write breakdown is missing it assumes the dearer 2x.
+ */
+function anthropicInputTokens(usage: Record<string, unknown>): number | null {
+  const n = (k: string) => (typeof usage[k] === "number" && Number.isFinite(usage[k]) && (usage[k] as number) >= 0 ? (usage[k] as number) : 0);
+  if (typeof usage.input_tokens !== "number") return null;
+  const breakdown = usage.cache_creation as Record<string, unknown> | undefined;
+  let writes: number;
+  if (breakdown && typeof breakdown === "object") {
+    const b = (k: string) => (typeof breakdown[k] === "number" ? (breakdown[k] as number) : 0);
+    writes = b("ephemeral_5m_input_tokens") * 1.25 + b("ephemeral_1h_input_tokens") * 2;
+  } else {
+    writes = n("cache_creation_input_tokens") * 2;
+  }
+  return Math.ceil(n("input_tokens") + writes + n("cache_read_input_tokens") * 0.1);
+}
+
+/** Usage that is safe to settle. A stream that never reached its end marker is unfinished. */
+export function settleUsage(contentType: string, bodyText: string): Usage | null {
+  if (contentType.toLowerCase().includes("event-stream")) {
+    const tracker = new SseUsageTracker();
+    tracker.feed(bodyText);
+    tracker.end();
+    return tracker.usage();
+  }
   return parseUsageText(contentType, bodyText);
 }
 
-function sseFinished(bodyText: string): boolean {
-  for (const line of bodyText.split("\n")) {
-    const trimmed = line.trim();
-    if (trimmed === "data: [DONE]" || trimmed === "data:[DONE]") return true;
-  }
-  return false;
-}
-
-export function parseUsageText(
-  contentType: string,
-  bodyText: string,
-): { prompt_tokens: number; completion_tokens: number } | null {
+export function parseUsageText(contentType: string, bodyText: string): Usage | null {
   const type = contentType.toLowerCase();
   const isJson = type.includes("json");
   const looksLikeSse = bodyText.includes("\ndata:") || bodyText.startsWith("data:");
   if (type.includes("event-stream") || (!isJson && looksLikeSse)) {
-    return parseSseUsage(bodyText);
+    const tracker = new SseUsageTracker();
+    tracker.feed(bodyText);
+    tracker.end();
+    tracker.finished = true;
+    return tracker.usage();
   }
   if (isJson) {
     const direct = parseJsonUsage(bodyText);
@@ -199,23 +363,6 @@ export function parseUsageText(
     return null;
   }
   return parseJsonUsage(bodyText);
-}
-
-function parseSseUsage(bodyText: string): { prompt_tokens: number; completion_tokens: number } | null {
-  let found: { prompt_tokens: number; completion_tokens: number } | null = null;
-  for (const line of bodyText.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("data:")) continue;
-    const payload = trimmed.slice(5).trim();
-    if (!payload || payload === "[DONE]") continue;
-    try {
-      const usage = parseUsageObject(JSON.parse(payload) as unknown);
-      if (usage) found = usage;
-    } catch {
-      /* keep scanning */
-    }
-  }
-  return found;
 }
 
 function parseJsonUsage(bodyText: string): { prompt_tokens: number; completion_tokens: number } | null {
@@ -231,7 +378,7 @@ function parseUsageObject(value: unknown): { prompt_tokens: number; completion_t
   const usage = (value as { usage?: unknown }).usage;
   if (!usage || typeof usage !== "object") return null;
   const row = usage as Record<string, unknown>;
-  const prompt = tokenCount(row, "prompt_tokens", "input_tokens");
+  const prompt = typeof row.prompt_tokens === "number" ? tokenCount(row, "prompt_tokens", "input_tokens") : anthropicInputTokens(row);
   const completion = tokenCount(row, "completion_tokens", "output_tokens");
   if (prompt == null || completion == null) return null;
   return { prompt_tokens: prompt, completion_tokens: completion };

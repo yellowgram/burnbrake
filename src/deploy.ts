@@ -12,8 +12,8 @@ export const EXHAUST_CONTRACT = {
 export const DUAL_CLIENT_NOTE =
   "BurnBrake governs only HTTP calls that reach this sidecar. A second client with a direct provider URL bypasses every cap. This process cannot see that client and does not prove every agent call is gated.";
 
-export const HOSTED_FENCE_NOTE =
-  "This process is the single-tenant self-host kit (one SQLite ledger). The hosted monthly SKU is a separate product and is not this runtime.";
+export const TENANCY_NOTE =
+  "One process, one SQLite ledger, one tenant. There is no multi-tenant mode.";
 
 export function productionMode(env: NodeJS.ProcessEnv): boolean {
   if (flagOn(env.BURNBRAKE_PRODUCTION)) return true;

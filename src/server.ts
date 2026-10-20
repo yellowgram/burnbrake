@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { VERSION } from "./constants.js";
 import { authenticate } from "./auth.js";
-import { assertProductionScopes, DUAL_CLIENT_NOTE, EXHAUST_CONTRACT, HOSTED_FENCE_NOTE } from "./deploy.js";
+import { assertProductionScopes, DUAL_CLIENT_NOTE, EXHAUST_CONTRACT, TENANCY_NOTE } from "./deploy.js";
 import { BrakeConfigError, mergeBrakeConfig, sleepMs, type BrakeConfig } from "./brake.js";
 import { loadConfig, type AppConfig } from "./config.js";
 import { errorBody, httpStatusForEstimate, type ErrorFields } from "./errors.js";
@@ -17,7 +17,7 @@ import {
 import { decisionsToCsv, Ledger, type BrakePreview, type DecisionInput, type DefaultCaps, type ReserveResult } from "./ledger.js";
 import { loadPriceTable, priceTableFreshness, type PriceTable } from "./prices.js";
 import { deriveReplayKey, openReplayBody, sealReplayBody } from "./replay-body.js";
-import { forwardToUpstream, settleUsage, type MockState } from "./upstream.js";
+import { forwardToUpstream, settleUsage, SseUsageTracker, type MockState, type Usage } from "./upstream.js";
 import { usdToMicros } from "./money.js";
 
 const GOVERNED = new Set<GovernedRoute>(["/v1/chat/completions", "/v1/completions", "/v1/messages"]);
@@ -92,7 +92,7 @@ export async function startSidecar(options: StartOptions = {}): Promise<RunningS
   });
   console.warn(`BurnBrake deploy invariant: ${DUAL_CLIENT_NOTE}`);
   console.warn(
-    "BurnBrake day clock: UTC keys use this process clock. More than one writer requires one shared store and one clock. This kit is not a multi-pod ledger.",
+    "BurnBrake day clock: UTC keys use this process clock. More than one writer requires one shared store and one clock. This is not a multi-pod ledger.",
   );
   if (!effectiveCaps.user && !effectiveCaps.day) {
     console.warn(
@@ -321,10 +321,9 @@ function deployBody(ctx: { config: AppConfig; ledger: Ledger }): Record<string, 
       warning: ctx.ledger.scopeWarning(),
     },
     hosted: {
-      this_process: "single-tenant self-host kit",
-      hosted_monthly_sku: "separate product; not this process",
+      this_process: "single-tenant (one SQLite ledger)",
       multi_tenant_runtime: false,
-      note: HOSTED_FENCE_NOTE,
+      note: TENANCY_NOTE,
     },
   };
 }
@@ -623,7 +622,7 @@ async function handleGoverned(
   }
 
   if (reserved.kind === "replay") {
-    const replayType = reserved.body.startsWith("data:") ? "text/event-stream" : "application/json; charset=utf-8";
+    const replayType = /^(data|event):/.test(reserved.body) ? "text/event-stream" : "application/json; charset=utf-8";
     sendRaw(res, reserved.httpStatus, replayType, reserved.body, {
       "x-burnbrake-idempotent-replay": "true",
     });
@@ -771,12 +770,12 @@ async function handleGoverned(
     return;
   }
 
-  const usage = settleUsage(upstream.contentType, upstream.bodyText);
-  let terminalReason = "SETTLED";
-  let settledMicros: number | null = null;
-  let debtDelta = 0;
-  try {
-    if (upstream.status >= 200 && upstream.status < 300) {
+  // Settles a forwarded reservation from the upstream status and usage. Throws if the ledger fails.
+  const settleForwarded = (status: number, usage: Usage | null) => {
+    let terminalReason = "SETTLED";
+    let settledMicros: number | null = null;
+    let debtDelta = 0;
+    if (status >= 200 && status < 300) {
       if (usage) {
         const actual = costFromUsage(table, estimate.model, usage, estimate.flatMicros);
         if (actual == null) {
@@ -794,7 +793,7 @@ async function handleGoverned(
         terminalReason = debited.terminalReason;
         settledMicros = estimate.micros;
       }
-    } else if (upstream.status >= 400 && upstream.status < 500 && !usage) {
+    } else if (status >= 400 && status < 500 && !usage) {
       ctx.ledger.releaseNoCharge(reservationId);
       const row = ctx.ledger.getReservation(reservationId);
       terminalReason = row?.terminal_reason ?? "RELEASE_UPSTREAM_NO_CHARGE";
@@ -816,15 +815,123 @@ async function handleGoverned(
       terminalReason = debited.terminalReason;
       settledMicros = estimate.micros;
     }
-  } catch (err) {
+    return { terminalReason, settledMicros, debtDelta };
+  };
+  // After a settle failure: whatever the ledger holds now, and debit at the estimate if still forwarded.
+  const settleFallback = () => {
     const row = ctx.ledger.getReservation(reservationId);
-    terminalReason = row?.terminal_reason ?? "DEBIT_UPSTREAM_UNKNOWN";
-    settledMicros = row?.actual_micros ?? estimate.micros;
+    let terminalReason = row?.terminal_reason ?? "DEBIT_UPSTREAM_UNKNOWN";
+    let settledMicros: number | null = row?.actual_micros ?? estimate.micros;
     if (row?.state === "FORWARDED") {
       const debited = ctx.ledger.debitReserved(reservationId, "DEBIT_UPSTREAM_UNKNOWN");
       terminalReason = debited.terminalReason;
       settledMicros = estimate.micros;
     }
+    return { terminalReason, settledMicros, debtDelta: 0 };
+  };
+  const logAllowed = (code: string, outcome: { terminalReason: string; settledMicros: number | null; debtDelta: number }) =>
+    ctx.ledger.logDecision(decisionBase({ table }, started, {
+      userId,
+      runId,
+      decision: "ALLOW",
+      code,
+      requestedMicros: estimate.micros,
+      remainingAfterMicros: minRemaining(ctx.ledger, userId, runId),
+      debtDeltaMicros: outcome.debtDelta,
+      upstreamForwarded: true,
+      route,
+      model: estimate.model,
+      idempotencyKey: idem,
+      reservationId,
+      estimatedMicros: estimate.micros,
+      settledMicros: outcome.settledMicros,
+      terminalReason: outcome.terminalReason,
+      maxTokensSource: estimate.maxTokensSource,
+    }));
+  const extra: Record<string, string> = { "x-burnbrake-reservation-id": reservationId };
+  if (upstream.status === 200 && color) {
+    extra["X-BurnBrake-Zone"] = color.zone;
+    extra["X-BurnBrake-Remaining-Micros"] = String(color.remaining_micros);
+    extra["X-BurnBrake-Delay-Ms"] = String(color.delay_ms);
+    extra["X-BurnBrake-Scope"] = color.scope;
+  }
+  const okCode = (status: number) => (status >= 200 && status < 300 ? "OK" : `UPSTREAM_${status}`);
+
+  if (upstream.kind === "stream") {
+    // Pass bytes to the client as they arrive. Read usage on the way through and keep
+    // a copy only up to the replay limit. Settle once, when the stream ends or breaks.
+    const tracker = new SseUsageTracker();
+    const decoder = new TextDecoder();
+    const replay: Buffer[] = [];
+    let replayBytes = 0;
+    let replayable = true;
+    let clientLeft = clientGone(res);
+    const onClose = () => {
+      if (!res.writableFinished) {
+        clientLeft = true;
+        upstream.abort();
+      }
+    };
+    res.on("close", onClose);
+    let streamError: unknown = null;
+    try {
+      if (clientLeft) throw new Error("client left before the stream started");
+      res.writeHead(upstream.status, {
+        "content-type": upstream.contentType,
+        "cache-control": "no-store",
+        "x-accel-buffering": "no",
+        ...extra,
+      });
+      res.flushHeaders();
+      for await (const chunk of upstream.body) {
+        tracker.feed(decoder.decode(chunk, { stream: true }));
+        if (replayable) {
+          replayBytes += chunk.byteLength;
+          if (replayBytes > STREAM_REPLAY_LIMIT) {
+            replayable = false;
+            replay.length = 0;
+          } else replay.push(Buffer.from(chunk));
+        }
+        if (clientLeft) break;
+        if (!res.write(chunk)) await waitDrainOrClose(res);
+        if (clientLeft) break;
+      }
+      tracker.feed(decoder.decode());
+      tracker.end();
+    } catch (err) {
+      streamError = err;
+    } finally {
+      res.off("close", onClose);
+      if (clientLeft || streamError) upstream.abort();
+    }
+    if (!clientLeft && !res.destroyed) res.end();
+    let outcome;
+    try {
+      outcome = settleForwarded(upstream.status, tracker.usage());
+    } catch (err) {
+      outcome = settleFallback();
+      console.error("settle failed closed", err instanceof Error ? err.message : err);
+    }
+    // A stream that did not finish, or is too large to keep, is not replayed:
+    // a retry with this key gets 409 ALREADY_TERMINAL instead of a second forward.
+    const keep = replayable && tracker.finished && !streamError && !clientLeft;
+    const code = clientLeft ? "CLIENT_CLOSED" : streamError || !tracker.finished ? "UPSTREAM_STREAM_BROKEN" : okCode(upstream.status);
+    try {
+      if (idem) ctx.ledger.completeIdempotency(idem, upstream.status, keep ? Buffer.concat(replay).toString("utf8") : "", { replay: keep });
+      logAllowed(code, outcome);
+    } catch (err) {
+      console.error("recording the finished stream failed", err instanceof Error ? err.message : err);
+    }
+    if (streamError && !clientLeft) console.error("upstream stream broke", streamError instanceof Error ? streamError.message : streamError);
+    return;
+  }
+
+  const usage = settleUsage(upstream.contentType, upstream.bodyText);
+  let outcome;
+  try {
+    outcome = settleForwarded(upstream.status, usage);
+  } catch (err) {
+    outcome = settleFallback();
     const payload = errorBody({
       code: "LEDGER_UNAVAILABLE",
       httpStatus: 502,
@@ -838,55 +945,31 @@ async function handleGoverned(
     });
     const raw = JSON.stringify(payload);
     if (idem) ctx.ledger.completeIdempotency(idem, 502, raw);
-    ctx.ledger.logDecision(decisionBase({ table }, started, {
-      userId,
-      runId,
-      decision: "ALLOW",
-      code: "LEDGER_UNAVAILABLE",
-      requestedMicros: estimate.micros,
-      remainingAfterMicros: minRemaining(ctx.ledger, userId, runId),
-      upstreamForwarded: true,
-      route,
-      model: estimate.model,
-      idempotencyKey: idem,
-      reservationId,
-      estimatedMicros: estimate.micros,
-      settledMicros,
-      terminalReason,
-      maxTokensSource: estimate.maxTokensSource,
-    }));
+    logAllowed("LEDGER_UNAVAILABLE", outcome);
     sendRaw(res, 502, "application/json; charset=utf-8", raw, { "x-burnbrake-reservation-id": reservationId });
     console.error("settle failed closed", err instanceof Error ? err.message : err);
     return;
   }
 
   if (idem) ctx.ledger.completeIdempotency(idem, upstream.status, upstream.bodyText);
-  ctx.ledger.logDecision(decisionBase({ table }, started, {
-    userId,
-    runId,
-    decision: "ALLOW",
-    code: upstream.status >= 200 && upstream.status < 300 ? "OK" : `UPSTREAM_${upstream.status}`,
-    requestedMicros: estimate.micros,
-    remainingAfterMicros: minRemaining(ctx.ledger, userId, runId),
-    debtDeltaMicros: debtDelta,
-    upstreamForwarded: true,
-    route,
-    model: estimate.model,
-    idempotencyKey: idem,
-    reservationId,
-    estimatedMicros: estimate.micros,
-    settledMicros,
-    terminalReason,
-    maxTokensSource: estimate.maxTokensSource,
-  }));
-  const extra: Record<string, string> = { "x-burnbrake-reservation-id": reservationId };
-  if (upstream.status === 200 && color) {
-    extra["X-BurnBrake-Zone"] = color.zone;
-    extra["X-BurnBrake-Remaining-Micros"] = String(color.remaining_micros);
-    extra["X-BurnBrake-Delay-Ms"] = String(color.delay_ms);
-    extra["X-BurnBrake-Scope"] = color.scope;
-  }
+  logAllowed(okCode(upstream.status), outcome);
   sendRaw(res, upstream.status, upstream.contentType, upstream.bodyText, extra);
+}
+
+/** A streamed reply larger than this is still passed through in full, but not stored for replay. */
+const STREAM_REPLAY_LIMIT = 1_500_000;
+
+function waitDrainOrClose(res: ServerResponse): Promise<void> {
+  if (res.destroyed) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      res.off("drain", done);
+      res.off("close", done);
+      resolve();
+    };
+    res.on("drain", done);
+    res.on("close", done);
+  });
 }
 
 async function handleOperator(
