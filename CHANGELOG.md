@@ -4,6 +4,9 @@
 
 Streaming is now real pass-through, and Anthropic streams are charged correctly.
 
+- **Input estimate floor.** Input tokens are now the larger of bytes / 3 and the pre-tokenizer piece count, so text made of very short words ("a b c …", digits, punctuation) is no longer under-counted (30,000 single letters: 30,007 tokens reserved, was 20,004).
+- **Refused, not unpriced:** Anthropic `mcp_servers` and `container`, and Anthropic-defined client tools (`bash_*`, `text_editor_*`, `computer_*`), which now get a message saying to define a custom tool instead.
+- The npm package no longer ships source maps that point at `src/` files it doesn't include.
 - **Fixed: streams were buffered.** A streamed reply used to be read in full (up to 2 MB) before the first byte reached the client, and anything larger failed. BurnBrake now passes bytes through as they arrive, reads usage on the way past, and settles when the stream ends. There is no size limit on a stream.
 - **Fixed: Anthropic streams were always charged the full estimate.** End-of-stream detection only knew OpenAI's `data: [DONE]`. BurnBrake now recognises Anthropic's `message_stop` and reads usage from `message_start` and `message_delta`.
 - **Fixed: `stream_options` was sent to Anthropic.** It is now added only on OpenAI routes.

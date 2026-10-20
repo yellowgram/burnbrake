@@ -86,7 +86,7 @@ function estimateChat(
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     fail("BAD_REQUEST", "chat completions require a non-empty messages array.");
   }
-  const acc: Acc = { bytes: 0, images: 0 };
+  const acc: Acc = { bytes: 0, pieces: 0, images: 0 };
   for (const message of body.messages) {
     if (!message || typeof message !== "object" || Array.isArray(message)) {
       fail("BAD_REQUEST", "each message must be an object.");
@@ -119,7 +119,7 @@ function estimateChat(
   const ceiling = outputCeiling(body, defaultMaxTokens);
   const choices = choiceCount(body);
   const inputTokens =
-    byteTokens(acc.bytes) +
+    textTokens(acc) +
     body.messages.length * 4 +
     3 +
     acc.images * visionInputTokens(table);
@@ -154,7 +154,7 @@ function estimateCompletion(
   if (body.prompt == null) {
     fail("BAD_REQUEST", "completions require a prompt.");
   }
-  const acc: Acc = { bytes: 0, images: 0 };
+  const acc: Acc = { bytes: 0, pieces: 0, images: 0 };
   collectPrompt(body.prompt, acc);
   if (acc.images > 0) {
     fail("UNKNOWN_SURCHARGE", "image prompts are not priced on /v1/completions.");
@@ -162,7 +162,7 @@ function estimateCompletion(
   const toolsPresent = hasTools(body);
   const ceiling = outputCeiling(body, defaultMaxTokens);
   const choices = choiceCount(body);
-  const inputTokens = byteTokens(acc.bytes) + 2;
+  const inputTokens = textTokens(acc) + 2;
   const outputTokens = scaleOutputTokens(ceiling.maxTokens, toolsExtraOutput(table, toolsPresent), choices);
   const flatMicros = toolsFlatMicros(table, toolsPresent);
   const micros = atLeastOne(
@@ -194,7 +194,12 @@ function estimateMessages(
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     fail("BAD_REQUEST", "messages require a non-empty messages array.");
   }
-  const acc: Acc = { bytes: 0, images: 0, tools: hasTools(body) };
+  // MCP connector servers and code-execution containers bring billed tool definitions and runtime
+  // the estimate can't see. Anthropic needs a beta header for them that BurnBrake doesn't forward,
+  // but refuse them here too, so a provider-side change can't make them silently unpriced.
+  if (body.mcp_servers != null) fail("UNKNOWN_SURCHARGE", "mcp_servers adds tool definitions and calls that are not in the price table; refusing the request.");
+  if (body.container != null) fail("UNKNOWN_SURCHARGE", "container (code execution) is billed by the provider and is not in the price table; refusing the request.");
+  const acc: Acc = { bytes: 0, pieces: 0, images: 0, tools: hasTools(body) };
   collectSystem(body.system, acc, table);
   const serverToolMicros = anthropicTools(body, acc, table);
   for (const message of body.messages) {
@@ -205,7 +210,7 @@ function estimateMessages(
   }
   const ceiling = outputCeiling(body, defaultMaxTokens, false);
   const choices = choiceCount(body);
-  const inputTokens = byteTokens(acc.bytes) + body.messages.length * 4 + acc.images * visionInputTokens(table);
+  const inputTokens = textTokens(acc) + body.messages.length * 4 + acc.images * visionInputTokens(table);
   const outputTokens = scaleOutputTokens(ceiling.maxTokens, toolsExtraOutput(table, Boolean(acc.tools)), choices);
   const flatMicros = acc.images * visionFlatMicros(table) + toolsFlatMicros(table, Boolean(acc.tools));
   // Server tools (web search) are reserved at max_uses x the per-use price; at settle the
@@ -233,17 +238,24 @@ function estimateMessages(
 interface Acc {
   /** UTF-8 bytes of every billed input part (text, tool schemas, tool calls and results). */
   bytes: number;
+  /** Pre-tokenizer pieces in the same parts (see pieceCount): a floor for the token count. */
+  pieces: number;
   images: number;
   tools?: boolean;
 }
 
 function addText(acc: Acc, value: unknown): void {
-  if (typeof value === "string" && value) acc.bytes += Buffer.byteLength(value, "utf8");
+  if (typeof value === "string" && value) {
+    acc.bytes += Buffer.byteLength(value, "utf8");
+    acc.pieces += pieceCount(value);
+  }
 }
 
 function addJson(acc: Acc, value: unknown): void {
   if (value == null) return;
-  acc.bytes += Buffer.byteLength(typeof value === "string" ? value : JSON.stringify(value), "utf8");
+  const text = typeof value === "string" ? value : JSON.stringify(value);
+  acc.bytes += Buffer.byteLength(text, "utf8");
+  acc.pieces += pieceCount(text);
 }
 
 function collectSystem(system: unknown, acc: Acc, table: PriceTable): void {
@@ -294,6 +306,12 @@ function walkAnthropicContent(content: unknown, acc: Acc, table: PriceTable, dep
   }
 }
 
+/**
+ * Anthropic-defined tools that the client executes (bash, text editor, computer use). Their hidden
+ * system prompt and tool definition tokens are not published per version, so they can't be priced.
+ */
+const ANTHROPIC_DEFINED_CLIENT_TOOLS = new Set(["bash", "text_editor", "computer"]);
+
 /** Anthropic client tools have no type or type "custom"; anything else runs on Anthropic's side. */
 function anthropicTools(body: Record<string, unknown>, acc: Acc, table: PriceTable): number {
   if (body.tools == null) return 0;
@@ -305,6 +323,9 @@ function anthropicTools(body: Record<string, unknown>, acc: Acc, table: PriceTab
     addJson(acc, t);
     if (t.type == null || t.type === "custom") continue;
     const name = serverToolName(String(t.type));
+    if (ANTHROPIC_DEFINED_CLIENT_TOOLS.has(name)) {
+      fail("UNKNOWN_SURCHARGE", `tool type "${String(t.type)}" is an Anthropic-defined client tool; it adds a system prompt and tool tokens that are not in the price table; refusing the request. Define it as a custom tool instead.`);
+    }
     const perUse = table.serverTools[name];
     if (perUse == null) {
       fail("UNKNOWN_SURCHARGE", `tool type "${String(t.type)}" is billed by the provider and is not in the price table (server_tools.${name}); refusing the request.`);
@@ -490,6 +511,24 @@ function toolsFlatMicros(table: PriceTable, toolsPresent: boolean): number {
 function byteTokens(bytes: number): number {
   if (!bytes) return 0;
   return Math.ceil(bytes / 3);
+}
+
+/**
+ * The pre-tokenizer split used by GPT-style byte-pair tokenizers (cl100k/o200k): an optional space
+ * plus a run of letters, up to three digits, a run of punctuation, or whitespace. BPE never merges
+ * across these pieces, so each one costs at least one token. Text made of very short pieces
+ * ("a b c …", digits, punctuation) is where bytes/3 under-counts.
+ */
+const PIECE = /'(?:[sdmt]|ll|ve|re)| ?[\p{L}\p{M}]+| ?\p{N}{1,3}| ?[^\s\p{L}\p{M}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+/giu;
+export function pieceCount(text: string): number {
+  let n = 0;
+  for (const _ of text.matchAll(PIECE)) n += 1;
+  return n;
+}
+
+/** Input text tokens: the larger of bytes/3 and the piece count, so neither shape under-counts. */
+function textTokens(acc: Acc): number {
+  return Math.max(byteTokens(acc.bytes), acc.pieces);
 }
 
 function atLeastOne(
